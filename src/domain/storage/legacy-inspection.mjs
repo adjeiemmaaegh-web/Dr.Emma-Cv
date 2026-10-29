@@ -12,7 +12,7 @@ export function parseStoredJSON(raw) {
   if (raw === null) return {ok:false, reason:'absent'};
   try {
     const value=JSON.parse(raw);
-    if (value===null || typeof value!=='object' || Array.isArray(value))
+    if (value===null || typeof value!=='object')
       return {ok:false,reason:'invalid'};
     return {ok:true,value};
   } catch {
@@ -28,6 +28,10 @@ export function inspectLegacyStorage(read) {
     catch {report[name]={status:'access-denied'};continue;}
     if(raw===null){report[name]={status:'absent'};continue;}
     const parsed=parseStoredJSON(raw);
+    if(parsed.ok && name==='applications' && !Array.isArray(parsed.value)) {
+      report[name]={status:'invalid',bytes:new TextEncoder().encode(raw).length};
+      continue;
+    }
     // No personal content or raw stored values in diagnostics.
     report[name]={status:parsed.ok?'json-valid':parsed.reason,bytes:new TextEncoder().encode(raw).length};
   }
