@@ -39,9 +39,10 @@ export function planLegacyMigration(read, {maxEntryBytes=MAX_ENTRY_BYTES}={}) {
 }
 export function compareLegacySnapshot(plan,read){
   if(!plan||plan.format!=='ledger-legacy-migration-preview'||!plan.entries||typeof read!=='function')throw new TypeError('Invalid migration plan');
+  for(const key of Object.keys(plan.entries))if(!DATA_KEYS.includes(key))throw new Error('Unexpected key in plan');
   const changed=[];
-  for(const [key,expected] of Object.entries(plan.entries)){
-    if(!DATA_KEYS.includes(key))throw new Error('Unexpected key in plan');
+  for(const key of DATA_KEYS){
+    const expected=Object.hasOwn(plan.entries,key)?plan.entries[key]:null;
     try{if(read(key)!==expected)changed.push(key);}
     catch{changed.push(key);}
   }
