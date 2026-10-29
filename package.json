@@ -1,0 +1,11 @@
+{
+  "name": "ledger-cv-studio",
+  "version": "0.8.0-e0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build:legacy": "node tools/build-legacy.mjs",
+    "audit:baseline": "node tools/audit-baseline.mjs",
+    "verify:e0": "npm run build:legacy && npm run audit:baseline"
+  }
+}
