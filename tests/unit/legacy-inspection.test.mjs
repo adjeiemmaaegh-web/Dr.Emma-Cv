@@ -4,7 +4,7 @@ import {parseStoredJSON,inspectLegacyStorage,LEGACY_KEYS} from '../../src/domain
 test('missing and malformed JSON are reported without throwing',()=>{
  assert.deepEqual(parseStoredJSON(null),{ok:false,reason:'absent'});
  assert.equal(parseStoredJSON('{broken').reason,'unreadable');
- assert.equal(parseStoredJSON('[]').reason,'invalid');
+ assert.equal(parseStoredJSON('[]').ok,true);
 });
 test('inspection is read-only and avoids sensitive values',()=>{
  const values=new Map([[LEGACY_KEYS.cv,'{"name":"PRIVATE TEST CV"}'],[LEGACY_KEYS.applications,'{broken']]);
@@ -13,6 +13,8 @@ test('inspection is read-only and avoids sensitive values',()=>{
  assert.equal(reads,4);
  assert.equal(result.cv.status,'json-valid');
  assert.equal(result.applications.status,'unreadable');
+ const arrayResult=inspectLegacyStorage(k=>k===LEGACY_KEYS.applications?'[]':null);
+ assert.equal(arrayResult.applications.status,'json-valid');
  assert.ok(!JSON.stringify(result).includes('PRIVATE TEST CV'));
 });
 test('storage access failure is reported',()=>{
