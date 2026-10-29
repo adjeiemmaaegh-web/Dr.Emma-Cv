@@ -1,4 +1,5 @@
 import { LEGACY_KEYS, parseStoredJSON } from './legacy-inspection.mjs';
+import { validateLegacyEntry } from './legacy-shape.mjs';
 
 /**
  * Produces a read-only, non-destructive snapshot proposal. No writes.
@@ -21,6 +22,9 @@ export function planLegacyMigration(read, {maxEntryBytes=MAX_ENTRY_BYTES}={}) {
     const parsed=parseStoredJSON(raw);
     if(key===LEGACY_KEYS.applications&&parsed.ok&&!Array.isArray(parsed.value)){
       blocked=true;warnings.push('Applications data is not an array: '+key);continue;
+    }
+    if(key!==LEGACY_KEYS.damaged && parsed.ok && !validateLegacyEntry(key,parsed.value)){
+      blocked=true;warnings.push('Invalid legacy payload structure: '+key);continue;
     }
     // A damaged-primary quarantine is allowed to hold unparseable JSON on purpose.
     if(key!==LEGACY_KEYS.damaged&&!parsed.ok){
