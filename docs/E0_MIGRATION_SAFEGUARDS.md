@@ -14,3 +14,9 @@ The current implementation intentionally does not:
 - Store AI keys or transmit CV content
 
 Review all current schema shapes and test real browser behavior prior to activating migration.
+
+## Schema preflight update (2026-10-30)
+
+The planner now checks primary and recovery CV structure against the Stage 8 `ledgerValidStoredPayload` shape, including required document fields, appearance object, and bounded version list. It rejects parseable but incompatible CV JSON instead of treating parsing as sufficient. The separate Stage 6 application record is expected to be an array. The damaged-primary quarantine remains permissive so unreadable original bytes can be retained. The check is read-only and not a migration or a browser acceptance test.
+
+Four new schema unit assertions were run in Node 22 locally and passed. The updated combined migration-planner suite and GitHub Actions workflow have not yet been independently executed in this environment; those gates remain open.
