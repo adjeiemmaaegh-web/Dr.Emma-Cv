@@ -2,7 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { planLegacyMigration,compareLegacySnapshot } from '../../src/domain/storage/migration-plan.mjs';
 import {LEGACY_KEYS as K} from '../../src/domain/storage/legacy-inspection.mjs';
-const example=()=>new Map([[K.cv,'{"cvs":[]}'],[K.recovery,'{"cvs":[]}'],[K.applications,'[]'],[K.damaged,'{damaged']]);
+const validDoc=()=>Object.assign({personalInfo:{},summary:'',hobbies:'',references:''},Object.fromEntries(['experience','education','skills','languages','certifications','projects','accomplishments','customSections'].map(k=>[k,[]])));
+const validState=()=>JSON.stringify({document:validDoc(),appearance:{},versions:[]});
+const example=()=>new Map([[K.cv,validState()],[K.recovery,validState()],[K.applications,'[]'],[K.damaged,'{damaged']]);
 test('read only, retains exact data and quarantined invalid JSON',()=>{
  const map=example();let calls=0;
  const proposal=planLegacyMigration(k=>{calls++;return map.get(k)??null});
@@ -20,6 +22,7 @@ test('rejects malformed primary and wrong application structure',()=>{
  assert.ok(proposal.warnings.some(w=>w.includes('not an array')));
  assert.equal(Object.hasOwn(proposal.entries,K.cv),false);
 });
+test('rejects parseable but structurally invalid primary',()=>{const map=example();map.set(K.cv,'{"cvs":[]}');const p=planLegacyMigration(k=>map.get(k)??null);assert.equal(p.status,'blocked');assert.ok(p.warnings.some(x=>x.includes('Invalid legacy payload')));});
 test('fails closed on access failures or oversized values',()=>{
  const map=example();map.set(K.recovery,'x'.repeat(200));
  const proposal=planLegacyMigration(k=>{if(k===K.applications)throw Error('denied');return map.get(k)??null},{maxEntryBytes:100});
