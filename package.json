@@ -6,6 +6,8 @@
   "scripts": {
     "build:legacy": "node tools/build-legacy.mjs",
     "audit:baseline": "node tools/audit-baseline.mjs",
-    "verify:e0": "npm run build:legacy && npm run audit:baseline"
+    "verify:e0": "npm run build:legacy && npm run audit:baseline && npm run audit:storage && npm run test:unit",
+    "test:unit": "node --test tests/unit/*.test.mjs",
+    "audit:storage": "node tools/audit-storage.mjs"
   }
 }
