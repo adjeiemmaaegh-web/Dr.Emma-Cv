@@ -1,3 +1,4 @@
+import {validateLegacyApplications} from './application-shape.mjs';
 /** Pure preflight shape checks, matched to Stage 8 ledgerValidStoredPayload. */
 const isRecord = x => x !== null && typeof x === 'object' && !Array.isArray(x);
 const ARRAY_FIELDS = ['experience','education','skills','languages','certifications','projects','accomplishments','customSections'];
@@ -15,6 +16,6 @@ export function validateLegacyEntry(key, value) {
   if (key === 'ledger_cv_state_v2' || key === 'ledger_cv_recovery_v24')
     return validLegacyCVState(value);
   if (key === 'ledger_cv_stage6_applications_v1')
-    return Array.isArray(value);
+    return validateLegacyApplications(value);
   return isRecord(value) || Array.isArray(value);
 }
