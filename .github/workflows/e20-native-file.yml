@@ -7,6 +7,7 @@ on:
     paths:
       - 'development/e20/**'
       - 'tests/e20_native_file_smoke.py'
+      - 'tests/e20_native_calendar_acceptance.py'
       - '.github/workflows/e20-native-file.yml'
   workflow_dispatch:
 
@@ -28,3 +29,5 @@ jobs:
           python -m playwright install chromium --with-deps
       - name: Check real file protocol, exact E20 identity and restart persistence
         run: python tests/e20_native_file_smoke.py
+      - name: Verify native file calendar review, cross-tab safety and quota denial
+        run: python tests/e20_native_calendar_acceptance.py
