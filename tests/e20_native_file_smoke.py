@@ -70,6 +70,16 @@ def main():
             try:
                 page = context.pages[0] if context.pages else context.new_page()
                 open_app(page, errors, external)
+                # The app's own demo creates synthetic CV data via its normal
+                # version/save path. This is distinct from the isolated probe.
+                page.locator('button[data-action="try-demo"]').click()
+                page.wait_for_function(
+                    "document.querySelector('#app')?.textContent?.includes('Store Manager')",
+                    timeout=25000,
+                )
+                require("Store Manager" in page.locator("#app").inner_text(),
+                        "app-created synthetic demo CV appears in editor")
+
                 page.evaluate("([key,value]) => localStorage.setItem(key,value)", [key, token])
                 require(page.evaluate("key => localStorage.getItem(key)", key) == token,
                         "isolated app-profile storage write/read")
@@ -100,6 +110,12 @@ def main():
                 context = launch()
                 page = context.pages[0] if context.pages else context.new_page()
                 page.goto(APP.as_uri(), wait_until="load", timeout=45000)
+                page.wait_for_function(
+                    "document.querySelector('#app')?.textContent?.includes('Store Manager')",
+                    timeout=25000,
+                )
+                require("Store Manager" in page.locator("#app").inner_text(),
+                        "actual synthetic app CV persisted across browser process restart")
                 require(page.evaluate("key => localStorage.getItem(key)", key) == token,
                         "app-profile localStorage survived browser process restart")
                 page.evaluate("key => localStorage.removeItem(key)", key)
@@ -123,7 +139,7 @@ def main():
                     "true_browser_process_restart": True,
                     "remaining_gates": [
                         "Windows Chrome and Edge",
-                        "real CV save and recovery",
+                        "real user CV save and error recovery",
                         "cross-tab conflict and quota failures",
                         "PDF/DOCX fidelity",
                         "screen reader/mobile/RTL",
