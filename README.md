@@ -6,6 +6,10 @@ Free, offline-first CV and career toolkit. This repository holds the current **S
 
 Download or open [Ledger_CV_Studio_Stage8_Free_Finalization.html](Ledger_CV_Studio_Stage8_Free_Finalization.html) in a browser. Normal use requires no server, CMD, Node.js, user account, or payment.
 
+## E20 development candidate (6 November 2026)
+
+The newer [E20 offline calendar-import candidate](development/e20/README.md), [standalone E20 HTML](development/e20/Ledger_CV_Studio_E20_Offline_Calendar_Import_2026-11-06.html) and [local QA](development/e20/Ledger_CV_Studio_E20_Offline_QA_2026-11-06.html) are available for **development review only**. The original Stage 8 app below is unchanged. E20 remains **production NO-GO**. Back up your CV before switching file URLs; local browser storage continuity is not proven. Static artifact checks do not certify real Windows, document fidelity or accessibility.
+
 ## Engineering direction
 
 - Keep the working standalone HTML release.
