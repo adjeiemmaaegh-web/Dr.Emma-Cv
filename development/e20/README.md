@@ -24,3 +24,7 @@ The E20 handover reports 669/669 Node tests and five synthetic Chromium workflow
     node --test tests/e20-artifact.test.mjs
 
 Critical gates remain open: see ENGINEERING_HANDOVER.md and RELEASE_GATES.csv for Windows Chrome/Edge file:// boot, persisted CV storage and recovery, native PDF/DOCX, assistive technology/mobile/RTL and approved live BYOK provider checks. No production deploy, paywall, cloud, account system or external provider operation is authorized by this update.
+
+## Native browser development evidence
+
+A separate GitHub-hosted Linux Chromium run used genuine `file://` navigation, verified the app-created synthetic demo CV after a full browser-process restart, and checked the isolated QA localStorage/IndexedDB restart probes. See [native-browser evidence](NATIVE_BROWSER_EVIDENCE.md). This is **not Windows/Edge acceptance, real CV comprehensive recovery, or production signoff**. Both the E0 and E20 integrity checks passed on the review branch.
