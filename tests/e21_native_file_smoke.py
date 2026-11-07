@@ -125,10 +125,16 @@ def main():
                 page.goto(QA.as_uri(), wait_until="load", timeout=45000)
                 page.locator("#restartVerify").click()
                 page.wait_for_function(
-                    "document.querySelector('#restartStatus').textContent.startsWith('PASS:')",
+                    """() => {
+                      const v=document.querySelector('#restartStatus')?.textContent||'';
+                      return /^(PASS|FAIL|UNTESTED):/.test(v);
+                    }""",
                     timeout=30000,
                 )
-                require("Both isolated storage records survived" in page.locator("#restartStatus").inner_text(),
+                restart_message=page.locator("#restartStatus").inner_text()
+                require(restart_message.startswith("PASS:"),
+                        "QA localStorage + IndexedDB restart outcome: "+restart_message)
+                require("Both isolated storage records survived" in restart_message,
                         "QA localStorage + IndexedDB survived restart and were erased")
                 require(not external, "no HTTP(S) network requests after process restart")
                 require(not errors, "no observed uncaught JavaScript exceptions")
