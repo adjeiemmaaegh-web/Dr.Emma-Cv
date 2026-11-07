@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
-"""Bounded E20 native file:// smoke on an isolated, disposable Chromium profile.
+"""E21 real file-origin browser smoke using a disposable profile.
 
-This is NOT Windows/Edge, real CV persistence, cross-tab conflict, or production
+Hosted browser checks are NOT Windows 11 hardware, complete CV recovery, or production
 acceptance. It never inspects, imports, or alters an existing user profile.
 """
 import hashlib
 import json
+import os
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from uuid import uuid4
@@ -13,9 +14,9 @@ from uuid import uuid4
 from playwright.sync_api import sync_playwright
 
 ROOT = Path(__file__).resolve().parents[1]
-E20 = ROOT / "development" / "e21"
-APP = E20 / "Ledger_CV_Studio_E21_Style_Safe_Docx_Import.html"
-QA = E20 / "Ledger_CV_Studio_E21_Offline_QA.html"
+E21 = ROOT / "development" / "e21"
+APP = E21 / "Ledger_CV_Studio_E21_Style_Safe_Docx_Import.html"
+QA = E21 / "Ledger_CV_Studio_E21_Offline_QA.html"
 EXPECTED = "9d27f843eeee774d081fcc936b87da3196ab28d4f4bb94939a5d5e6a215689d2"
 
 
@@ -64,6 +65,7 @@ def main():
                     headless=True,
                     viewport={"width": 1280, "height": 800},
                     accept_downloads=True,
+                    **({'channel': os.environ['LEDGER_E21_BROWSER_CHANNEL']} if os.environ.get('LEDGER_E21_BROWSER_CHANNEL') else {}),
                 )
 
             context = launch()
