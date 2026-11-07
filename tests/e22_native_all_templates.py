@@ -16,7 +16,7 @@ from playwright.sync_api import sync_playwright
 
 ROOT=Path(__file__).resolve().parents[1]
 APP=ROOT/'development/e22/Ledger_CV_Studio_E22_Monogram_Print_Pagination.html'
-EXPECTED='3b0669421bf2977be18034ea57cd50aa8315a7007fcf32c9aa68015750bb33ef'
+EXPECTED='ca686104b80df028b8f52b0b91adbafbd569709600dee493f9b8102e1a98e512'
 PAPERS={'A4':(595.3,841.9),'Letter':(612.0,792.0)}
 LOCAL_FALLBACK=os.environ.get('LEDGER_LOCAL_SET_CONTENT')=='1'
 CHANNEL=os.environ.get('LEDGER_BROWSER_CHANNEL')

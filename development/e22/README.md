@@ -1,30 +1,30 @@
-# Ledger CV Studio E22 — multi-page Monogram print pagination (7 November 2026)
+# Ledger CV Studio E22 — cross-browser Skills print-pagination safety (7 November 2026)
 
-**Development candidate; production NO-GO.** This extends E21 without altering the saved CV schema, any older frozen HTML/QA release artifact, local-first behavior, importers, OCR code, or API integrations.
+**Development candidate / production NO-GO.** E22 extends the frozen E21 standalone HTML without altering saved CV data formats, importers, experimental OCR, calendar workflows, DOCX exporter, external APIs, accounts or cloud functionality.
 
-## Defect reproduced and corrected
+## Reproduced issue and corrected behavior
 
-An 18-role synthetic CV with nine achievement bullets per role printed across 4–7 pages. The original E21 Monogram and Monogram Navy A4 print variants sometimes put the **last skill alone on a fifth page** (the text was retained but orphaned). E22 adds a narrow **print-only** rule to keep the entire Skills heading and list on the same printed page. The editor preview and the other 28 templates are not restyled. This is a pagination improvement, not complete page-design signoff.
+A deliberately long **18-role** synthetic CV (nine achievement bullets per role) revealed printable Skills-list orphans in multiple templates. On Linux Chromium, Monogram and Monogram Navy A4 could leave only the last skill on an extra final page. Hosted Windows Chrome and Edge confirmed the same issue with Horizon on US Letter.
 
-## Frozen files and hashes
+E22 now uses a small **print-only** CSS rule to keep each short Skills heading/list together across all visual templates, rather than fixing only named templates. Browser print engines may move the entire group to a later page to preserve it. The editor does not change. The CSS does not promise perfect layout for arbitrary multi-page documents and cannot force a Skills section longer than a full page to remain indivisible.
+
+## Frozen artifacts
 
 | File | SHA-256 |
 |---|---|
-| `Ledger_CV_Studio_E22_Monogram_Print_Pagination.html` | `3b0669421bf2977be18034ea57cd50aa8315a7007fcf32c9aa68015750bb33ef` |
-| `Ledger_CV_Studio_E22_Offline_QA.html` | `5c42c185083e988a20149b8e917445e714c8ae73182b272281f5d2296199b83e` |
+| `Ledger_CV_Studio_E22_Monogram_Print_Pagination.html` | `ca686104b80df028b8f52b0b91adbafbd569709600dee493f9b8102e1a98e512` |
+| `Ledger_CV_Studio_E22_Offline_QA.html` | `cf68e13b4312d0d109b869334d37e618a715f82a2cc8143304f1467ebee403de` |
 
-Reproduce both files from the frozen E21 source and the contained print-CSS patch with `node tools/build-e22.mjs`. Verify exact checksums and embedded JavaScript with `node --test tests/e22-artifact.test.mjs`. Normal Ledger users continue to **double-click the standalone HTML**; neither Node.js nor installation is needed to use the application.
+The retained filename reflects the original Monogram discovery; the finalized style rule also covers Horizon and all other templates. Rebuild with `node tools/build-e22.mjs`, and verify with `node --test tests/e22-artifact.test.mjs`. Exact application and QA SHA values must match. Normal end users still simply double-click the standalone HTML offline.
 
-## Automated tests
+## Automated coverage and limits
 
-- Locally reproduced 120 PDF outputs in Chromium using `page.set_content` with isolated synthetic storage: 30 templates × A4/Letter × short/long CV. All contained applicant name, title, experience and every long-CV role; no empty/sparse last pages or measured text outside the paper. This local run **does not prove file://**.
-- `tests/e22_native_all_templates.py` repeats the same 120 native PDF outputs from the real standalone `file://` origin on hosted Linux Chromium and Windows Chrome/Edge, checking A4/Letter dimensions, selectable text, full long-form source content, no low-text pages, out-of-paper bounding boxes and no network requests. Consult CI results; do not assume these passed until completed.
-- GitHub Actions additionally rerun the frozen E21 source-integrity tests and real file-origin synthetic DOCX hidden-style privacy checks, plus inherited E0/E20 workflow checks.
+- Local Linux Chromium `page.set_content()` with isolated mock storage: **120/120** short/long PDF checks passed (30 templates × A4/US Letter × 2 synthetic CV sizes), with valid page dimensions, retained name and role, all 18 long-form job markers and final sentinel, no PDF page with fewer than 20 extracted characters, no extracted text crossing paper boundaries, and zero unexpected HTTP(S) requests.
+- GitHub Actions repeats 120 **genuine file://** checks per hosted browser: Linux Chromium, Windows Google Chrome, Windows Microsoft Edge; also exercises the E21 Word hidden-style privacy regression. Consult the actual CI results before claiming success. Hosted Windows is not the owner's physical Windows 11 machine.
+- The original E20 and E21 artifacts are not changed. E22 does **not** solve reliable trained offline OCR or broad legacy document fidelity.
 
-The original E21 DOCX hidden-style import correction is retained. E22 does not alter the experimental OCR implementation. Do not represent the OCR as reliable or trained.
+## Outstanding release blockers
 
-## Remaining limits
+Real Windows 11 hardware, Microsoft Word rendering, independent visual inspection of all 30 templates, actual crash/storage denial drills, keyboard/screen reader/mobile/RTL testing, real Apple/Google/Outlook calendar export interoperability, authorized BYOK provider, scored trained offline OCR and the unavailable historical E20 669-test engineering source archive remain **OPEN**.
 
-This is not physical Windows 11, real Microsoft Word, all-template human visual signoff, screen-reader/mobile/RTL acceptance, comprehensive cross-tab/quota/recovery, real external calendar-client interoperability, authorized live BYOK provider verification or scored trained offline OCR. The historic 669-test E20 development source archive has not been provided and cannot be reproduced from this candidate alone.
-
-**Keep production NO-GO and review branch unmerged.** Do not deploy Pages, enable cloud/payments, publish a production app or expose user CV data without separate explicit owner authorization after acceptance gates close. Preserve a manual JSON backup before switching standalone file paths because `file://` storage identity varies across browsers and locations.
+Use synthetic data when testing, and export a backup before switching file URLs because browser file:// storage scope is not guaranteed to migrate. **No merging into main, public deployment, cloud/payments or provider activation is approved.**

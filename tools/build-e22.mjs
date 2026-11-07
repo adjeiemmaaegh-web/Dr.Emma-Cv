@@ -11,8 +11,8 @@ const baseline=read('development/e21/Ledger_CV_Studio_E21_Style_Safe_Docx_Import
 const qaBase=read('development/e21/Ledger_CV_Studio_E21_Offline_QA.html');
 const patch=read('development/e22/source/monogram_print_patch.css');
 const oldHash='9d27f843eeee774d081fcc936b87da3196ab28d4f4bb94939a5d5e6a215689d2';
-const newHash='3b0669421bf2977be18034ea57cd50aa8315a7007fcf32c9aa68015750bb33ef';
-const qaHash='5c42c185083e988a20149b8e917445e714c8ae73182b272281f5d2296199b83e';
+const newHash='ca686104b80df028b8f52b0b91adbafbd569709600dee493f9b8102e1a98e512';
+const qaHash='cf68e13b4312d0d109b869334d37e618a715f82a2cc8143304f1467ebee403de';
 assert.equal(sha(baseline),oldHash,'E21 source changed unexpectedly');
 assert.equal(sha(qaBase),'d66e66f48b8619f88a2efc4b1c4abef123bb5d9e87493caad095c538b0bb5765','E21 QA source changed');
 const anchor='@media print{.cv-page.tmpl-monogram .cv-name,.cv-page.tmpl-monogram-navy .cv-name{display:block!important;padding-top:6px!important;line-height:1.4!important}}';
@@ -28,7 +28,7 @@ qa=qa.replace(testAnchor,
  " ['e22_monogram_orphan','Create a synthetic 4–6 page CV, select Monogram then Monogram Navy, print A4/Letter; confirm Skills heading and all items stay together and no trailing page contains a single orphan skill'],\n"+testAnchor);
 const tail='</body></html>';
 assert.equal(qa.split(tail).length,2,'E21 QA tail missing or ambiguous');
-qa=qa.replace(tail,'<section style="margin:1rem;padding:1rem;border:1px solid #aaa"><h2>E22 visual pagination check</h2><p>On genuine Windows Chrome/Edge, inspect Monogram and Monogram Navy A4/Letter PDFs using synthetic long CVs. Verify no lone last-page skill, no missing words, readable print colors and accessible text. Do not use real CV records.</p></section>'+tail);
+qa=qa.replace(tail,'<section style="margin:1rem;padding:1rem;border:1px solid #aaa"><h2>E22 visual pagination check</h2><p>On genuine Windows Chrome/Edge, inspect Monogram, Monogram Navy, Horizon and Horizon Teal A4/Letter PDFs using synthetic long CVs. Verify Skills heading and list stay together, no lone last-page skill, no missing words, readable print colors and selectable text. Do not use real CV records.</p></section>'+tail);
 assert.equal(sha(qa),qaHash,'unexpected E22 QA checksum');
 const file='Ledger_CV_Studio_E22_Monogram_Print_Pagination.html';
 const qaFile='Ledger_CV_Studio_E22_Offline_QA.html';

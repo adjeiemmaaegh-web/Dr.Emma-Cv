@@ -9,8 +9,8 @@ import {fileURLToPath} from 'node:url';
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const dir=path.join(root,'development/e22');
 const files={
-  app:['Ledger_CV_Studio_E22_Monogram_Print_Pagination.html','3b0669421bf2977be18034ea57cd50aa8315a7007fcf32c9aa68015750bb33ef'],
-  qa:['Ledger_CV_Studio_E22_Offline_QA.html','5c42c185083e988a20149b8e917445e714c8ae73182b272281f5d2296199b83e']
+  app:['Ledger_CV_Studio_E22_Monogram_Print_Pagination.html','ca686104b80df028b8f52b0b91adbafbd569709600dee493f9b8102e1a98e512'],
+  qa:['Ledger_CV_Studio_E22_Offline_QA.html','cf68e13b4312d0d109b869334d37e618a715f82a2cc8143304f1467ebee403de']
 };
 const sha=b=>crypto.createHash('sha256').update(b).digest('hex');
 for(const [key,[name,digest]] of Object.entries(files)){
@@ -36,9 +36,9 @@ test('all standalone scripts parse, no remote JS/CSS dependency',()=>{
     assert.doesNotMatch(html,/<link\b(?=[^>]*\brel\s*=\s*["']?stylesheet\b)[^>]*>/i);
   }
 });
-test('print adjustment is scoped to monogram skills and does not modify editor styles',()=>{
+test('print adjustment groups Skills only in CSS print rules, leaving editor styles untouched',()=>{
   const app=fs.readFileSync(path.join(dir,files.app[0]),'utf8');
-  assert.match(app,/E22: prevent a lone trailing skill/);
-  assert.match(app,/\.cv-page\.tmpl-monogram-navy \.cv-section:has\(\.cv-skills-grid\)/);
+  assert.match(app,/E22: preserve each small Skills section/);
+  assert.match(app,/\.cv-page \.cv-section:has\(\.cv-skills-grid\)/);
   assert.match(app,/@media print\{/);
 });

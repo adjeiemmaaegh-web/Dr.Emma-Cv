@@ -8208,8 +8208,8 @@ function build(paper='A4',snapshot=null){
  }
  /* Some paged renderers drop the text node of a flex monogram name. */
  @media print{.cv-page.tmpl-monogram .cv-name,.cv-page.tmpl-monogram-navy .cv-name{display:block!important;padding-top:6px!important;line-height:1.4!important}}
- /* E22: prevent a lone trailing skill on an otherwise near-empty final page. */
- @media print{.cv-page.tmpl-monogram .cv-section:has(.cv-skills-grid),.cv-page.tmpl-monogram-navy .cv-section:has(.cv-skills-grid){break-inside:avoid-page!important;page-break-inside:avoid!important}}
+ /* E22: preserve each small Skills section as a unit to prevent a lone skill at the top of an otherwise sparse final printed page across designs and paper sizes. */
+ @media print{.cv-page .cv-section:has(.cv-skills-grid){break-inside:avoid-page!important;page-break-inside:avoid!important}}
  .cv-page .cv-sidebar{-webkit-box-decoration-break:clone;box-decoration-break:clone}
  @media screen{body{padding:16px 0!important}.cv-page.ledger-e1-visual-export{box-shadow:0 4px 24px #0002!important}}
  @media print{html,body{background:#fff!important;width:auto!important;min-height:0!important}
