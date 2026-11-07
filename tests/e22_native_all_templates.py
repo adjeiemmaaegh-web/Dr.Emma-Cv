@@ -48,7 +48,7 @@ def review_pdf(data, paper, template, fixture):
                 if len(bounds)==4 and (bounds[0]<-3 or bounds[1]<-3 or
                                         bounds[2]>pg.rect.width+3 or bounds[3]>pg.rect.height+3):
                     offpaper.append([index+1,*[round(x,1) for x in bounds]])
-        expect(not empty,f'{fixture}/{template}/{paper}: sparse or empty pages {empty}')
+        expect(not empty,f'{fixture}/{template}/{paper}: sparse or empty pages {empty}; page text snippets: '+str([(i,flat[i-1][:160]) for i in empty]))
         expect(not offpaper,f'{fixture}/{template}/{paper}: text beyond paper boundary: {offpaper[:4]}')
         plain=re.sub(r'\s+',' ',' '.join(flat)).lower()
         for token in ('john smith','store manager','tesco'):
