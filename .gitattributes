@@ -7,3 +7,6 @@
 *.js text eol=lf
 *.mjs text eol=lf
 *.py text eol=lf
+
+# E22 print patch must preserve LF bytes for deterministic Windows builds.
+*.css text eol=lf
