@@ -1,0 +1,9 @@
+# Ledger CV Studio stores byte-pinned standalone artifacts in Git.
+# Never let Windows Git checkout silently change their release SHA-256.
+*.html -text
+*.csv -text
+
+# Reproducible build sources and CI scripts always use LF on all platforms.
+*.js text eol=lf
+*.mjs text eol=lf
+*.py text eol=lf

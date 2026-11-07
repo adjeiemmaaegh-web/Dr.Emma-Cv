@@ -1,0 +1,182 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Ledger CV Studio — Offline Release Acceptance</title>
+<style>
+:root{color-scheme:light;font:15px/1.5 system-ui,Segoe UI,Arial,sans-serif;color:#1e293b;background:#f1f5f9}*{box-sizing:border-box}body{max-width:1000px;margin:0 auto;padding:24px}header{padding:24px;background:#12324c;color:#fff;border-radius:15px}h1{margin:0 0 6px;font-size:clamp(23px,4vw,32px)}h2{font-size:21px;margin:0 0 12px}p{margin:8px 0 14px}header p{color:#e0ecf3}section{background:#fff;border:1px solid #d8e1e9;padding:22px;border-radius:13px;margin-top:18px}button,input,select,textarea{font:inherit}button{border:1px solid #174e70;border-radius:7px;padding:9px 14px;cursor:pointer;background:#174e70;color:#fff}button.secondary{color:#174e70;background:#fff}button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid #f59e0b;outline-offset:2px}button+button{margin-left:7px}.small{color:#475569;font-size:13px}.note{padding:10px 13px;background:#eff6ff;border-left:4px solid #2563eb}.tests{display:grid;gap:8px}.item{display:grid;grid-template-columns:minmax(140px,1fr) minmax(100px,2fr);gap:10px;align-items:center;border-bottom:1px solid #e5e7eb;padding:8px 0}.status{font-weight:700}.pass{color:#176b43}.fail{color:#ad1f25}.info{color:#525e6c}label{display:block}.manual{display:grid;grid-template-columns:minmax(160px,1fr) 150px;gap:8px;padding:9px 0;border-bottom:1px solid #e5e7eb;align-items:center}.manual select{width:100%;padding:7px;background:#fff;border:1px solid #94a3b8;border-radius:5px}textarea{width:100%;min-height:110px;margin-top:6px;border:1px solid #94a3b8;border-radius:5px;padding:9px}input[type=file]{max-width:100%;padding:12px;border:1px dashed #94a3b8;border-radius:8px}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:8px}.pill{display:inline-block;padding:3px 9px;background:#ddeaf1;color:#12324c;border-radius:40px;font-size:12px;font-weight:700}.warn{background:#fff8e8;border-left-color:#b45309}.explain{margin-top:6px;color:#526476;font-size:13px}footer{margin:24px 0 6px;text-align:center;color:#475569}@media print{button,input,select,textarea{display:none!important}body{background:white}section{break-inside:avoid}}@media(max-width:560px){body{padding:8px}.manual,.item{grid-template-columns:1fr}section{padding:15px}}
+</style></head><body>
+<header><span class="pill">LOCAL QA • NO NETWORK REQUESTS</span><h1>Ledger CV Studio — Release Acceptance</h1><p>Run this file in your own browser to collect evidence for the E0–E5 release gates. Tests are isolated from your real Ledger CV records.</p></header>
+<section><h2>1. Automatic browser checks</h2><p class="note">Open this QA file locally. It uses a temporary <code>ledger_qa_probe_*</code> storage key, deletes it immediately, and never reads or modifies your saved CV data. No results are uploaded.</p><button type="button" id="run">Run browser checks</button><div id="results" class="tests" role="status" aria-live="polite"></div></section>
+<section><h2>2. Verify the exact application build</h2><p>Select the <strong>standalone Ledger CV Studio HTML file shipped with this release</strong>. It is read as text; the code is <strong>not executed</strong> by this QA page.</p><input type="file" id="sourceFile" accept=".html,text/html"><div id="fileCheck" role="status"></div></section>
+<section><h2>3. Isolated restart-persistence drill</h2><p class="note">Optional: use <strong>synthetic test data only</strong>. This writes one QA-specific localStorage key and one QA-specific IndexedDB record. It never opens existing Ledger databases. After starting, <strong>close and reopen this same QA HTML file in the same browser profile</strong>, then verify. The test deletes its synthetic data after successful verification. You can erase it separately at any time.</p><button id="restartStart" type="button">Start restart test</button><button id="restartVerify" type="button" class="secondary">Verify after reopening</button><button id="restartErase" type="button" class="secondary">Erase QA checkpoint</button><p id="restartStatus" role="status" aria-live="polite">Not started.</p></section>
+<section><h2>4. Guided real-application checks</h2><p>Open the standalone Ledger app separately in a fresh test browser profile. Use <strong>synthetic CV and job data</strong>; do not perform destructive acceptance against your only real records. Mark what you actually observed.</p><div class="note warn">The checks below require a person to inspect the real Ledger application. A PASS selected here is self-reported, not generated automatically. Do not mark a check passed if it was not performed.</div><div id="manualTests"></div><label for="notes">Defects, screenshots, browser version or observations (no personal CV content)</label><textarea id="notes" placeholder="Example: Chrome version; PDF page 2 clips experience entry; steps to reproduce…"></textarea></section>
+<section><h2>5. Export evidence</h2><p>Download a JSON report of browser capabilities, build identity and your manual signoff. The report remains on your device unless you choose to share it.</p><button id="export" type="button">Download QA report</button><button id="reset" class="secondary" type="button">Clear results</button><p class="small" id="summary">No checks run yet. Production remains NO-GO until the critical gates are evidenced.</p></section>
+<footer>Ledger CV Studio · offline QA only · Not a production release certificate</footer>
+<script>
+(()=>{'use strict';
+const EXPECTED='9d27f843eeee774d081fcc936b87da3196ab28d4f4bb94939a5d5e6a215689d2';
+const manuals=[
+ ['chrome_open','Open Ledger HTML directly via file:// in Chrome: no fatal console errors'],
+ ['edge_open','Open Ledger HTML directly via file:// in Edge: no fatal console errors'],
+ ['cv_save','Create a synthetic CV; save, close the tab, reopen and verify all fields'],
+ ['draft_recovery','In a disposable test browser profile, force a rejected CV text save; verify the recovery panel and JSON export, reload the same tab, verify manual copy without auto-applying changes, then discard the emergency copy'],
+ ['draft_storage_denial','In the disposable profile, block or exhaust tab storage while a CV text save also fails; verify Ledger warns the draft is NOT retained for reload and provides immediate manual copy/download'],
+ ['cv_versions','Create, switch and link two CV versions to a career application'],
+ ['career_backup','Export career JSON; import into a clean test profile with consent; verify applications and tasks'],
+ ['two_tab','Edit the same CV or career record in two tabs and verify conflict warning/no silent loss'],
+ ['pdf_print','Print multi-page A4 and US Letter PDFs; inspect headers, page breaks, links and last paragraph'],
+ ['docx_import','Open generated DOCX in Word/LibreOffice; import a sample PDF/DOCX and review all extracted text'],
+ ['keyboard','Keyboard-only navigation: Tab, Shift+Tab, Enter, Escape, dialogs and focus restoration'],
+ ['screen_reader','Run screen reader and 200% zoom audit without losing critical controls'],
+ ['rtl','Inspect Arabic RTL plus French and Spanish; ensure CV content and saved statuses do not change'],
+ ['mobile','Inspect Android/iOS or small screen behavior including storage and PDF workflow'],
+ ['ocr','Where TextDetector exists, validate image OCR with a real sample; otherwise record unavailable'],
+ ['snapshot_cv_print','Create a synthetic application with a linked CV, edit the master CV, then print/download the saved historical snapshot and verify ORIGINAL text remains, no live CV changes'],
+ ['snapshot_cv_docx','Download the saved application CV DOCX in Word and verify name, full content, formatting and historical data independent of current CV'],
+ ['docx_table_import','Import a synthetic DOCX containing 2-column tables, bullets and tracked changes; confirm rows/cells survive as reviewable text, no deleted text appears'],
+ ['encrypted_workspace','In a disposable browser profile, export an encrypted workspace with a strong passphrase; confirm wrong password and altered ciphertext are rejected; decrypt a valid backup, inspect and explicitly approve restoring; no key retained'],
+ ['template_30','Inspect all 30 templates in Chrome and Edge at both A4 and Letter, including multi-page documents; record clipping/overlap/missing sections'],
+ ['career_references','Add a synthetic local file SHA-256 reference and a secure HTTPS link to an application; verify no file content is saved, export/import career backup, reload, remove reference'],
+ ['career_status_undo','Move an application stage with the keyboard selector and with drag-and-drop; undo a move and confirm persistence after restart'],
+ ['version_export_style','Adjust export fonts, scale and page settings for two independent CV versions, switch and reload, confirm no crossover; reset and undo with native export inspection'],
+ ['e9_pdf_cmap','Import a synthetic valid text PDF using an embedded Unicode font map; inspect names, dates, columns, diacritics and ordering manually before accepting'],
+ ['e9_image_review','Use a disposable test profile to import an 8 MB or smaller PNG/JPEG/WebP CV photograph; verify local preview, zoom, rotation, manual transcription, cancel/Escape focus, and no network calls'],
+ ['e9_image_rejected','Test oversized or malformed image inputs; confirm no unsafe image decode or silent import and usable manual recovery'],
+ ['e10_template_distinction','Compare 12 E10 revised templates against E9 in actual Chrome/Edge, including photograph, sidebar, and long text; confirm genuinely distinct usable hierarchy'],
+ ['e10_native_print','Print E10 visual CV in A4 and US Letter with 1-4+ pages; confirm all text and links survive, no clipped lines or unexpected blank pages'],
+ ['e10_fallback','Test a deliberately overlong sidebar and unavailable photo. Print must fail safely; use Open text-first preview and verify the data is preserved'],
+ ['e11_docx_review','Import a synthetic Word DOCX with tables and a header; compare all extracted content with source; cancel without creating a CV; approve after reviewing'],
+ ['e11_docx_unsupported','Import a DOCX with drawings, external links or tracked changes; confirm explicit warnings and no automatic acceptance'],
+ ['e11_docx_limits','Reject a malformed ZIP, oversized document and ZIP with excessive expansion; confirm previous CV is unchanged'],
+ ['e11_text_review','Import a synthetic TXT/HTML CV, cancel its reviewed draft and confirm no CV is created; then approve an edited copy and verify only that content is imported'],
+ ['e11_rtl_print','Create a synthetic Arabic CV with mixed Arabic/Latin contact details; print both A4 and Letter in Chrome/Edge and visually inspect RTL reading order, fonts, lines and links'],
+ ['e11_locale_review','Switch the DOCX review between French, Spanish and Arabic and verify headings/warnings without translating imported applicant text'],
+ ['e12_source_preview','Import TXT/PDF/DOCX/image and compare the parser preview with original; verify missing contact/experience/education warnings'],
+ ['e12_source_preserve','Explicitly check source retention; verify all input text survives in visible extra CV sections, then remove these sections before exporting professional CV'],
+ ['e12_source_reject','Cancel import and verify no new CV, source sections or changed existing records; download reviewed source without committing'],
+ ['e12_original_pdf','Review a selected PDF, optionally expand original local preview, confirm no file upload, then close and ensure no temporary preview persists'],
+ ['e12_mobile_modal','On a 375px viewport and Arabic UI inspect the import dialog, input direction, focus and that language toolbar stays below the modal'],
+ ['e13_calendar','Create synthetic dated tasks, deadlines and follow-ups; download calendar with/without alert and inspect in a real calendar; confirm no auto-upload or auto-sync'],
+ ['e13_calendar_stale','Change career data in another tab before calendar export; verify export is rejected rather than downloading stale dates'],
+ ['e14_all_templates','Visually review all 30 distinct templates with genuine CVs (including very long records, accessibility contrast and photo/sidebar variants)'],
+ ['e14_template_output','Native print A4/Letter from at least one CV in each template family; check no omitted words, clipped text, or unreadable hierarchy'],
+ ['e15_import_coverage','Review source-coverage warnings for French, Spanish, Arabic, DOCX, PDF and image CV imports; test opt-in preservation, explicit acknowledgement, cancellation and storage failure'],
+ ['e16_localization','Change English/French/Spanish/Arabic in home, guided assistant, upload and main editor. Verify all user-entered text and exported CV content remain unchanged'],
+ ['completion_pdf_order','Import a two-page text PDF with a reordered object stream; compare the original to the reviewed sections before approval'],
+ ['completion_pdf_scan','Import a mixed text-plus-scanned-page PDF; verify the missing-page warning and manually transcribe anything omitted'],
+ ['final_font_resources','Import a two-page multilingual PDF where the same font name means different fonts on each page; compare original text and verify no omissions'],
+ ['final_word_textbox','Import a synthetic DOCX with CV text inside a drawing/text box; confirm text appears as a marked review appendix and cancel without modifying CV data'],
+ ['docx_e17_hidden','Import a Word file with hidden runs and tracked changes; hidden text must not become public CV content, and review must warn of revisions'],
+ ['docx_e17_embedded','Import a DOCX with local embedded HTML or drawing content; inspect added review sections and confirm no external links were followed'],
+ ['docx_e17_cancel','Cancel DOCX import after viewing the supplemental review; the previous saved CV must remain unchanged'],
+ ['e18_ocr','On a real device, choose a clean printed English CV image and use experimental local OCR. Disconnect internet first and compare every line, email, date and figure to the original'],
+ ['e18_ocr_cancel','Cancel after experimental OCR, verify existing CV unchanged; try an empty, noisy, Arabic or handwritten image and verify manual review remains available'],
+ ['e19_ocr_rotation','With a sideways printed PNG, rotate the reference image until upright, run local OCR, verify the orientation and every extracted character. Cancel and confirm no CV changed'],
+ ['final_ocr_review','After local OCR, attempt Import before acknowledging source verification: it must be blocked. Edit a digit, confirm that the checkbox clears; then approve only after manually comparing against the original. Change the textarea during a running OCR job and ensure it is not overwritten'],
+ ['native_word_rtl','Export an Arabic/Hebrew CV in A4 and Letter. Open in Microsoft Word; verify paragraph direction, dates, bullets, line wrapping and page breaks. Verify a mixed-language contact line and compare a short/long English CV. Signoff remains manual'],
+ ['screen_reader_labelling','Using a screen reader and keyboard, verify offline assistant entry, photo file picker, CV editor summary, and dynamically titled confirmation dialogs at mobile and desktop widths'],
+ ['generated_docx_roundtrip','With synthetic CV details, export Word and reimport it with review. Verify a job without employer, certification issuer/year, project details, custom sections and mixed-language content before approval.'],
+ ['generated_docx_contact_custom','Export Word with phone-only contact, city/postcode, LinkedIn and website. Reimport with review. Check that custom headings named Skills or Experience remain separate custom sections.'],
+ ['generated_docx_precision','Export and reimport Word with a multi-word first and last name, achievement category and impact, and custom-only sections; verify exact fields after explicit approval.'],
+ ['generated_docx_contact_skill','Export Word with UK alphanumeric postcode, mixed Arabic/Latin contact data, and authored skill proficiency levels. Reimport, cancel and approve. Confirm exact values, then try a legacy Word file with removed run styles and verify a review warning.'],
+ ['e21_style_hidden','Import a synthetic DOCX with hidden character and paragraph styles and a visible override; confirm hidden text is excluded, warning is shown, and visible content remains'],
+ ['e21_style_cancel','Cancel the synthetic hidden-style DOCX review; confirm prior saved CV and career information stay unchanged'],
+ ['e21_style_word','Compare the same synthetic Word file in Microsoft Word: style inheritance, headers, tables, and text boxes; verify exact content and legibility'],
+ ['provider','Only with explicit approval and disposable API key: verify real provider consent, CORS, cancel and no auto-save']
+];
+const $=id=>document.getElementById(id);let auto={},file={status:'untested'};
+const RESTART_KEY='ledger_qa_probe_restart_20261031',RESTART_DB='ledger_qa_probe_restart_20261031';
+let restartCheck={status:'untested'};
+function checkpointMessage(status,detail){restartCheck={status,detail};$('restartStatus').textContent=status.toUpperCase()+': '+detail;summarize()}
+function indexedOpen(){return new Promise((resolve,reject)=>{const r=indexedDB.open(RESTART_DB,1);r.onupgradeneeded=()=>{if(!r.result.objectStoreNames.contains('qa'))r.result.createObjectStore('qa')};r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error||Error('QA database unavailable'))})}
+function idbWrite(db,value){return new Promise((resolve,reject)=>{const tx=db.transaction('qa','readwrite');tx.oncomplete=()=>resolve();tx.onerror=()=>reject(tx.error||Error('QA database write failed'));tx.objectStore('qa').put(value,'checkpoint')})}
+function idbRead(db){return new Promise((resolve,reject)=>{const tx=db.transaction('qa','readonly'),r=tx.objectStore('qa').get('checkpoint');r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error||Error('QA database read failed'))})}
+function idbErase(){return new Promise((resolve,reject)=>{const r=indexedDB.deleteDatabase(RESTART_DB);r.onsuccess=()=>resolve();r.onerror=()=>reject(r.error||Error('QA database delete failed'));r.onblocked=()=>reject(Error('Close other QA tabs before erasing'))})}
+async function startRestart(){let db;try{
+ const bytes=new Uint8Array(16);crypto.getRandomValues(bytes);const token=[...bytes].map(x=>x.toString(16).padStart(2,'0')).join('');
+ const payload={token,startedAt:new Date().toISOString(),timeOrigin:performance.timeOrigin};
+ db=await indexedOpen();await idbWrite(db,payload);localStorage.setItem(RESTART_KEY,JSON.stringify(payload));
+ checkpointMessage('started','Synthetic checkpoint written and verified as committed. Close this QA tab, reopen this exact HTML in the same browser profile, and choose Verify after reopening.');
+ }catch(e){checkpointMessage('fail',String(e?.message||e))}finally{db?.close()}}
+async function verifyRestart(){let db;try{
+ const raw=localStorage.getItem(RESTART_KEY);if(!raw){checkpointMessage('fail','No checkpoint in this browser profile. Start the restart test first.');return}
+ const saved=JSON.parse(raw);db=await indexedOpen();const record=await idbRead(db);
+ if(saved.timeOrigin===performance.timeOrigin){checkpointMessage('untested','Reopen this HTML first. A same-page check cannot prove restart persistence.');return}
+ if(!record||record.token!==saved.token||record.startedAt!==saved.startedAt)throw Error('LocalStorage/IndexedDB mismatch after restart');
+ db.close();db=null;localStorage.removeItem(RESTART_KEY);await idbErase();
+ checkpointMessage('pass','Both isolated storage records survived a real page restart and were erased. This does not substitute for testing actual CV saves.');
+ }catch(e){checkpointMessage('fail',String(e?.message||e))}finally{db?.close()}}
+async function eraseRestart(){try{localStorage.removeItem(RESTART_KEY);await idbErase();checkpointMessage('untested','QA-only restart checkpoint erased.')}catch(e){checkpointMessage('fail',String(e?.message||e))}}
+
+function put(id,status,detail){auto[id]={status,detail};const line=document.createElement('div');line.className='item';const name=document.createElement('strong');name.textContent=id.replaceAll('_',' ');const val=document.createElement('div');val.textContent=status.toUpperCase()+' — '+detail;val.className='status '+(status==='pass'?'pass':status==='fail'?'fail':'info');line.append(name,val);$('results').append(line)}
+async function probeIndexedDb(){
+ if(!('indexedDB' in globalThis))throw Error('IndexedDB unavailable');
+ // Use a new, random QA-only database. Never open or enumerate any Ledger CV
+ // database or keys. Always attempt to delete this isolated database.
+ const name='ledger_qa_probe_'+Date.now()+'_'+Math.random().toString(36).slice(2);
+ const wait=request=>new Promise((resolve,reject)=>{request.onsuccess=()=>resolve(request.result);request.onerror=()=>reject(request.error||Error('IndexedDB request failed'));});
+ let db;
+ try{
+  const opening=indexedDB.open(name,1);
+  opening.onupgradeneeded=()=>opening.result.createObjectStore('qa');
+  db=await wait(opening);
+  const write=db.transaction('qa','readwrite');
+  await wait(write.objectStore('qa').put('Résumé العربية CV','test'));
+  const read=db.transaction('qa','readonly');
+  const value=await wait(read.objectStore('qa').get('test'));
+  if(value!=='Résumé العربية CV')throw Error('IndexedDB round-trip mismatch');
+  return true;
+ }finally{
+  try{db?.close();await wait(indexedDB.deleteDatabase(name))}catch(_){/* Report round trip separately; the temporary database contains no user data. */}
+ }
+}
+async function probeCrypto(){
+ if(!globalThis.crypto?.subtle?.digest)throw Error('WebCrypto SHA-256 unavailable in this browser context');
+ const hash=await crypto.subtle.digest('SHA-256',new TextEncoder().encode('abc'));
+ return [...new Uint8Array(hash)].map(n=>n.toString(16).padStart(2,'0')).join('')==='ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad';
+}
+async function probeDeflate(){
+ if(typeof CompressionStream!=='function'||typeof DecompressionStream!=='function')throw Error('Compression/DecompressionStream unavailable');
+ const input=new TextEncoder().encode('Offline CV résumé العربية');
+ const zip=new Blob([input]).stream().pipeThrough(new CompressionStream('deflate'));
+ const plain=zip.pipeThrough(new DecompressionStream('deflate'));
+ const buffer=await new Response(plain).arrayBuffer();
+ return new TextDecoder().decode(buffer)==='Offline CV résumé العربية';
+}
+async function probeBlob(){
+ if(typeof FileReader!=='function'||typeof Blob!=='function')throw Error('File and Blob APIs unavailable');
+ const input='Ledger offline résumé';const blob=new Blob([input],{type:'text/plain'});
+ return await blob.text()===input && (await blob.arrayBuffer()).byteLength===new TextEncoder().encode(input).length;
+}
+async function run(){auto={};$('results').replaceChildren();$('run').disabled=true;
+ const check=(id,fn)=>{try{const x=fn();put(id,x?'pass':'fail',x?'Supported':'Not supported or blocked')}catch(e){put(id,'fail',String(e.message||e).slice(0,180))}};
+ const checkAsync=async(id,fn)=>{try{const x=await fn();put(id,x?'pass':'fail',x?'Verified with isolated synthetic data':'Not supported or blocked')}catch(e){put(id,'fail',String(e.message||e).slice(0,180))}};
+ put('runtime', 'info',`${location.protocol} · ${navigator.userAgent.slice(0,180)}`);
+ check('offline_file_mode',()=>location.protocol==='file:');
+ check('unicode_round_trip',()=>new TextDecoder().decode(new TextEncoder().encode('Résumé العربية CV'))==='Résumé العربية CV');
+ check('blob_urls',()=>{const u=URL.createObjectURL(new Blob(['qa']));URL.revokeObjectURL(u);return true});
+ check('file_reading',()=>typeof FileReader==='function'&&typeof Blob==='function');
+ check('document_fonts',()=>!!document.fonts?.ready);
+ check('print_api',()=>typeof window.print==='function');
+ check('rtl_layout',()=>{const d=document.createElement('div');d.dir='rtl';d.style.direction='rtl';document.body.append(d);const ok=getComputedStyle(d).direction==='rtl';d.remove();return ok});
+ check('print_break_css',()=>CSS.supports('break-inside','avoid'));
+ check('browser_storage_probe',()=>{const key='ledger_qa_probe_'+Date.now()+'_'+Math.random().toString(36).slice(2);try{localStorage.setItem(key,'qa');return localStorage.getItem(key)==='qa'}finally{try{localStorage.removeItem(key)}catch(_){}}});
+ await checkAsync('blob_binary_round_trip',probeBlob);
+ await checkAsync('indexeddb_isolated_round_trip',probeIndexedDb);
+ await checkAsync('deflate_round_trip',probeDeflate);
+ await checkAsync('sha256_known_vector',probeCrypto);
+ check('intl_locales',()=>['ar','fr','es'].every(l=>Intl.DateTimeFormat.supportedLocalesOf([l]).length===1));
+ put('native_ocr','info',typeof window.TextDetector==='function'?'TextDetector exposed; real image accuracy is NOT verified':'TextDetector unavailable: manual image transcription is required');
+ summarize();$('run').disabled=false;
+}
+async function verifyFile(){file={status:'untested'};const f=$('sourceFile').files?.[0];if(!f){$('fileCheck').textContent='No file selected';return}if(f.size>15_000_000){file={status:'fail',reason:'Unexpectedly large application file'};summarize();return}
+ try{const binary=await f.arrayBuffer();const source=new TextDecoder('utf-8',{fatal:true}).decode(binary);const markers=['ledgerE1VisualExport','ledgerE2','ledgerE3Launcher','ledgerE4Launcher','ledgerE5Core'];const absent=markers.filter(m=>!source.includes(m));const remote=/<script\s[^>]*src\s*=|<link\s[^>]*rel\s*=\s*["']?stylesheet\b/i.test(source);let hash='unavailable';if(globalThis.crypto?.subtle?.digest){const bytes=await globalThis.crypto.subtle.digest('SHA-256',binary);hash=[...new Uint8Array(bytes)].map(n=>n.toString(16).padStart(2,'0')).join('')}
+ const match=hash===EXPECTED;file={status:match&&!absent.length&&!remote?'pass':'fail',filename:f.name,size:f.size,sha256:hash,matchingReleaseBuild:match,absentFeatures:absent,externalScriptsOrStyles:remote};$('fileCheck').textContent=(file.status==='pass'?'PASS: ': 'NOT VERIFIED: ')+`sha256=${hash}; release match=${match}; missing markers=${absent.join(',')||'none'}; remote script/style tags=${remote}`;}
+ catch(e){file={status:'fail',reason:String(e.message||e)};$('fileCheck').textContent='Unable to inspect file: '+file.reason}summarize();}
+function summarize(){const a=Object.values(auto).filter(x=>x.status==='pass').length,failed=Object.values(auto).filter(x=>x.status==='fail').length;const all=[...$('manualTests').querySelectorAll('select')].map(x=>x.value);const done=all.filter(x=>x!=='untested').length;$('summary').textContent=`Automatic: ${a} passed, ${failed} failed (some informational). Application identity: ${file.status}. Manual: ${done}/${manuals.length} recorded. Restart: ${restartCheck.status}. This does not auto-approve release.`}
+function report(){return {format:'ledger-e5-offline-qa',version:2,createdAt:new Date().toISOString(),browser:navigator.userAgent.slice(0,250),protocol:location.protocol,appFile:file,autoChecks:auto,manualChecks:Object.fromEntries(manuals.map(([id,label])=>[id,{label,status:$('manual-'+id).value}])),notes:$('notes').value.slice(0,4000),restartCheck,privacy:'The QA page does not inspect CV records or issue network requests.',releaseStatus:'NOT AUTOMATICALLY APPROVED'}}
+function save(){const b=new Blob([JSON.stringify(report(),null,2)],{type:'application/json'}),u=URL.createObjectURL(b),a=document.createElement('a');a.href=u;a.download='Ledger_E5_Browser_Acceptance_'+new Date().toISOString().slice(0,10)+'.json';document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),3000)}
+function reset(){auto={};file={status:'untested'};$('results').replaceChildren();$('sourceFile').value='';$('fileCheck').textContent='';$('notes').value='';for(const x of $('manualTests').querySelectorAll('select'))x.value='untested';summarize()}
+for(const [id,label] of manuals){const row=document.createElement('div');row.className='manual';const title=document.createElement('label');title.textContent=label;title.htmlFor='manual-'+id;const sel=document.createElement('select');sel.id='manual-'+id;for(const [v,t] of [['untested','Not tested'],['pass','Passed'],['fail','Failed'],['blocked','Blocked / unsupported']]){const opt=document.createElement('option');opt.value=v;opt.textContent=t;sel.append(opt)}sel.onchange=summarize;row.append(title,sel);$('manualTests').append(row)}
+$('restartStart').onclick=startRestart;$('restartVerify').onclick=verifyRestart;$('restartErase').onclick=eraseRestart;
+$('run').onclick=run;$('sourceFile').onchange=verifyFile;$('export').onclick=save;$('reset').onclick=reset;
+summarize();
+})();
+</script><section style="margin:1rem;padding:1rem;border:1px solid #aaa"><h2>E21 Word hidden-style privacy review</h2><p>Use only synthetic DOCX files. Ensure character, paragraph and inherited hidden Word text is excluded from review; visible overrides stay visible, style uncertainty is warned about, and cancellation never changes a saved CV. Tests remain local and manual human signoff is required.</p></section><section style="margin:1rem;padding:1rem;border:1px solid #aaa"><h2>E20 calendar import check</h2><p>Open Career tracker → Tasks & reminders. Import an all-day .ics calendar, review and cancel, then retry and explicitly approve. Verify duplicates do not overwrite existing career data and that recurrence/timezone warnings are shown. Tests are local only.</p></section></body></html>

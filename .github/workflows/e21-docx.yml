@@ -1,0 +1,57 @@
+name: Ledger E21 Word import privacy (development only)
+
+on:
+  push:
+    branches: [review/e21-docx-style-privacy-2026-11-07]
+  pull_request:
+    paths:
+      - 'development/e21/**'
+      - 'tests/e21_native_docx_style.py'
+      - 'tests/e21_native_file_smoke.py'
+      - 'tests/e21-artifact.test.mjs'
+      - 'tools/build-e21.mjs'
+      - '.github/workflows/e21-docx.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  native-docx-style:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Rebuild and verify exact E21 standalone release files
+        run: node --test tests/e21-artifact.test.mjs
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install isolated Chromium browser
+        run: |
+          python -m pip install "playwright==1.57.0"
+          python -m playwright install chromium
+      - name: Verify E21 standalone CV and QA storage survive browser restart
+        run: python tests/e21_native_file_smoke.py
+      - name: Install real Chrome and Edge browser channels on Windows hosted runner
+        if: runner.os == 'Windows'
+        run: python -m playwright install chrome msedge
+      - name: Check hosted Windows Google Chrome file origin and CV restart
+        if: runner.os == 'Windows'
+        env:
+          LEDGER_E21_BROWSER_CHANNEL: chrome
+        run: python tests/e21_native_file_smoke.py
+      - name: Check hosted Windows Microsoft Edge file origin and CV restart
+        if: runner.os == 'Windows'
+        env:
+          LEDGER_E21_BROWSER_CHANNEL: msedge
+        run: python tests/e21_native_file_smoke.py
+      - name: Verify Word style-hidden text is excluded via real file origin
+        run: python tests/e21_native_docx_style.py
