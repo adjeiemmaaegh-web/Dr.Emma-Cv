@@ -1,0 +1,62 @@
+name: Ledger E22 native all-template PDF pagination (development NO-GO)
+
+on:
+  push:
+    branches: [review/e22-monogram-print-pagination-2026-11-07]
+  pull_request:
+    paths:
+      - 'development/e22/**'
+      - 'tests/e22-*'
+      - 'tools/build-e22.mjs'
+      - '.github/workflows/e22-print.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  native-template-print:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            channel: chromium
+          - os: windows-latest
+            channel: chrome
+          - os: windows-latest
+            channel: msedge
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Validate E21 and E22 exact files and reproducible build
+        run: node --test tests/e21-artifact.test.mjs tests/e22-artifact.test.mjs
+      - name: Install browser and native PDF parser
+        run: python -m pip install "playwright==1.57.0" "pymupdf==1.26.5"
+      - name: Install Linux Chromium
+        if: runner.os == 'Linux'
+        run: python -m playwright install chromium --with-deps
+      - name: Install Google Chrome / Microsoft Edge on hosted Windows
+        if: runner.os == 'Windows'
+        run: python -m playwright install chromium ${{ matrix.channel }}
+      - name: Verify E21 hidden-style privacy on native file origin
+        run: python tests/e21_native_docx_style.py
+      - name: Print all 30 designs with A4/Letter and long synthetic CVs
+        env:
+          LEDGER_BROWSER_CHANNEL: ${{ matrix.channel }}
+          LEDGER_AUDIT_REPORT: qa/e22/results/report-${{ matrix.os }}-${{ matrix.channel }}.json
+        run: python tests/e22_native_all_templates.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: e22-print-report-${{ matrix.os }}-${{ matrix.channel }}
+          path: qa/e22/results/*.json
+          if-no-files-found: ignore
+          retention-days: 14
