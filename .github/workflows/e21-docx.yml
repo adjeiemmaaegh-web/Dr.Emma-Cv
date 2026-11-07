@@ -40,5 +40,18 @@ jobs:
           python -m playwright install chromium
       - name: Verify E21 standalone CV and QA storage survive browser restart
         run: python tests/e21_native_file_smoke.py
+      - name: Install real Chrome and Edge browser channels on Windows hosted runner
+        if: runner.os == 'Windows'
+        run: python -m playwright install chrome msedge
+      - name: Check hosted Windows Google Chrome file origin and CV restart
+        if: runner.os == 'Windows'
+        env:
+          LEDGER_E21_BROWSER_CHANNEL: chrome
+        run: python tests/e21_native_file_smoke.py
+      - name: Check hosted Windows Microsoft Edge file origin and CV restart
+        if: runner.os == 'Windows'
+        env:
+          LEDGER_E21_BROWSER_CHANNEL: msedge
+        run: python tests/e21_native_file_smoke.py
       - name: Verify Word style-hidden text is excluded via real file origin
         run: python tests/e21_native_docx_style.py
