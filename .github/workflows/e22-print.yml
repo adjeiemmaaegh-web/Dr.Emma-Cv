@@ -45,7 +45,7 @@ jobs:
         run: python -m playwright install chromium --with-deps
       - name: Install Google Chrome / Microsoft Edge on hosted Windows
         if: runner.os == 'Windows'
-        run: python -m playwright install ${{ matrix.channel }}
+        run: python -m playwright install chromium ${{ matrix.channel }}
       - name: Verify E21 hidden-style privacy on native file origin
         run: python tests/e21_native_docx_style.py
       - name: Print all 30 designs with A4/Letter and long synthetic CVs
