@@ -1,0 +1,55 @@
+name: Ledger E23 native iCalendar safety (development NO-GO)
+
+on:
+  push:
+    branches: [review/e23-calendar-import-safety-2026-11-11]
+  pull_request:
+    paths:
+      - 'development/e23/**'
+      - 'tools/build-e23.mjs'
+      - 'tests/e23-*'
+      - 'tests/e23_*'
+      - '.github/workflows/e23-calendar.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  native-calendar:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            channel: chromium
+          - os: windows-latest
+            channel: chrome
+          - os: windows-latest
+            channel: msedge
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Check E23 exact source rebuild and previous frozen E22
+        run: node tools/build-e23.mjs
+      - name: Run E23 pure parser and calendar safety regression tests
+        run: node --test tests/e23-calendar.test.mjs
+      - name: Install Playwright
+        run: python -m pip install playwright==1.57.0
+      - name: Install Linux Chromium
+        if: runner.os == 'Linux'
+        run: python -m playwright install chromium --with-deps
+      - name: Install hosted Windows browser channel
+        if: runner.os == 'Windows'
+        run: python -m playwright install chromium ${{ matrix.channel }}
+      - name: Verify genuine file-origin E23 calendar import
+        env:
+          LEDGER_BROWSER_CHANNEL: ${{ matrix.channel }}
+        run: python tests/e23_native_calendar.py

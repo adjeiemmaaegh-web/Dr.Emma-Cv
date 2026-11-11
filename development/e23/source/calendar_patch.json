@@ -1,0 +1,22 @@
+[
+  {
+    "id": "utf8-bom-at-file-start",
+    "find": "  const physical=raw.replace(/\\r\\n/g,'\\n').split('\\n');",
+    "replace": "  // E23: tolerate a UTF-8 BOM only at the start of an imported calendar.\n  // The original byte-size and control-character checks still run first.\n  if(raw.charCodeAt(0)===0xFEFF)raw=raw.slice(1);\n  const physical=raw.replace(/\\r\\n/g,'\\n').split('\\n');"
+  },
+  {
+    "id": "calendar-wide-cancellation-state",
+    "find": "  const stack=[],events=[],warnings=[],uids=new Set();let rows=null,seenCalendar=0,rawEvents=0;",
+    "replace": "  const stack=[],events=[],warnings=[],uids=new Set();let rows=null,seenCalendar=0,rawEvents=0,cancelledCalendar=false;"
+  },
+  {
+    "id": "detect-top-level-method-cancel",
+    "find": "  for(const line of lines){\n   if(line.startsWith('BEGIN:')){",
+    "replace": "  for(const line of lines){\n   // E23: cancellation notices must not become new career follow-up tasks.\n   if(stack.length===1&&stack[0]==='VCALENDAR'&&line.toUpperCase()==='METHOD:CANCEL')cancelledCalendar=true;\n   if(line.startsWith('BEGIN:')){"
+  },
+  {
+    "id": "suppress-all-cancelled-calendar-events",
+    "find": "  if(stack.length||seenCalendar!==1)throw Error('Unclosed calendar component');\n  return {events,warnings,scanned:rawEvents,skipped:rawEvents-events.length};",
+    "replace": "  if(stack.length||seenCalendar!==1)throw Error('Unclosed calendar component');\n  if(cancelledCalendar){\n   warnings.unshift('Calendar-wide METHOD:CANCEL notice: no events were imported as new tasks');\n   if(warnings.length>60)warnings.pop();\n   return {events:[],warnings,scanned:rawEvents,skipped:rawEvents};\n  }\n  return {events,warnings,scanned:rawEvents,skipped:rawEvents-events.length};"
+  }
+]

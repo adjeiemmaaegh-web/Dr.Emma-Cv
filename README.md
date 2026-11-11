@@ -10,6 +10,10 @@ Download or open [Ledger_CV_Studio_Stage8_Free_Finalization.html](Ledger_CV_Stud
 
 The newer [E20 offline calendar-import candidate](development/e20/README.md), [standalone E20 HTML](development/e20/Ledger_CV_Studio_E20_Offline_Calendar_Import_2026-11-06.html) and [local QA](development/e20/Ledger_CV_Studio_E20_Offline_QA_2026-11-06.html) are available for **development review only**. The original Stage 8 app below is unchanged. E20 remains **production NO-GO**. Back up your CV before switching file URLs; local browser storage continuity is not proven. Static artifact checks do not certify real Windows, document fidelity or accessibility.
 
+## Latest E23 engineering candidate (11 November 2026)
+
+The newest [E23 development candidate](development/e23/README.md) and [standalone HTML](development/e23/Ledger_CV_Studio_E23_Calendar_Import_Safety.html) build on the E20–E22 review chain. E23 fixes two iCalendar imports: a leading UTF-8 BOM and accidental task creation from calendar-wide cancellation notices. See [draft PR #4](https://github.com/adjeiemmaaegh-web/Dr.Emma-Cv/pull/4). This is **not a released or migrated version**. The main Stage 8 entrypoint remains unchanged; before opening another file URL, export a backup from the current app. Device acceptance and production launch remain unapproved.
+
 ## Engineering direction
 
 - Keep the working standalone HTML release.
