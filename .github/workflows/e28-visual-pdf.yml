@@ -57,7 +57,7 @@ jobs:
         run: python -m pip install playwright==1.57.0 pillow==11.3.0 pymupdf==1.26.5
       - name: Install hosted Linux Chromium
         if: runner.os == 'Linux'
-        run: python -m playwright install chromium --with-deps
+        run: python -m playwright install chromium
       - name: Install hosted Windows browser
         if: runner.os == 'Windows'
         run: python -m playwright install chromium ${{ matrix.browser }}

@@ -25,6 +25,7 @@ assert(next.startsWith(old.slice(0,start))&&next.endsWith(old.slice(end)),
  'Unexpected surrounding app changes');
 assert(!/<script\b[^>]+\bsrc\s*=/i.test(next),'External JS resource detected');
 const out='dist/Ledger_CV_Studio_E28_Offline_Visual_PDF_OCR.html';
+assert.equal(sha(next),'73ca54189b8db116c5f9760f9372dc2082a836de5dfcbdea43c03eff436dcbd7','Frozen E28 final standalone checksum mismatch');
 fs.writeFileSync(at(out),next);
 const report={
  appSha256:sha(next),appBytes:Buffer.byteLength(next),frozenE27Sha256:expectedInput,
