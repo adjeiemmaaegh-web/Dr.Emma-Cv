@@ -54,7 +54,7 @@ const meta=[
 const swRegistration=[
  '<script id="ledger-e29-web-shell">',
  '(function(){',
- " if(location.protocol==='https:'&&'serviceWorker' in navigator){",
+ " if((location.protocol==='https:'||(location.protocol==='http:'&&['localhost','127.0.0.1'].includes(location.hostname)))&&'serviceWorker' in navigator){",
  "  window.addEventListener('load',()=>{navigator.serviceWorker.register('/sw.js',{scope:'/'})",
  '   .catch(()=>{});},{once:true});',
  ' }',
