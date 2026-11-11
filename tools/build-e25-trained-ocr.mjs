@@ -30,7 +30,8 @@ const anchor='  toolbar.append(ocrButton);';
 assert.equal(e24.split(anchor).length,2,'Image review UI insertion point missing or ambiguous');
 let html=e24.replace(anchor,anchor+ui);
 const closing='</body></html>';
-assert.equal(html.split(closing).length,2,'Standalone document closing anchor missing');
+const closingIndex=html.lastIndexOf(closing);
+assert(closingIndex>html.length-2000,'Final document closing anchor is missing');
 const embedded=(id,buf)=>'<script id="'+id+'" type="application/x-embedded-binary">'+buf.toString('base64')+'</script>';
 const legal='<script id="ledgerE25ThirdPartyNotices" type="text/plain">'+notices.replace(/<\/script/gi,'<\\/script')+'</script>';
 // Single inline ESM script contains the exact distributable library source and adapter;
@@ -46,7 +47,7 @@ const appendix=[
  legal,
  moduleScript
 ].join('\n');
-html=html.replace(closing,appendix+'\n'+closing);
+html=html.slice(0,closingIndex)+appendix+'\n'+html.slice(closingIndex);
 assert(!/<script\b[^>]+\bsrc\s*=/i.test(html),'Unexpected remote script');
 assert(!/<link\b[^>]+\brel\s*=\s*["']stylesheet["'][^>]+\bhref\s*=/i.test(html),'Unexpected external stylesheet');
 const dist=abs('dist');
