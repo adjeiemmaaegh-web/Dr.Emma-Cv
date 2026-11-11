@@ -2,7 +2,7 @@
 
 **Engineering candidate, 11 November 2026. Production NO-GO.**
 
-E26 continues the frozen E25 single-HTML offline trained-English-image OCR candidate. It adds an explicitly requested **raster-only PDF page OCR** path using bundled Mozilla PDF.js 6.5.438, while preserving all previous E25 features, data formats, and normal text-PDF extraction. No cloud, runtime model downloads, installation, payments, accounts or live provider calls.
+E26 continues the frozen E25 single-HTML offline trained-English-image OCR candidate. It adds an explicitly requested **raster-only PDF page OCR** path using bundled Mozilla PDF.js 6.5.438 legacy-compatible builds, while preserving all previous E25 features, data formats, and normal text-PDF extraction. No cloud, runtime model downloads, installation, payments, accounts or live provider calls.
 
 ## Using the preview
 
