@@ -43,6 +43,7 @@ assert(html.includes('ledgerE26Pdfjs={getDocument,GlobalWorkerOptions}'));
 assert(!/<script\b[^>]+\bsrc\s*=/i.test(html),'External JS resource detected');
 assert(!/<link\b[^>]+\brel=["']stylesheet["'][^>]+\bhref=/i.test(html),'External CSS detected');
 const file='dist/Ledger_CV_Studio_E26_Scanned_PDF_Offline_OCR.html';
+assert.equal(sha(html),'c05e4c037af412bd11822f4c9b089cbf02f4636cec787cfc32bf94d7c7fe180e','E26 frozen single-HTML checksum mismatch');
 fs.writeFileSync(at(file),html);
 const report={appSha256:sha(html),size:Buffer.byteLength(html),
  baseAppSha256:e25hash,pdfJsVersion:'6.5.438',

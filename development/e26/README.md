@@ -28,7 +28,7 @@ node tools/build-e26-scanned-pdf.mjs
 python tests/e26_native_scanned_pdf.py
 ```
 
-The E26 builder validates the exact frozen E25 HTML SHA-256 1126a81933d86dc54c7ac36eac9dd4e6aa01f8bddb47e7bcac5a546fb810c8a7 before insertion. The output is dist/Ledger_CV_Studio_E26_Scanned_PDF_Offline_OCR.html with a manifest and synthetic QA report. CI tests genuine offline file:// origins on hosted Linux Chromium, Windows Chrome and Windows Edge, and preserves E25 photo-OCR regressions.
+The E26 finished HTML is pinned to SHA-256 c05e4c037af412bd11822f4c9b089cbf02f4636cec787cfc32bf94d7c7fe180e (15988960 bytes), confirmed byte-identical by hosted Linux Chromium, Windows Chrome and Windows Edge [CI run 43012318742](https://github.com/adjeiemmaaegh-web/Dr.Emma-Cv/actions/runs/43012318742). The test also verifies actual approval and reload persistence. The E26 builder validates the exact frozen E25 HTML SHA-256 1126a81933d86dc54c7ac36eac9dd4e6aa01f8bddb47e7bcac5a546fb810c8a7 before insertion. The output is dist/Ledger_CV_Studio_E26_Scanned_PDF_Offline_OCR.html with a manifest and synthetic QA report. CI tests genuine offline file:// origins on hosted Linux Chromium, Windows Chrome and Windows Edge, and preserves E25 photo-OCR regressions.
 
 ## Unverified release gates
 
