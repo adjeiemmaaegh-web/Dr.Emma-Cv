@@ -16,7 +16,7 @@
    const chunk=atob(b64.slice(i,i+65532));
    for(let j=0;j<chunk.length;j++)output[offset++]=chunk.charCodeAt(j);
   }
-  return output.subarray(0,offset).buffer;
+  return output.slice(0,offset).buffer;
  };
  async function recognize(file,options={}){
   if(!(file instanceof Blob)||file.size<=0||file.size>MAX_IMAGE_BYTES
