@@ -1,0 +1,81 @@
+name: Ledger E26 offline scanned-PDF OCR + consent QA (development NO-GO)
+
+on:
+  push:
+    branches: [review/e26-offline-scanned-pdf-ocr-2026-11-11]
+  pull_request:
+    paths:
+      - 'src/features/pdf/**'
+      - 'tools/build-e26-scanned-pdf.mjs'
+      - 'tests/e26_*'
+      - '.github/workflows/e26-pdf-ocr.yml'
+      - 'development/e26/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  scanned-pdf-native:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            browser: chromium
+          - os: windows-latest
+            browser: chrome
+          - os: windows-latest
+            browser: msedge
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pinned offline-only build components
+        run: npm install --no-save --ignore-scripts --no-audit --no-fund tesseract-wasm@0.11.0 pdfjs-dist@6.5.438
+      - name: Fetch pinned English model only in CI build
+        shell: bash
+        run: |
+          mkdir -p vendor/e25
+          curl --fail --location --retry 3 --proto '=https' --tlsv1.2 \
+            'https://raw.githubusercontent.com/tesseract-ocr/tessdata_fast/87416418657359cb625c412a48b6e1d6d41c29bd/eng.traineddata' \
+            --output vendor/e25/eng.traineddata
+          echo '7d4322bd2a7749724879683fc3912cb542f19906c83bcc1a52132556427170b2  vendor/e25/eng.traineddata' | sha256sum --check
+      - name: Build unchanged E25 and local-only E26 PDF scanning extension
+        run: |
+          node tools/build-e25-trained-ocr.mjs
+          node tools/build-e26-scanned-pdf.mjs
+      - name: Install test dependencies
+        run: python -m pip install playwright==1.57.0 pillow==11.3.0 pymupdf==1.26.5
+      - name: Install Linux Chromium
+        if: runner.os == 'Linux'
+        run: python -m playwright install chromium --with-deps
+      - name: Install hosted Windows browser
+        if: runner.os == 'Windows'
+        run: python -m playwright install chromium ${{ matrix.browser }}
+      - name: Check actual file:// raster PDF OCR, invalid data and review-first consent
+        env:
+          LEDGER_BROWSER_CHANNEL: ${{ matrix.browser }}
+        run: python tests/e26_native_scanned_pdf.py
+      - name: Preserve original E25 trained photo OCR regression
+        if: runner.os == 'Linux'
+        run: |
+          python tests/e25_native_trained_ocr.py
+          python tests/e25_native_ocr_ui.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: e26-offline-scanned-pdf-${{ matrix.os }}-${{ matrix.browser }}-engineering-only
+          path: |
+            dist/Ledger_CV_Studio_E26_Scanned_PDF_Offline_OCR.html
+            dist/E26_MANIFEST.json
+            dist/E26_QA.json
+            development/e25/THIRD_PARTY_NOTICES.txt
+          if-no-files-found: ignore
+          retention-days: 14
