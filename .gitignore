@@ -12,3 +12,4 @@ test-results/
 *.pfx
 credentials*.json
 *.log
+site/

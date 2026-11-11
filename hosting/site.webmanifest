@@ -1,0 +1,18 @@
+{
+  "name": "Ledger CV Studio — Free Offline-First CV Builder",
+  "short_name": "Ledger CV Studio",
+  "description": "CVs, job tracking and career documents. Your private career data stays in your browser.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f3f1ea",
+  "theme_color": "#2b6f68",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
