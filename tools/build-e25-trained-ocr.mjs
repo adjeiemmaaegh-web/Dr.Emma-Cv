@@ -29,7 +29,8 @@ new vm.Script(worker.toString('utf8'),{filename:'tesseract-worker-patched.js'});
 const wasm=fs.readFileSync(abs('node_modules/tesseract-wasm/dist/tesseract-core.wasm'));
 const fallback=fs.readFileSync(abs('node_modules/tesseract-wasm/dist/tesseract-core-fallback.wasm'));
 const english=fs.readFileSync(abs('vendor/e25/eng.traineddata'));
-const notices=read('development/e25/THIRD_PARTY_NOTICES.txt');
+// Preserve identical single-HTML bytes on Windows Git CRLF checkouts.
+const notices=read('development/e25/THIRD_PARTY_NOTICES.txt').replace(/\r\n/g,'\n');
 const fileInfo={library:sha(Buffer.from(lib)),worker:sha(worker),wasm:sha(wasm),
  fallback:sha(fallback),english:sha(english)};
 assert(english.length>100000&&worker.length>10000&&wasm.length>100000,'Bundled OCR asset is incomplete');
