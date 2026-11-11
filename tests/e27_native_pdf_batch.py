@@ -47,7 +47,7 @@ def main():
    page.on('pageerror',lambda e:errors.append(str(e)))
    page.on('request',lambda r:remote.append(r.url) if r.url.startswith(('http://','https://')) else None)
    page.goto(APP.resolve().as_uri(),wait_until='load',timeout=120000)
-   page.wait_for_function('Boolean(window.ledgerE27PdfBatch && window.ledgerE25TrainedOCR?.recognize)',timeout=45000)
+   page.wait_for_function('Boolean(window.ledgerE26Pdf?.renderPage && window.ledgerE25TrainedOCR?.recognize)',timeout=45000)
    check(page.evaluate('location.protocol')=='file:','offline local file origin')
    baseline=page.evaluate('JSON.stringify(state.document)')
    panel=open_pdf(page,data)
@@ -101,9 +101,9 @@ def main():
    # Concurrent manual edits take precedence over an in-flight batch.
    page.evaluate("""()=>{
     window.__e27Waiting=false;
-    window.ledgerE25TrainedOCR={recognize:async(...args)=>{
-      window.__e27Waiting=true;
-      await new Promise(resolve=>{window.__e27Release=resolve});
+    let n=0;window.ledgerE25TrainedOCR={recognize:async(...args)=>{
+      n++;
+      if(n===1){window.__e27Waiting=true;await new Promise(resolve=>{window.__e27Release=resolve});}
       return window.__e27Original.recognize(...args);
     }};
    }""")
@@ -162,6 +162,18 @@ def main():
    persisted=page.evaluate('()=>state.document.customSections||[]')
    check(any('JANE' in str(x.get('content','')).upper() and 'ALICE' in str(x.get('content','')).upper()
       for x in persisted),'explicitly imported pages survive actual browser reload')
+
+   # Existing E26 single-page action must still work in this very same E27 file.
+   second=open_pdf(page,data)
+   page.get_by_role('button',name='Read selected scanned PDF page using bundled offline English OCR').click()
+   page.wait_for_function("""()=>document.querySelector('.ledger-e26-pdf-ocr p[role="status"]')
+    ?.textContent.includes('OCR draft from page 1')""",timeout=90000)
+   check('JANE' in second.locator('textarea').input_value().upper(),
+     'original single-page PDF OCR action remains functional')
+   page.locator('[data-e2-close]').first.click()
+   after_cancel=page.evaluate('()=>state.document.customSections||[]')
+   check(after_cancel==persisted,'canceling another OCR review preserves the approved CV')
+
    check(not remote,'no external HTTP(S) requests during full workflow')
    check(not errors,'no uncaught JavaScript exceptions')
    report={'status':'PASS','appSha256':manifest['appSha256'],'fileOrigin':True,
