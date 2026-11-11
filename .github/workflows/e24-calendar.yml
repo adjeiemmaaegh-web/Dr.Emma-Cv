@@ -1,0 +1,56 @@
+name: Ledger E24 genuine file-origin timezone and calendar UI (development NO-GO)
+
+on:
+  push:
+    branches: [review/e24-calendar-timezone-interoperability-2026-11-11]
+  pull_request:
+    paths:
+      - 'development/e24/**'
+      - 'src/features/calendar/**'
+      - 'tools/build-e24.mjs'
+      - 'tests/e24-*'
+      - 'tests/e24_*'
+      - '.github/workflows/e24-calendar.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  native-calendar:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            channel: chromium
+          - os: windows-latest
+            channel: chrome
+          - os: windows-latest
+            channel: msedge
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Assert frozen E23, rebuild E24, check standalone scripts
+        run: node tools/build-e24.mjs
+      - name: Run 15 timezone/data safety Node tests
+        run: node --test tests/e24-calendar-timezones.test.mjs
+      - name: Install browser runner
+        run: python -m pip install playwright==1.57.0
+      - name: Install Linux Chromium
+        if: runner.os == 'Linux'
+        run: python -m playwright install chromium --with-deps
+      - name: Install hosted Windows browser
+        if: runner.os == 'Windows'
+        run: python -m playwright install chromium ${{ matrix.channel }}
+      - name: Verify actual offline file and UI import consent
+        env:
+          LEDGER_BROWSER_CHANNEL: ${{ matrix.channel }}
+        run: python tests/e24_native_calendar.py
