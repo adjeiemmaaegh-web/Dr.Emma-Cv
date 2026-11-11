@@ -1,0 +1,51 @@
+name: Ledger E25 bundled trained offline OCR proof (engineering NO-GO)
+
+on:
+  push:
+    branches: [review/e25-trained-offline-ocr-proof-2026-11-11]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install exact version of locally bundled OCR runtime
+        run: npm install --no-save --ignore-scripts --no-audit --no-fund tesseract-wasm@0.11.0
+      - name: Fetch pinned English training model at build time only
+        shell: bash
+        run: |
+          mkdir -p vendor/e25
+          curl --fail --location --retry 3 --proto '=https' --tlsv1.2 \
+            'https://raw.githubusercontent.com/tesseract-ocr/tessdata_fast/87416418657359cb625c412a48b6e1d6d41c29bd/eng.traineddata' \
+            --output vendor/e25/eng.traineddata
+          test $(wc -c < vendor/e25/eng.traineddata) -gt 100000
+      - name: Construct one locally runnable HTML + SHA manifest
+        run: node tools/build-e25-trained-ocr.mjs
+      - name: Install browser and image fixture dependencies
+        run: python -m pip install playwright==1.57.0 pillow==11.3.0
+      - name: Install Chromium
+        run: python -m playwright install chromium --with-deps
+      - name: Test actual file:// bundled trained English OCR
+        run: python tests/e25_native_trained_ocr.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: e25-bundled-trained-ocr-development-only
+          path: |
+            dist/Ledger_CV_Studio_E25_Trained_Offline_OCR.html
+            dist/E25_MANIFEST.json
+            dist/E25_OCR_QA.json
+            development/e25/THIRD_PARTY_NOTICES.txt
+          if-no-files-found: ignore
+          retention-days: 14
