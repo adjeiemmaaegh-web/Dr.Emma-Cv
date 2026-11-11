@@ -21,6 +21,7 @@ assert(module.includes('global.ledgerE20Calendar={parse,merge,taskId};'));
 new vm.Script(module,{filename:component});
 const rebuilt=prev.slice(0,start)+module+prev.slice(end);
 assert.equal(rebuilt,next,'E24 application does not match one-module source rebuild');
+assert.equal(sha(next),'4d99390d87619839374b60b22220241557f7a6fb966567ea637c8fae5625d52d','Pinned E24 standalone checksum mismatch');
 assert.equal(rebuilt.slice(0,start),prev.slice(0,start),'Non-calendar prefix drift');
 assert.equal(rebuilt.slice(start+module.length),prev.slice(end),'Non-calendar suffix drift');
 const scripts=[...next.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/gi)].filter(x=>x[1].trim());

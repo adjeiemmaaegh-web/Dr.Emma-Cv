@@ -15,6 +15,7 @@
 
 ## Rebuild and tests
 
+- E24 exact standalone SHA-256: `4d99390d87619839374b60b22220241557f7a6fb966567ea637c8fae5625d52d`.
 - Original E23 input SHA-256: `5ad2e0ee3171502a4e5c0720ef9becf49ab97e791b3ba6affd0364e5f7bc8807`.
 - Run `node tools/build-e24.mjs` to check exact standalone parity, embedded scripts and no external JS/CSS references and print E24 SHA-256.
 - Run `node --test tests/e24-calendar-timezones.test.mjs` for 15 source/behavior regression tests.

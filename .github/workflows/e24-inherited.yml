@@ -1,0 +1,112 @@
+name: Ledger E24 inherited document, restart, and 30-template checks (development NO-GO)
+
+on:
+  push:
+    branches: [review/e24-calendar-timezone-interoperability-2026-11-11]
+    paths:
+      - 'development/e24/**'
+      - 'src/features/calendar/**'
+      - 'tests/e24_*'
+      - 'tools/build-e24.mjs'
+      - '.github/workflows/e24-inherited.yml'
+  pull_request:
+    paths:
+      - 'development/e24/**'
+      - 'src/features/calendar/**'
+      - 'tests/e24_*'
+      - 'tools/build-e24.mjs'
+      - '.github/workflows/e24-inherited.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  inherited-native-files:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: node tools/build-e24.mjs
+      - run: python -m pip install playwright==1.57.0 pymupdf==1.26.5
+      - run: python -m playwright install chromium --with-deps
+      - name: Genuine file-origin Word hidden-style privacy regression
+        run: python tests/e24_inherited_regressions.py docx
+      - name: Genuine file-origin A4/Letter PDF and Word ZIP export
+        run: python tests/e24_inherited_regressions.py documents
+      - name: Browser file-origin calendar consent, conflict and quota checks
+        run: python tests/e24_inherited_regressions.py calendar
+
+  restarted-profile:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            channel: chromium
+          - os: windows-latest
+            channel: chrome
+          - os: windows-latest
+            channel: msedge
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install playwright==1.57.0
+      - name: Install Linux Chromium
+        if: runner.os == 'Linux'
+        run: python -m playwright install chromium --with-deps
+      - name: Install Windows browser channel
+        if: runner.os == 'Windows'
+        run: python -m playwright install chromium ${{ matrix.channel }}
+      - name: Verify full browser restart on same file URL
+        env:
+          LEDGER_BROWSER_CHANNEL: ${{ matrix.channel }}
+        run: python tests/e24_native_restart.py
+
+  template-print:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            channel: chromium
+          - os: windows-latest
+            channel: chrome
+          - os: windows-latest
+            channel: msedge
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install playwright==1.57.0 pymupdf==1.26.5
+      - name: Install Linux Chromium
+        if: runner.os == 'Linux'
+        run: python -m playwright install chromium --with-deps
+      - name: Install Windows browser channel
+        if: runner.os == 'Windows'
+        run: python -m playwright install chromium ${{ matrix.channel }}
+      - name: Validate all 30 templates x A4/Letter x 2 CV lengths
+        env:
+          LEDGER_BROWSER_CHANNEL: ${{ matrix.channel }}
+          LEDGER_AUDIT_REPORT: qa/e24/report-${{ matrix.os }}-${{ matrix.channel }}.json
+        run: python tests/e24_inherited_regressions.py print
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: e24-all-template-report-${{ matrix.os }}-${{ matrix.channel }}
+          path: qa/e24/*.json
+          if-no-files-found: ignore
+          retention-days: 14
