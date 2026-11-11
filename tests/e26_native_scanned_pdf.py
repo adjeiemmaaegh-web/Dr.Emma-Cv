@@ -68,7 +68,7 @@ def main():
             page.on('pageerror',lambda e: errors.append(str(e)))
             page.on('request',lambda r: external.append(r.url) if r.url.startswith(('http://','https://')) else None)
             page.goto(APP.resolve().as_uri(),wait_until='load',timeout=120000)
-            page.wait_for_function('window.ledgerE26Pdfjs?.getDocument && window.ledgerE26Pdf?.renderPage && window.ledgerE25TrainedOCR?.recognize',timeout=120000)
+            page.wait_for_function('Boolean(window.ledgerE26Pdfjs?.getDocument && window.ledgerE26Pdf?.renderPage && window.ledgerE25TrainedOCR?.recognize)',timeout=120000)
             check(page.evaluate('location.protocol')=='file:','real standalone file:// origin')
             check(bool(page.locator('#app').inner_text().strip()),'CV application booted')
 
