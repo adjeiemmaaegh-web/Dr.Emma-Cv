@@ -163,16 +163,26 @@ def main():
    check(any('JANE' in str(x.get('content','')).upper() and 'ALICE' in str(x.get('content','')).upper()
       for x in persisted),'explicitly imported pages survive actual browser reload')
 
-   # Existing E26 single-page action must still work in this very same E27 file.
-   second=open_pdf(page,data)
-   page.get_by_role('button',name='Read selected scanned PDF page using bundled offline English OCR').click()
-   page.wait_for_function("""()=>document.querySelector('.ledger-e26-pdf-ocr p[role="status"]')
-    ?.textContent.includes('OCR draft from page 1')""",timeout=90000)
-   check('JANE' in second.locator('textarea').input_value().upper(),
-     'original single-page PDF OCR action remains functional')
-   page.locator('[data-e2-close]').first.click()
-   after_cancel=page.evaluate('()=>state.document.customSections||[]')
-   check(after_cancel==persisted,'canceling another OCR review preserves the approved CV')
+   # Repeat legacy single-page acceptance in an isolated browser profile.
+   # The current page is an editor after import/reload, not the home upload page.
+   fresh=browser.new_context(accept_downloads=True)
+   try:
+    spare=fresh.new_page()
+    spare.on('pageerror',lambda e:errors.append(str(e)))
+    spare.on('request',lambda r:remote.append(r.url) if r.url.startswith(('http://','https://')) else None)
+    spare.goto(APP.resolve().as_uri(),wait_until='load',timeout=120000)
+    other_before=spare.evaluate('JSON.stringify(state.document)')
+    second=open_pdf(spare,data)
+    spare.get_by_role('button',name='Read selected scanned PDF page using bundled offline English OCR').click()
+    spare.wait_for_function("""()=>document.querySelector('.ledger-e26-pdf-ocr p[role="status"]')
+     ?.textContent.includes('OCR draft from page 1')""",timeout=90000)
+    check('JANE' in second.locator('textarea').input_value().upper(),
+      'original single-page PDF OCR action remains functional')
+    spare.locator('[data-e2-close]').first.click()
+    check(spare.evaluate('JSON.stringify(state.document)')==other_before,
+      'canceling a single-page OCR review preserves its existing CV')
+   finally:
+    fresh.close()
 
    check(not remote,'no external HTTP(S) requests during full workflow')
    check(not errors,'no uncaught JavaScript exceptions')
