@@ -6,7 +6,7 @@
 
 - `tesseract-wasm@0.11.0` — BSD-2-Clause, packaged JS/WASM worker runtime from the upstream npm registry.
 - `tessdata_fast/eng.traineddata` — Apache-2.0, pinned upstream revision `87416418657359cb625c412a48b6e1d6d41c29bd`.
-- License notices embedded into the generated HTML; see `THIRD_PARTY_NOTICES.txt`. Verify compiled core attribution for commercial redistribution before any release.
+- License notices for the OCR wrapper, Tesseract engine, trained model and Leptonica are embedded in the generated HTML; see `THIRD_PARTY_NOTICES.txt`. Verify all compiled-code attribution and obligations before distribution.
 - Build tooling uses Node.js and internet access **only during engineering**. Ordinary users should need just one local HTML file.
 
 ## Execution
