@@ -124,6 +124,37 @@ def main():
             page.locator('[data-e2-close]').first.click()
             check(page.evaluate('JSON.stringify(state.document)')==original,
                   'cancel after trained PDF OCR leaves original CV intact')
+
+            # Full approved import path: the OCR result becomes a NEW reviewed CV,
+            # with the original text preserved, without calendar/AI/network access.
+            page.locator('#importFile').set_input_files({
+                'name':'synthetic-2page.pdf','mimeType':'application/pdf','buffer':pdf
+            })
+            panel=page.locator('.ledger-e2-import')
+            panel.wait_for(timeout=30000)
+            page.get_by_role('button',name='Read selected scanned PDF page using bundled offline English OCR').click()
+            page.wait_for_function("""()=>document.querySelector('.ledger-e26-pdf-ocr p[role="status"]')?.textContent.includes('OCR draft from page 1')""",timeout=90000)
+            source_text=panel.locator('textarea').input_value()
+            check(source_text.lstrip().upper().startswith('JANE DOE'),
+                  'OCR page metadata is not injected into applicant name or source text')
+            page.get_by_role('checkbox',name='I checked all OCR text against the original image').check()
+            page.locator('.ledger-e12-import-option input').check()
+            page.get_by_role('button',name='Import reviewed text into a new CV').click()
+            page.wait_for_function("state.screen==='editor'",timeout=20000)
+            imported=page.evaluate("""() => ({
+                first:state.document.personalInfo.firstName,
+                last:state.document.personalInfo.lastName,
+                sections:state.document.customSections||[]
+            })""")
+            check('JANE' in (imported['first']+' '+imported['last']).upper(),
+                  'reviewed synthetic PDF OCR reaches actual CV personal name field')
+            check(any('JANE DOE' in str(s.get('content','')).upper() for s in imported['sections']),
+                  'opt-in source-preservation keeps the full OCR draft without loss')
+            page.reload(wait_until='load',timeout=60000)
+            persisted=page.evaluate("""()=>state.document.customSections||[]""")
+            check(any('JANE DOE' in str(s.get('content','')).upper() for s in persisted),
+                  'approved scanned PDF import survives browser reload in the same file profile')
+
             check(not external,'no external HTTP(S) requests during PDF decode and OCR')
             check(not errors,'no uncaught JavaScript errors')
             ctx.close()

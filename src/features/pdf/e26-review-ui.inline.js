@@ -37,7 +37,10 @@ function e26AttachScannedPdfReview(review,file){
    if(review.ta.value!==existing){status.textContent='Review text changed during recognition. The new draft was discarded to avoid overwriting edits.';return}
    if(draft.text.trim().length<20){status.textContent='Not enough readable text was detected. Use manual transcription or choose another page.';return}
    const prefix=existing.trim()?existing.trim()+'\n\n':'';
-   const text=(prefix+'[Scanned PDF page '+num+' — verify all text]\n'+draft.text.trim()).slice(0,MAX_IMPORTED_TEXT);
+   // Keep audit metadata in the status, NEVER in editable CV source text.
+   // Silently truncating either the original review or OCR draft would lose data.
+   const text=prefix+draft.text.trim();
+   if(text.length>MAX_IMPORTED_TEXT){status.textContent='The existing review plus OCR output exceeds the 120,000-character limit. Nothing was changed.';return}
    review.ta.value=text;review.ta.dispatchEvent(new Event('input',{bubbles:true}));
    guard.markMachineDraft();
    status.textContent='OCR draft from page '+num+' of '+raster.pages+' added to review. Confirm every field against the PDF before importing.';
