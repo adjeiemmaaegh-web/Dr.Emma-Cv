@@ -38,6 +38,8 @@ jobs:
         run: python -m playwright install chromium --with-deps
       - name: Test actual file:// bundled trained English OCR
         run: python tests/e25_native_trained_ocr.py
+      - name: Verify trained OCR review gate and cancellation in actual UI
+        run: python tests/e25_native_ocr_ui.py
       - uses: actions/upload-artifact@v4
         if: always()
         with:
