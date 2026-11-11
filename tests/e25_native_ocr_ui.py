@@ -38,7 +38,7 @@ def main():
             })
             panel=page.locator('.ledger-e2-import')
             panel.wait_for(timeout=20000)
-            trained=page.get_by_role('button',name='Try trained English OCR (offline · review required)')
+            trained=page.get_by_role('button',name='Try bundled trained offline English OCR; review all extracted text before importing')
             trained.wait_for(timeout=30000)
             prior=page.evaluate('JSON.stringify(state.document)')
             check(not page.locator('.ledger-ocr-verification').is_visible(),
