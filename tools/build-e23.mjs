@@ -23,6 +23,7 @@ for(const patch of patches){
  rebuilt=rebuilt.replace(patch.find,patch.replace);
 }
 assert.equal(read(target),rebuilt,'Committed E23 standalone HTML differs from audited patch');
+assert.equal(sha(rebuilt),'5ad2e0ee3171502a4e5c0720ef9becf49ab97e791b3ba6affd0364e5f7bc8807','Pinned E23 distribution checksum mismatch');
 assert(rebuilt.includes('E23: tolerate a UTF-8 BOM')&&rebuilt.includes('METHOD:CANCEL notice'));
 const dist=path.join(root,'dist');
 fs.mkdirSync(dist,{recursive:true});

@@ -12,6 +12,7 @@ E23 does **not** automatically reconcile cancellation notices with existing task
 ## Build and evidence
 
 - E22 source base SHA-256: ca686104b80df028b8f52b0b91adbafbd569709600dee493f9b8102e1a98e512.
+- E23 exact generated application SHA-256: 5ad2e0ee3171502a4e5c0720ef9becf49ab97e791b3ba6affd0364e5f7bc8807.
 - Four auditable replacements in development/e23/source/calendar_patch.json.
 - Standalone candidate: Ledger_CV_Studio_E23_Calendar_Import_Safety.html.
 - Run node tools/build-e23.mjs to assert the patched artifact is byte-identical to the committed one and generate dist output. The command prints the E23 SHA-256.
