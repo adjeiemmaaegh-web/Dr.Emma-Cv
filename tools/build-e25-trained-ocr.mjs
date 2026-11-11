@@ -17,7 +17,15 @@ const adapter=read('src/features/ocr/e25-trained-ocr-adapter.inline.js');
 new vm.Script(ui,{filename:'e25-ocr-ui.js'});
 // Adapter is a script body appended to an ESM module; parse in ESM context later.
 const lib=read('node_modules/tesseract-wasm/dist/lib.js');
-const worker=fs.readFileSync(abs('node_modules/tesseract-wasm/dist/tesseract-worker.js'));
+// Upstream 0.11.0's Emscripten bootstrap unconditionally resolves its WASM
+// filename against Worker location.href. A blob:null URL from local file://
+ // has no usable relative base. The model's WASM bytes are already supplied
+// in memory; remove ONLY that unused relative-URL construction.
+const workerUpstream=fs.readFileSync(abs('node_modules/tesseract-wasm/dist/tesseract-worker.js')).toString('utf8');
+const relativeAnchor='else {wasmBinaryFile=new URL("tesseract-core.wasm",(typeof document === \'undefined\' && typeof location === \'undefined\' ? new (require(\'u\' + \'rl\').URL)(\'file:\' + __filename).href : typeof document === \'undefined\' ? location.href : (document.currentScript && document.currentScript.tagName.toUpperCase() === \'SCRIPT\' && document.currentScript.src || new URL(\'tesseract-worker.js\', document.baseURI).href))).href;}';
+assert.equal(workerUpstream.split(relativeAnchor).length,2,'Unexpected upstream worker version; review blob: URL compatibility patch');
+const worker=Buffer.from(workerUpstream.replace(relativeAnchor,'else {wasmBinaryFile="tesseract-core.wasm";}'));
+new vm.Script(worker.toString('utf8'),{filename:'tesseract-worker-patched.js'});
 const wasm=fs.readFileSync(abs('node_modules/tesseract-wasm/dist/tesseract-core.wasm'));
 const fallback=fs.readFileSync(abs('node_modules/tesseract-wasm/dist/tesseract-core-fallback.wasm'));
 const english=fs.readFileSync(abs('vendor/e25/eng.traineddata'));
