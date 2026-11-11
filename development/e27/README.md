@@ -26,7 +26,7 @@ python tests/e27_native_pdf_batch.py
 python tests/e27_inherited_e26.py
 ```
 
-The E27 builder checks the exact frozen E26 SHA-256 `c05e4c037af412bd11822f4c9b089cbf02f4636cec787cfc32bf94d7c7fe180e` and replaces **only** the scanned-PDF review function; the rest of the original HTML remains byte-identical. The final HTML, SHA manifest and synthetic test results are uploaded as GitHub Actions engineering artifacts. CI runs real `file://` tests on hosted Linux Chromium, Windows Chrome and Windows Edge, including concurrency, cancellation, duplicate prevention, approved CV import and browser reload.
+The built standalone E27 HTML has been verified byte-identical on hosted Linux Chromium, Windows Chrome and Edge: SHA-256 `f6d68fea1f7cc93be5884631d1a945db92c5ce946a39ab22d12e04e2c0789650`, 15,992,809 bytes. [Three-browser Actions QA run](https://github.com/adjeiemmaaegh-web/Dr.Emma-Cv/actions/runs/43029129657) passed. The E27 builder now pins this checksum. The E27 builder checks the exact frozen E26 SHA-256 `c05e4c037af412bd11822f4c9b089cbf02f4636cec787cfc32bf94d7c7fe180e` and replaces **only** the scanned-PDF review function; the rest of the original HTML remains byte-identical. The final HTML, SHA manifest and synthetic test results are uploaded as GitHub Actions engineering artifacts. CI runs real `file://` tests on hosted Linux Chromium, Windows Chrome and Windows Edge, including concurrency, cancellation, duplicate prevention, approved CV import and browser reload.
 
 ## Open limitations
 

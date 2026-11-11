@@ -27,6 +27,7 @@ assert.equal(next.slice(start+module.length+1),old.slice(end));
 assert(!/<script\b[^>]+\bsrc\s*=/i.test(next),'Unexpected external JS');
 assert(!/<link\b[^>]+\brel\s*=\s*["']stylesheet["'][^>]+\bhref\s*=/i.test(next),'Unexpected external stylesheet');
 const out='dist/Ledger_CV_Studio_E27_Transactional_PDF_Batch_OCR.html';
+assert.equal(sha(next),'f6d68fea1f7cc93be5884631d1a945db92c5ce946a39ab22d12e04e2c0789650','E27 standalone source integrity mismatch');
 fs.writeFileSync(at(out),next);
 const manifest={
  appSha256:sha(next),appBytes:Buffer.byteLength(next),
