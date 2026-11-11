@@ -40,8 +40,10 @@ const input=fs.readFileSync(at('dist/Ledger_CV_Studio_E28_Offline_Visual_PDF_OCR
 assert.equal(input.length,15999116,'Unexpected E28 standalone size');
 assert.equal(sha(input),exactE28,'E28 standalone checksum mismatch; publishing forbidden');
 let html=input.toString('utf8');
-assert.equal(html.split('</head>').length,2);
-assert.equal(html.split('</body>').length,2);
+const headClose=html.indexOf('</head>');
+const bodyClose=html.lastIndexOf('</body>');
+assert(headClose>0&&headClose<10000,'Unexpected HTML document head');
+assert(bodyClose>html.length-30000,'Unexpected HTML document body');
 const meta=[
  '<meta name="theme-color" content="#2B6F68">',
  '<meta name="application-name" content="Ledger CV Studio">',
@@ -60,7 +62,8 @@ const swRegistration=[
  '</script>'
 ].join('\n');
 html=html.replace('</head>',meta+'\n</head>');
-html=html.replace('</body>',swRegistration+'\n</body>');
+const finalBody=html.lastIndexOf('</body>');
+html=html.slice(0,finalBody)+swRegistration+'\n'+html.slice(finalBody);
 assert(!/<script\b[^>]*\bsrc\s*=/i.test(html),'Unexpected external JS');
 assert(!/<link\b[^>]*\brel=["']stylesheet["'][^>]*\bhref/i.test(html),'Unexpected external CSS');
 const site=at('site');fs.mkdirSync(site,{recursive:true});
