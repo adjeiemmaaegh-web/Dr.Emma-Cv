@@ -36,10 +36,11 @@ def main():
         browser=pw.chromium.launch(headless=True)
         try:
             page=browser.new_page()
-            page.set_default_timeout(180000)
+            page.set_default_timeout(90000)
             page.on('pageerror',lambda e: errors.append(str(e)))
+            page.on('console',lambda msg: print('BROWSER '+msg.type+': '+msg.text[:1200],flush=True) if msg.type=='error' else None)
             page.on('request',lambda r: external.append(r.url) if r.url.startswith(('http://','https://')) else None)
-            page.goto(APP.resolve().as_uri(),wait_until='load',timeout=180000)
+            page.goto(APP.resolve().as_uri(),wait_until='load',timeout=90000)
             check(page.evaluate('location.protocol')=='file:','actual standalone file:// origin')
             page.wait_for_function('window.ledgerE25TrainedOCR?.available===true',timeout=180000)
             check(bool(page.locator('#app').inner_text().strip()),'existing CV application boots')

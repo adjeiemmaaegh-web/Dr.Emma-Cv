@@ -33,8 +33,14 @@
    const source=packed('ledgerE25Worker');
    const sourceText=new TextDecoder().decode(source);
    workerURL=URL.createObjectURL(new Blob([sourceText],{type:'text/javascript'}));
-   ocr=new OCRClient({workerURL,wasmBinary:packed(supportsFastBuild()?'ledgerE25Wasm':'ledgerE25FallbackWasm')});
-   await ocr.loadModel(packed('ledgerE25English'));
+   const bounded=(promise,what)=>new Promise((resolve,reject)=>{
+    const t=setTimeout(()=>reject(Error(what+' timed out; worker error: '+String(root.__ledgerE25WorkerError||'none reported'))),45000);
+    Promise.resolve(promise).then(v=>{clearTimeout(t);resolve(v)},e=>{clearTimeout(t);reject(e)});
+   });
+   ocr=new OCRClient({workerURL,wasmBinary:packed(supportsFastBuild()?'ledgerE25Wasm':'ledgerE25FallbackWasm'),
+    createWorker(url){const w=new Worker(url);w.addEventListener('error',e=>{root.__ledgerE25WorkerError=String(e.message||'unreported')});return w}
+   });
+   await bounded(ocr.loadModel(packed('ledgerE25English')),'Trained OCR initialization');
    bitmap=await createImageBitmap(file);
    let image=bitmap;
    if(rotation){
@@ -49,7 +55,7 @@
     image=ctx.getImageData(0,0,canvas.width,canvas.height);
    }
    await ocr.loadImage(image);
-   const text=String(await ocr.getText()||'').slice(0,120000);
+   const text=String(await bounded(ocr.getText(),'Trained OCR recognition')||'').slice(0,120000);
    return {text,lines:text.split(/\r?\n/).filter(Boolean).length,rotationApplied:rotation,
     engine:'trained-offline-tesseract-wasm-0.11.0',notice:'English model only. Compare every detail with the source image before importing.'};
   }finally{
