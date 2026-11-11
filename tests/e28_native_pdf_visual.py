@@ -93,6 +93,8 @@ def main():
    check(viewer.is_visible(),'visual PDF page reference shown after successful OCR')
    reference=viewer.locator('img')
    reference.wait_for()
+   page.wait_for_function("""()=>{const image=document.querySelector('.ledger-e28-pdf-reference img');
+      return !!image && image.complete && image.naturalWidth>0}""",timeout=15000)
    preview=reference.evaluate("""img=>({
       src:img.src,alt:img.alt,ready:img.complete,width:img.naturalWidth,
       height:img.naturalHeight

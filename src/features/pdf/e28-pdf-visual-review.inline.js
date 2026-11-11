@@ -143,7 +143,6 @@ function e26AttachScannedPdfReview(review,file){
   }
  }
  const approval=panel.querySelector('.ledger-e2-buttons button');
- const approval=panel.querySelector('.ledger-e2-buttons button');
  approval?.addEventListener('click',event=>{
   if(!busy)return;
   event.preventDefault();event.stopImmediatePropagation();
