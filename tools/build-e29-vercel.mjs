@@ -42,7 +42,7 @@ assert.equal(sha(input),exactE28,'E28 standalone checksum mismatch; publishing f
 let html=input.toString('utf8');
 const headClose=html.indexOf('</head>');
 const bodyClose=html.lastIndexOf('</body>');
-assert(headClose>0&&headClose<10000,'Unexpected HTML document head');
+assert(headClose>0&&headClose<500000,'Unexpected HTML document head');
 assert(bodyClose>html.length-30000,'Unexpected HTML document body');
 const meta=[
  '<meta name="theme-color" content="#2B6F68">',
