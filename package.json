@@ -9,7 +9,7 @@
     "verify:e0": "npm run build:legacy && npm run audit:baseline && npm run audit:storage && npm run test:unit",
     "test:unit": "node --test tests/unit/*.test.mjs",
     "audit:storage": "node tools/audit-storage.mjs",
-    "build": "node tools/build-e29-vercel.mjs"
+    "build": "node tools/build-e30-ui.mjs"
   },
   "devDependencies": {
     "pdfjs-dist": "6.5.438",

@@ -1,3 +1,9 @@
+## E30 UX/UI polish candidate — 12 November 2026
+
+The [E30 design audit and remedy notes](development/e30/UX_UI_AUDIT.md) document a full 14-screen router review, navigation/workflow and auxiliary-tool inventory, and before/after fixes for six overlapping floating launchers and 320px import overflow. E30 preserves the audited E29 application's CV data, trained local OCR, Word/PDF exports, career workflow and document geometry while introducing scoped app controls and a keyboard-accessible **Tools & language** menu. [Draft PR #13](https://github.com/adjeiemmaaegh-web/Dr.Emma-Cv/pull/13) is unmerged and does **not** supersede the published E29 site yet.
+
+**Exact E30 hosted HTML:** 16,010,305 bytes; SHA-256 `1dd5b058bc10e058825e37ec0de706f42efe2ac89c602a87909672f948dc546c`. [Hosted E30 Linux Chromium, Windows Chrome and Edge QA](https://github.com/adjeiemmaaegh-web/Dr.Emma-Cv/actions/runs/43216225981) passed 14 screens × four viewports per browser, no horizontal overflow or JavaScript errors, original offline OCR/storage tests, and 120/120 template-print cases on Linux. **Vercel E30 preview deployment was blocked by free-tier daily API quota HTTP 402**; the public site remains E29. Real device, screen-reader, Word fidelity and human visual QA remain open; **production release acceptance remains NO-GO**.
+
 # Ledger CV Studio / Dr.Emma-Cv
 
 Free, offline-first CV and career toolkit. This repository holds the current **Stage 8 development baseline**, not a verified production release.

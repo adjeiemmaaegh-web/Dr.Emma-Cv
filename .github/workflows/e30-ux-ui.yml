@@ -1,0 +1,78 @@
+name: Ledger E30 UX/UI design-system and functional regression QA (NO-GO)
+on:
+  push:
+    branches: [review/e30-ux-ui-design-system-2026-11-12]
+  pull_request:
+    paths:
+      - 'src/styles/e30-design-system.css'
+      - 'src/features/ui/e30-tools.inline.js'
+      - 'tools/build-e30-ui.mjs'
+      - 'tests/e30_*'
+      - 'development/e30/**'
+      - '.github/workflows/e30-ux-ui.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  design-system-and-responsive:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            browser: chromium
+          - os: windows-latest
+            browser: chrome
+          - os: windows-latest
+            browser: msedge
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pinned OCR/PDF build-only dependencies
+        run: npm install --no-save --ignore-scripts --no-audit --no-fund
+      - name: Build and pin E28 E29 E30 static application
+        run: node tools/build-e30-ui.mjs
+      - name: Install native browser QA dependencies
+        run: python -m pip install playwright==1.57.0 pillow==11.3.0 pymupdf==1.26.5
+      - name: Install Linux Chromium
+        if: runner.os == 'Linux'
+        run: python -m playwright install chromium
+      - name: Install hosted Windows browser
+        if: runner.os == 'Windows'
+        run: python -m playwright install chromium ${{ matrix.browser }}
+      - name: Audit 14 screens x 4 widths, keyboard, modals and navigation
+        env:
+          LEDGER_BROWSER_CHANNEL: ${{ matrix.browser }}
+        run: python tests/e30_ux_audit.py
+      - name: Recheck OCR, HTTP-origin local persistence and cached offline reload
+        env:
+          LEDGER_BROWSER_CHANNEL: ${{ matrix.browser }}
+        run: python tests/e30_inherited.py hosted
+      - name: Recheck DOCX, PDF and 120 template print cases
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          set -e
+          python tests/e30_inherited.py docx
+          python tests/e30_inherited.py export
+          python tests/e30_inherited.py templates
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: e30-ui-${{ matrix.os }}-${{ matrix.browser }}-engineering-NO-GO
+          path: |
+            site/index.html
+            site/sw.js
+            site/site-integrity.json
+            site/E30_QA.json
+            site/E29_QA.json
+            site/e30-screenshots/*.png
+          retention-days: 14
+          if-no-files-found: ignore
