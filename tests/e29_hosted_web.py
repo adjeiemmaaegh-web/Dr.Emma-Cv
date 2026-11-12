@@ -35,7 +35,9 @@ def main():
  m=json.loads((SITE/'site.webmanifest').read_text(encoding='utf-8'))
  check(m['start_url']=='/' and m['display']=='standalone','installable app metadata')
  config=json.loads((ROOT/'vercel.json').read_text(encoding='utf-8'))
- check(config['outputDirectory']=='site' and config['buildCommand']=='node tools/build-e29-vercel.mjs',
+ # E30 appends its checksum-verified UI build to this same E29 chain.
+ check(config['outputDirectory']=='site' and config['buildCommand'] in
+       ('node tools/build-e29-vercel.mjs','node tools/build-e30-ui.mjs'),
    'Vercel is configured to build verified static distribution')
  spec=importlib.util.spec_from_file_location('synthetic_e29_image',ROOT/'tests/e26_native_scanned_pdf.py')
  fixture=importlib.util.module_from_spec(spec)
