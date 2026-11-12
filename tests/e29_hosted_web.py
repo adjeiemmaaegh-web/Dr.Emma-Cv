@@ -35,7 +35,7 @@ def main():
  m=json.loads((SITE/'site.webmanifest').read_text(encoding='utf-8'))
  check(m['start_url']=='/' and m['display']=='standalone','installable app metadata')
  config=json.loads((ROOT/'vercel.json').read_text(encoding='utf-8'))
- check(config['outputDirectory']=='site' and config['buildCommand']=='node tools/build-e29-vercel.mjs',
+ check(config['outputDirectory']=='site' and config['buildCommand'] in ['node tools/build-e29-vercel.mjs','node tools/build-e30-unified-ux.mjs'],
    'Vercel is configured to build verified static distribution')
  spec=importlib.util.spec_from_file_location('synthetic_e29_image',ROOT/'tests/e26_native_scanned_pdf.py')
  fixture=importlib.util.module_from_spec(spec)
@@ -86,7 +86,7 @@ def main():
     page.wait_for_function("""async ()=>{
       if(!('serviceWorker' in navigator))return false;
       const registration=await navigator.serviceWorker.ready;
-      return !!registration && !!(await caches.keys()).find(x=>x.startsWith('ledger-e29-'));
+      return !!registration && !!(await caches.keys()).find(x=>(x.startsWith('ledger-e29-')||x.startsWith('ledger-e30-')));
     }""",timeout=25000)
     check(True,'service worker registered and created a versioned static shell cache')
     # Once cached, simulate complete network outage and reload the *website*.

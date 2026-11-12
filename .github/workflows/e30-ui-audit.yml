@@ -1,0 +1,90 @@
+name: E30 comprehensive UI design audit and frozen business regressions
+
+on:
+  push:
+    branches: [review/e30-unified-ux-design-2026-11-12]
+  pull_request:
+    paths:
+      - 'hosting/e30-*'
+      - 'tools/build-e30-unified-ux.mjs'
+      - 'tests/e30_*'
+      - 'tests/e29_hosted_web.py'
+      - 'vercel.json'
+      - 'package.json'
+      - '.github/workflows/e30-ui-audit.yml'
+      - 'development/e30/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  complete-ui-audit:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            browser: chromium
+          - os: windows-latest
+            browser: chrome
+          - os: windows-latest
+            browser: msedge
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 55
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install build-only OCR/PDF and automated accessibility audit packages
+        run: npm install --no-save --ignore-scripts --no-audit --no-fund tesseract-wasm@0.11.0 pdfjs-dist@6.5.438 axe-core@4.10.3
+      - name: Build E30 from exact frozen E29/E28 and enforce UI-only delta
+        run: node tools/build-e30-unified-ux.mjs
+      - name: Install pinned browser QA dependencies
+        run: python -m pip install playwright==1.57.0 pillow==11.3.0 pymupdf==1.26.5
+      - name: Install Chromium on Linux
+        if: runner.os == 'Linux'
+        run: python -m playwright install chromium
+      - name: Install Windows browser
+        if: runner.os == 'Windows'
+        run: python -m playwright install chromium ${{ matrix.browser }}
+      - name: Verify HTTP-hosted CV, local trained English OCR and offline reload
+        env:
+          LEDGER_BROWSER_CHANNEL: ${{ matrix.browser }}
+        run: python tests/e29_hosted_web.py
+      - name: Entire interface audit at 5 screen sizes and screenshot/axe comparison
+        env:
+          LEDGER_BROWSER_CHANNEL: ${{ matrix.browser }}
+        run: python tests/e30_ui_audit.py
+      - name: Frozen PDF/DOCX/calendar/restart and every template regression on new UI
+        if: runner.os == 'Linux'
+        shell: bash
+        env:
+          LEDGER_BROWSER_CHANNEL: chromium
+        run: |
+          set -e
+          python tests/e30_inherited.py e27
+          python tests/e30_inherited.py e26
+          python tests/e30_inherited.py word
+          python tests/e30_inherited.py documents
+          python tests/e30_inherited.py calendar
+          python tests/e30_inherited.py timezones
+          python tests/e30_inherited.py restart
+          python tests/e30_inherited.py templates
+      - name: Collect screenshot evidence, audit report and built distribution
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: e30-ui-audit-${{ matrix.os }}-${{ matrix.browser }}-NO-FORMAL-SIGNOFF
+          path: |
+            e30_ui_evidence/**
+            site/index.html
+            site/sw.js
+            site/site-integrity.json
+            site/E29_QA.json
+          retention-days: 14
+          if-no-files-found: ignore
