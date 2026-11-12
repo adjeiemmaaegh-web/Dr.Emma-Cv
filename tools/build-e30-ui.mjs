@@ -34,6 +34,7 @@ assert.equal(html.split('ledger-e30-tools-consolidation').length,2);
 assert(!/<script\b[^>]+\bsrc\s*=/i.test(html),'External JavaScript is forbidden');
 fs.writeFileSync(file,html);
 const hash=sha(Buffer.from(html,'utf8'));
+assert.equal(hash,'1dd5b058bc10e058825e37ec0de706f42efe2ac89c602a87909672f948dc546c','E30 output checksum changed without review');
 const swfile=at('site/sw.js');
 let sw=fs.readFileSync(swfile,'utf8');
 assert(/ledger-e29-[a-f0-9]{14}/.test(sw),'Unexpected service worker version');
