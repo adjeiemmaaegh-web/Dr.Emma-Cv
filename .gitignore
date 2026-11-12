@@ -13,3 +13,4 @@ test-results/
 credentials*.json
 *.log
 site/
+e30_ui_evidence/

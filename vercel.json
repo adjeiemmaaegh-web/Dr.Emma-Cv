@@ -1,7 +1,7 @@
 {
   "version": 2,
   "framework": null,
-  "buildCommand": "node tools/build-e29-vercel.mjs",
+  "buildCommand": "node tools/build-e30-unified-ux.mjs",
   "outputDirectory": "site",
   "headers": [
     {

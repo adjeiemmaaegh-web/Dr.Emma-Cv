@@ -86,7 +86,7 @@ def main():
     page.wait_for_function("""async ()=>{
       if(!('serviceWorker' in navigator))return false;
       const registration=await navigator.serviceWorker.ready;
-      return !!registration && !!(await caches.keys()).find(x=>x.startsWith('ledger-e29-'));
+      return !!registration && !!(await caches.keys()).find(x=>(x.startsWith('ledger-e29-')||x.startsWith('ledger-e30-')));
     }""",timeout=25000)
     check(True,'service worker registered and created a versioned static shell cache')
     # Once cached, simulate complete network outage and reload the *website*.

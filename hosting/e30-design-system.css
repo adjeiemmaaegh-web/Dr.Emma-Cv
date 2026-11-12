@@ -1,0 +1,297 @@
+/*
+ * Ledger CV Studio E30 · coherent application UI design system.
+ * IMPORTANT: all rules target application chrome and tool dialogs, never
+ * .cv-page / .ledger-e1-visual-export or print-document layout.
+ * This is a visual-only progressive enhancement of the frozen E28 engine.
+ */
+:root{
+ --e30-ink:#182b37;--e30-text:#314452;--e30-muted:#566673;
+ --e30-accent:#256c66;--e30-accent-dark:#184d49;
+ --e30-canvas:#f5f5f2;--e30-soft:#f0f5f3;--e30-white:#ffffff;
+ --e30-line:#d9e1df;--e30-focus:#176b98;
+ --e30-radius-sm:8px;--e30-radius:12px;--e30-radius-lg:18px;
+ --e30-shadow:0 8px 28px rgba(17,47,48,.07);
+ --e30-shadow-modal:0 24px 80px rgba(12,28,39,.24);
+ --e30-space-1:4px;--e30-space-2:8px;--e30-space-3:12px;
+ --e30-space-4:16px;--e30-space-5:20px;--e30-space-6:24px;
+ --e30-space-8:32px;
+}
+html{scroll-padding-top:84px}
+#app, .e3-overlay,.e4-overlay,.ledger-s5-backdrop,.ledger-s7-overlay,
+.ledger-s6-overlay,.ledger-s8-overlay,.e5-overlay,#ledgerE5Controls{
+ font-family:var(--font-ui,Inter,system-ui,-apple-system,sans-serif);
+}
+#app .screen{color:var(--e30-ink);min-width:0}
+#app .screen :is(h1,h2,h3,h4):not(.cv-page *){text-wrap:balance}
+#app .screen :is(p,li):not(.cv-page *){overflow-wrap:break-word}
+#app .screen button,#app .screen input,#app .screen select,#app .screen textarea,
+.e3-overlay button,.e3-overlay input,.e3-overlay select,.e3-overlay textarea,
+.e4-overlay button,.e4-overlay input,.e4-overlay select,.e4-overlay textarea{
+ font-family:inherit;
+}
+:where(#app button,#app a,#app input,#app select,#app textarea,
+.e3-overlay button,.e4-overlay button,.ledger-s5-panel button,
+.ledger-s7-panel button,.ledger-s6-panel button,.e5-panel button,
+#ledgerE30Dock button):focus-visible{
+ outline:3px solid var(--e30-focus)!important;outline-offset:3px!important;
+}
+:where(#app .screen,.modal-overlay,.e3-overlay,.e4-overlay,.ledger-s5-backdrop,
+.ledger-s7-overlay,.ledger-s6-overlay,.e5-overlay) :is(input,textarea,select){
+ accent-color:var(--e30-accent);
+}
+#app .topnav{
+ padding:14px clamp(14px,2.5vw,32px);gap:12px;
+ min-height:66px;border-bottom-color:var(--e30-line);
+}
+#app .topnav .brand{flex-shrink:0;min-height:42px;display:inline-flex;align-items:center}
+#app .topnav-actions{flex-wrap:wrap;gap:8px;justify-content:flex-end;min-width:0}
+#app .topnav-links{gap:clamp(12px,2vw,26px)}
+#app .topnav-links button{min-height:40px;border-radius:var(--e30-radius-sm)}
+#app .btn{
+ border-radius:var(--e30-radius-sm);min-height:42px;padding:10px 16px;
+ font-size:14px;font-weight:650;line-height:1.25;letter-spacing:0;
+ transition:background .16s ease,box-shadow .16s ease,border-color .16s ease,transform .12s ease;
+}
+#app .btn-sm{min-height:38px;padding:8px 12px;font-size:12.5px}
+#app .btn-primary{background:var(--e30-accent);border-color:var(--e30-accent);color:white}
+#app .btn-primary:hover{background:var(--e30-accent-dark);border-color:var(--e30-accent-dark)}
+#app .btn-secondary{background:white;border-color:#9aaba9;color:var(--e30-ink)}
+#app .btn-secondary:hover{background:var(--e30-soft);border-color:var(--e30-accent);color:var(--e30-accent-dark)}
+#app .btn-ghost{color:var(--e30-text)}
+#app .btn-ghost:hover{background:var(--e30-soft)}
+#app .btn-danger{color:#a33e2e}
+#app .btn:disabled,#app button:disabled{cursor:not-allowed;opacity:.55}
+#app :is(.pick-card,.tmpl-card,.entry-card,.feature-card,.interview-choice,.interview-summary-card,
+.addsec-card,.ledger-version-card,.ledger-review-item,.home-card){
+ border-radius:var(--e30-radius);border-color:var(--e30-line);
+}
+#app :is(.pick-card,.tmpl-card,.interview-choice,.suggest-chip,.add-entry-btn){
+ transition:border-color .16s ease,background .16s ease,box-shadow .16s ease;
+}
+#app :is(.pick-card,.tmpl-card,.interview-choice):focus-visible{
+ outline:3px solid var(--e30-focus);outline-offset:3px;
+}
+#app .wizard-body{padding-inline:clamp(16px,4vw,36px)}
+#app .wizard-head{margin-bottom:24px}
+#app .wizard-title{font-size:clamp(25px,3vw,34px);line-height:1.2}
+#app .wizard-sub{line-height:1.6;color:var(--e30-muted)}
+#app .wizard-footer{box-shadow:0 -6px 22px rgba(18,42,42,.05)}
+#app .progress-wrap{border-bottom:1px solid var(--e30-line)}
+#app .progress-steps li{line-height:1.45}
+#app .field label,#app .editor-panel label{color:var(--e30-text);line-height:1.35}
+#app :is(.field input:not([type=checkbox]):not([type=radio]),.field select,.field textarea,
+.ledger-personal-fields input,#ledgerEditorQuickNav){
+ border:1px solid #a9b7b5;border-radius:var(--e30-radius-sm);
+ padding:10px 12px;min-height:42px;background:#fff;color:var(--e30-ink);
+}
+#app :is(.field input,.field select,.field textarea):focus{
+ border-color:var(--e30-accent);box-shadow:0 0 0 3px rgba(37,108,102,.1);
+}
+#app .field-hint,#app .wizard-sub,#app .entry-card-sub{color:var(--e30-muted)}
+#app .home-hero{gap:clamp(24px,3vw,48px)}
+#app .home-lede{color:var(--e30-text);line-height:1.7}
+#app .home-cta{gap:10px}
+#app .home-cta .btn{max-width:100%;white-space:normal;text-align:center}
+#app .home-feature-grid{gap:clamp(12px,2vw,22px)}
+#app .feature-card{background:var(--e30-white);box-shadow:var(--e30-shadow)}
+#app .home-meta{gap:12px 20px;flex-wrap:wrap}
+#app .home-specimen{color:var(--e30-muted)}
+#app .editor-shell{min-width:0}
+#app .editor-toolbar{
+ gap:10px 12px;padding:13px clamp(12px,1.8vw,22px);background:#fff;
+ border-bottom:1px solid var(--e30-line);align-items:center;
+}
+#app .editor-toolbar-title{font-size:17px;line-height:1.3;min-width:100px}
+#app .ledger-editor-quicknav{min-width:145px}
+#app .ledger-editor-quicknav select{min-height:40px}
+#app .editor-toolbar :is(.btn,.editor-tabs button){min-height:38px}
+#app .editor-body{min-width:0}
+#app .editor-panel{
+ background:#fff;border-color:var(--e30-line);
+ padding:clamp(14px,1.7vw,24px);scrollbar-gutter:stable;
+}
+#app .editor-preview-wrap{background:#ecefeb;min-width:0;gap:20px}
+#app .editor-panel-label{font-size:11px;letter-spacing:.075em;color:var(--e30-muted)}
+#app .editor-panel-group{margin-bottom:24px}
+#app .editor-nav-list{gap:7px}
+#app .editor-nav-item{
+ min-width:0;min-height:45px;padding:10px 11px;border-radius:var(--e30-radius-sm);
+ border:1px solid transparent;font-size:12.5px;line-height:1.4;
+ white-space:normal;overflow-wrap:anywhere;text-align:left;
+}
+#app .editor-nav-item:hover{background:var(--e30-soft);border-color:var(--e30-line)}
+#app .editor-nav-item.active{
+ background:#eaf3f1;border-color:#9ebcb6;color:var(--e30-accent-dark);
+ box-shadow:inset 3px 0 0 var(--e30-accent);
+}
+#app .editor-panel :is(.add-entry-btn,.suggest-chip,.suggest-chip-full){
+ border-radius:var(--e30-radius-sm);min-height:40px;
+}
+#app .ledger-review-item{padding:12px}
+#app .ledger-review-honesty,.ledger-e2-note{line-height:1.55}
+#app .ledger-preview-hint{border-radius:var(--e30-radius-sm)}
+#app .ledger-e2-import{padding:clamp(12px,2vw,20px)}
+#app .ledger-e2-actions,.ledger-e9-image-review,.ledger-e26-pdf-ocr,
+#app .ledger-e28-pdf-reference{
+ border-radius:var(--e30-radius);border:1px solid var(--e30-line);
+ background:#f6f9f8;color:var(--e30-ink);
+}
+#app .ledger-e26-pdf-ocr{padding:14px;display:grid;gap:8px}
+#app .ledger-e26-pdf-ocr > p{margin:0;line-height:1.55}
+#app .ledger-e9-image-toolbar{gap:8px}
+#app .ledger-e9-image-toolbar input,
+#app .ledger-e9-image-toolbar select{min-height:40px;min-width:0;border-radius:var(--e30-radius-sm)}
+#app .ledger-e9-image-toolbar button{min-height:40px;padding:8px 10px;border-radius:var(--e30-radius-sm)}
+#app .ledger-e28-pdf-reference{padding:12px}
+#app .modal{
+ border:1px solid var(--e30-line);border-radius:var(--e30-radius-lg);
+ box-shadow:var(--e30-shadow-modal);padding:clamp(18px,3vw,30px);
+}
+#app .modal-title{font-size:clamp(20px,2.5vw,26px);line-height:1.2}
+#app .modal-sub{line-height:1.6;color:var(--e30-muted)}
+#app .modal-file-opt{border-radius:var(--e30-radius)}
+#app .modal-options{gap:10px}
+#app .modal-overlay{background:rgba(12,29,35,.64)}
+/* Cross-feature overlays share the same radius, edge, shadow and typography. */
+.e3-overlay,.e4-overlay,.ledger-s5-backdrop,.ledger-s7-overlay,
+.ledger-s6-overlay,.ledger-s8-overlay,.e5-overlay{background:rgba(12,29,35,.68)}
+:is(.e3-dialog,.e4-dialog,.ledger-s5-panel,.ledger-s7-panel,
+.ledger-s6-panel,.ledger-s8-panel,.e5-panel){
+ font-family:var(--font-ui,Inter,system-ui,sans-serif);
+ color:var(--e30-ink);background:#fff;border:1px solid var(--e30-line);
+ border-radius:var(--e30-radius-lg);box-shadow:var(--e30-shadow-modal);
+ max-width:calc(100vw - 20px);max-height:calc(100dvh - 20px);
+}
+:is(.e3-dialog,.e4-dialog,.ledger-s5-panel,.ledger-s7-panel,.ledger-s6-panel,.e5-panel) h2{
+ color:var(--e30-ink);line-height:1.25;letter-spacing:-.02em;
+}
+.e3-overlay{padding:12px}
+.e3-dialog{height:min(92dvh,1100px);min-height:0;overflow:auto}
+.e3-header,.e4-head{background:var(--e30-soft);color:var(--e30-ink);border-color:var(--e30-line)}
+.e3-header :is(h2,small),.e4-head :is(h2,small){color:var(--e30-ink)}
+.e3-tabs{gap:5px;padding:8px 16px 0;border-bottom-color:var(--e30-line)}
+.e3-tabs button{min-height:44px;padding:9px 14px;border-radius:8px 8px 0 0}
+.e3-tabs button.active{border-bottom-color:var(--e30-accent);color:var(--e30-accent-dark);background:var(--e30-soft)}
+.e3-dialog main{padding:clamp(14px,2vw,26px)}
+.e3-metrics span,.e3-lane,.e3-card{
+ border-radius:var(--e30-radius);border-color:var(--e30-line);
+}
+.e3-metrics span{background:var(--e30-soft);color:var(--e30-text)}
+.e3-metrics strong{color:var(--e30-accent-dark)}
+.e3-lane{background:#f5f7f6}
+.e3-card{background:white;box-shadow:0 2px 12px rgba(15,50,47,.04)}
+.e3-chip{background:#eaf3f1;color:var(--e30-accent-dark)}
+.e3-filter input,.e3-filter select,.e3-form input,.e3-form textarea,.e3-form select,
+.e4-dialog input,.e4-dialog select,.e4-dialog textarea,
+.ledger-s5-panel textarea,.ledger-s7-panel input,.ledger-s7-panel textarea{
+ background:#fff;color:var(--e30-ink);border:1px solid #a9b7b5;
+ border-radius:var(--e30-radius-sm);min-height:42px;padding:10px 12px;
+ font:inherit;max-width:100%;
+}
+:is(.e3-overlay,.e4-overlay,.ledger-s5-backdrop,.ledger-s7-overlay,.ledger-s6-overlay)
+ :is(button:not([role=switch]),[role=button]){
+ border-radius:var(--e30-radius-sm);font-family:inherit;
+}
+:is(.e3-overlay,.e4-overlay,.ledger-s5-backdrop,.ledger-s7-overlay,.ledger-s6-overlay)
+ :is(button,input,select,textarea):focus-visible{
+ outline:3px solid var(--e30-focus)!important;outline-offset:3px!important;
+}
+.e4-dialog{max-height:calc(100dvh - 20px)}
+.e4-scroll{overscroll-behavior:contain}
+.ledger-s5-panel,.ledger-s7-panel{padding:clamp(16px,2.5vw,28px)}
+#ledgerE5Controls{
+ border:1px solid var(--e30-line);border-radius:var(--e30-radius);
+ box-shadow:var(--e30-shadow);color:var(--e30-ink);
+}
+#ledgerE5Controls :is(button,select){
+ border-radius:var(--e30-radius-sm);border-color:#a9b7b5;
+ font-family:inherit;color:var(--e30-ink);
+}
+.e5-panel{padding:clamp(16px,2.5vw,28px)}
+.e5-panel :is(input,select,button){border-radius:var(--e30-radius-sm)}
+/* One accessible workspace-tools entry replaces five competing floating buttons.
+ * Original elements (and their native click handlers) are moved, not cloned.
+ */
+#ledgerE30Dock{
+ position:fixed;z-index:950;right:max(12px,env(safe-area-inset-right));
+ bottom:max(12px,env(safe-area-inset-bottom));display:flex;flex-direction:column;
+ align-items:flex-end;gap:8px;max-width:min(320px,calc(100vw - 24px));
+ font-family:var(--font-ui,Inter,system-ui,sans-serif);
+}
+#ledgerE30Dock .e30-tools-toggle{
+ min-height:46px;border-radius:999px;padding:10px 18px;background:var(--e30-accent);
+ color:white;border:1px solid var(--e30-accent-dark);font-weight:700;font-size:13px;
+ box-shadow:0 8px 24px rgba(24,77,73,.2);cursor:pointer;
+}
+#ledgerE30Dock .e30-tools-toggle[aria-expanded=true]{background:var(--e30-accent-dark)}
+#ledgerE30Dock .e30-tools-panel{
+ background:white;border:1px solid var(--e30-line);border-radius:var(--e30-radius-lg);
+ box-shadow:var(--e30-shadow-modal);padding:12px;max-height:min(65dvh,480px);
+ overflow:auto;width:min(300px,calc(100vw - 24px));display:grid;gap:5px;
+}
+#ledgerE30Dock [hidden]{display:none!important}
+#ledgerE30Dock .e30-tools-heading{margin:0;padding:3px 6px 8px;font-size:12px;
+ font-weight:750;letter-spacing:.055em;text-transform:uppercase;color:var(--e30-muted)}
+#ledgerE30Dock .e30-tools-panel > button{
+ position:static!important;inset:auto!important;display:flex!important;
+ align-items:center;justify-content:flex-start;text-align:left;min-height:44px;
+ margin:0!important;padding:10px 12px!important;width:100%!important;
+ color:var(--e30-ink)!important;background:#fff!important;border:1px solid transparent!important;
+ border-radius:var(--e30-radius-sm)!important;box-shadow:none!important;
+ font:650 13px/1.35 var(--font-ui,Inter,system-ui,sans-serif)!important;
+ white-space:normal!important;transform:none!important;
+}
+#ledgerE30Dock .e30-tools-panel > button:hover,#ledgerE30Dock .e30-tools-panel > button:focus-visible{
+ background:var(--e30-soft)!important;border-color:var(--e30-line)!important;
+}
+#ledgerE30Dock .e30-tools-panel > button:disabled{opacity:.5!important}
+#ledgerE30Dock .e30-tools-panel > #ledgerS8Launcher{display:none!important}
+/* Use the existing accessibility toolbar at bottom left, preserving size controls. */
+@media(max-width:980px){
+ #app .editor-toolbar{align-items:flex-start}
+ #app .editor-toolbar-title{flex:1 1 160px}
+ #app .editor-preview-wrap{padding:20px 12px 64px}
+ .e3-board{grid-template-columns:repeat(2,minmax(0,1fr));overflow-x:visible}
+}
+@media(max-width:700px){
+ #app .topnav{padding:10px 12px;min-height:58px}
+ #app .topnav-actions{gap:4px}
+ #app .topnav .brand{min-height:38px}
+ #app .topnav-actions .btn{padding:7px 9px;font-size:12px;min-height:38px}
+ #app .home-cta{flex-direction:column;align-items:stretch}
+ #app .home-cta .btn{width:100%;justify-content:center}
+ #app .wizard-body{padding:22px 16px 112px}
+ #app .wizard-footer-inner{gap:8px;padding:0 12px}
+ #app .wizard-footer-inner .btn{min-width:0}
+ #app .editor-toolbar{gap:8px;padding:10px}
+ #app .editor-toolbar .btn-sm{font-size:12px;padding:8px 10px}
+ #app .editor-panel{padding:16px;scrollbar-gutter:auto}
+ #app .editor-nav-list{grid-template-columns:repeat(2,minmax(0,1fr))}
+ #app .editor-nav-item{min-height:46px}
+ #app .ledger-e9-image-toolbar{align-items:stretch}
+ #app .ledger-e9-image-toolbar label{min-width:0}
+ .e3-dialog{width:100%;height:calc(100dvh - 12px);max-height:none;border-radius:12px}
+ .e3-board{grid-template-columns:1fr;overflow-x:visible}
+ .e3-lane{min-width:0}
+ .e3-filter label:first-child{min-width:0;width:100%}
+ .e4-overlay,.e3-overlay,.ledger-s5-backdrop,.ledger-s7-overlay{padding:6px}
+ .ledger-s5-panel,.ledger-s7-panel{max-height:calc(100dvh - 12px)}
+ #ledgerE5Controls{bottom:max(6px,env(safe-area-inset-bottom));left:6px;
+  max-width:calc(100vw - 170px);flex-wrap:wrap}
+ #ledgerE5Controls :is(button,select){min-height:36px}
+ #ledgerE30Dock{bottom:max(8px,env(safe-area-inset-bottom));right:8px}
+ #ledgerE30Dock .e30-tools-toggle{padding:10px 12px;min-height:44px}
+}
+@media(max-width:380px){
+ #app .brand-sub{display:none}
+ #app .topnav-actions .ledger-safety-link{font-size:11px}
+ #app .editor-nav-list{grid-template-columns:1fr}
+ #app .ledger-editor-history{gap:3px}
+ #ledgerE5Controls{font-size:10px;padding:4px;gap:4px}
+ #ledgerE30Dock .e30-tools-toggle{font-size:12px}
+}
+@media(prefers-reduced-motion:reduce){
+ #app *,#app *::before,#app *::after,
+ #ledgerE30Dock *{transition-duration:.01ms!important;scroll-behavior:auto!important}
+}
+@media print{#ledgerE30Dock{display:none!important}}
