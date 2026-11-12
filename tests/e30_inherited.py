@@ -27,7 +27,23 @@ def main():
  src=ROOT/SUITES[key]
  spec=importlib.util.spec_from_file_location('e30_inherited_'+key,src)
  module=importlib.util.module_from_spec(spec)
- spec.loader.exec_module(module)
+ if key=='timezones':
+  # Adapt ONLY the original launcher-opening gesture. All assertions and
+  # functional behaviors of the previous acceptance suite remain identical.
+  source=src.read_text(encoding='utf-8')
+  old="page.locator('#ledgerE3Launcher').click()"
+  assert source.count(old)==1,'Unrecognized old timezone navigation'
+  source=source.replace(old,"page.locator('#ledgerE30Toggle').click();"+old)
+  module.__file__=str(src)
+  exec(compile(source,str(src),'exec'),module.__dict__)
+ else:
+  spec.loader.exec_module(module)
+ if key=='calendar':
+  old_tracker=module.tracker
+  def tracker_via_dock(page):
+   page.locator('#ledgerE30Toggle').click()
+   return old_tracker(page)
+  module.tracker=tracker_via_dock
  module.APP=APP
  for alias in ['SHA','EXPECTED']:
   if hasattr(module,alias):setattr(module,alias,sha)

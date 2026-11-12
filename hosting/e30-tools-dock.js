@@ -43,6 +43,14 @@
   },true);
   function refresh(){
    pending=false;if(!dock.isConnected)return;
+   // Existing carousel has horizontal overflow but lacked keyboard focus.
+   // Only add navigation attributes; never mutate the gallery or CV content.
+   for(const strip of document.querySelectorAll('#app .template-strip')){
+    if(!strip.hasAttribute('tabindex'))strip.tabIndex=0;
+    if(!strip.hasAttribute('role'))strip.setAttribute('role','region');
+    if(!strip.hasAttribute('aria-label'))
+     strip.setAttribute('aria-label','CV template gallery — scroll to explore');
+   }
    for(const id of ids){
     const element=document.getElementById(id);
     if(element&&element.parentElement!==menu){
@@ -62,7 +70,8 @@
    // Avoid a full DOM scan for text edits and deep CV preview rerenders.
    if(records.some(r=>r.type==='childList'&&
       Array.from(r.addedNodes).some(n=>n.nodeType===1&&(
-       ids.includes(n.id)||n.querySelector?.(ids.map(id=>'#'+id).join(',')))))){
+       ids.includes(n.id)||n.matches?.('.screen.active,.template-strip')||
+       n.querySelector?.(ids.map(id=>'#'+id).join(',')+',.template-strip'))))){
     schedule();
    }
   });

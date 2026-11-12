@@ -294,4 +294,33 @@ html{scroll-padding-top:84px}
  #app *,#app *::before,#app *::after,
  #ledgerE30Dock *{transition-duration:.01ms!important;scroll-behavior:auto!important}
 }
+/* Mobile editor: the labeled section selector above already exposes all 11
+ * destinations. The duplicate two-column editor nav must not consume a screen.
+ * All panel actions and headings remain rendered, navigable and unchanged. */
+@media(max-width:700px){
+ #app .editor-panel > .editor-panel-group:first-child:has(> .editor-nav-list){
+  display:none!important;
+ }
+ #app .ledger-editor-quicknav{
+  order:50;flex:1 1 100%;display:flex;align-items:center;gap:8px;
+  width:100%;max-width:none;
+ }
+ #app .ledger-editor-quicknav label{
+  position:static!important;display:block!important;width:auto!important;
+  height:auto!important;margin:0!important;overflow:visible!important;
+  clip:unset!important;clip-path:none!important;white-space:nowrap;
+  font-size:12px;font-weight:650;color:var(--e30-text);
+ }
+ #app .ledger-editor-quicknav select{
+  width:100%;max-width:none;min-width:0;flex:1 1 auto;
+ }
+ #app .editor-toolbar .ledger-review-entry,
+ #app .editor-toolbar > button[data-action="editor-panel"][data-value="versions"]{
+  display:none!important; /* both destinations stay in Jump to */
+ }
+ #app .editor-panel{padding-bottom:104px}
+}
+#app .template-strip[tabindex="0"]:focus-visible{
+ outline:3px solid var(--e30-focus);outline-offset:3px;
+}
 @media print{#ledgerE30Dock{display:none!important}}

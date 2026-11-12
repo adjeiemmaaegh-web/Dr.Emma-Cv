@@ -125,6 +125,12 @@ def main():
     ctx,page=new_page(browser,address)
     try:
      page.on('pageerror',lambda e:errors.append(str(e)))
+     # Pre-existing template gallery must become keyboard-scrollable.
+     gallery=page.locator('#app .template-strip')
+     require(gallery.count()>0 and gallery.first.get_attribute('tabindex')=='0',
+       'template gallery is in keyboard tab order')
+     require(gallery.first.get_attribute('aria-label') is not None,
+       'template gallery has an accessible region name')
      # Audit each real route and every main responsive breakpoint.
      for name in MAIN:
       entry={}
@@ -154,6 +160,12 @@ def main():
        entry[str(width)]=m
        require(page.locator('#app .editor-panel').count()>0,
           'editor section '+panel+' still renders at '+str(width))
+       if width==390:
+        require(page.locator('#ledgerEditorQuickNav').is_visible(),
+          'phone editor always exposes section switcher')
+        require(page.locator('#app .editor-panel > .editor-panel-group:first-child').evaluate(
+          "e=>getComputedStyle(e).display")=='none',
+          'duplicate eleven-link editor grid is collapsed on phones')
        if width in CAPTURE_WIDTHS:
         result['screenshots'].append(snap(page,'editor/'+panel+'-'+str(width)))
       result['panels'][panel]=entry
