@@ -35,7 +35,7 @@ jobs:
         run: node tools/build-e31-candidate.mjs
       - name: Verify E31 candidate integrity and service worker
         run: node tools/audit-e31-candidate.mjs
-      - uses: actions/upload-artifact@v4
+      - name: E31 candidate real-browser keyboard and responsive smoke\n        run: python tests/e31_candidate_browser.py\n        env:\n          LEDGER_BROWSER_CHANNEL: chromium\n      - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: e31-engineering-candidate-NO-GO
