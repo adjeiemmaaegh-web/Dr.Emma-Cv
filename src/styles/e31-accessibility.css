@@ -1,0 +1,23 @@
+/* E31: additive screen-only accessibility refinements. E30 source stays frozen. */
+@media screen {
+  .e30-tools-toggle { touch-action:manipulation; }
+  .e30-tools-content { overscroll-behavior:contain; scrollbar-gutter:stable; }
+  .e30-tools-list :is(button,a,select,input) { min-height:44px; }
+  .e30-tools-content :focus-visible { outline:3px solid #15786f!important;outline-offset:2px!important; }
+  .e30-tools-content [disabled] { cursor:not-allowed; }
+  @supports (padding:env(safe-area-inset-bottom)) {
+    .e30-tools-dock { bottom:calc(16px + env(safe-area-inset-bottom));right:calc(16px + env(safe-area-inset-right)); }
+  }
+}
+@media screen and (max-width:600px) {
+  .e30-tools-content { max-width:calc(100vw - 24px); }
+  @supports (padding:env(safe-area-inset-bottom)) {
+    .e30-tools-dock { bottom:calc(12px + env(safe-area-inset-bottom));right:calc(12px + env(safe-area-inset-right)); }
+    body:has(.wizard-footer) .e30-tools-dock { bottom:calc(78px + env(safe-area-inset-bottom)); }
+  }
+}
+@media screen and (forced-colors:active) {
+  .e30-tools-toggle { border:2px solid ButtonText; }
+  .e30-tools-content { border:1px solid CanvasText; }
+}
+@media print { .e30-tools-dock { display:none!important; } }
