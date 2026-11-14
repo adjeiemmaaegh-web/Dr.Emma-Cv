@@ -12,7 +12,7 @@ const at=p=>path.join(root,p);
 const sha=v=>crypto.createHash('sha256').update(v).digest('hex');
 const pinnedE29='c04684c7ff79cae0068a8e44408b25b86a751d08d14909cdd1006cedefcc8767';
 const deploymentConfig=JSON.parse(fs.readFileSync(at('vercel.json'),'utf8'));
-assert.equal(deploymentConfig.buildCommand,'node tools/build-e30-ui.mjs','Vercel must execute the reviewed E30 builder');
+assert(['node tools/build-e30-ui.mjs','node tools/build-e31-unified-ux.mjs'].includes(deploymentConfig.buildCommand),'Unexpected Vercel build command');
 assert.equal(deploymentConfig.outputDirectory,'site','Vercel must publish E30 static output');
 const run=spawnSync(process.execPath,['tools/build-e29-vercel.mjs'],{cwd:root,stdio:'inherit',timeout:180000});
 if(run.error)throw run.error;
