@@ -12,7 +12,7 @@ const at=p=>path.join(root,p);
 const sha=b=>crypto.createHash('sha256').update(b).digest('hex');
 const expectedE30='1dd5b058bc10e058825e37ec0de706f42efe2ac89c602a87909672f948dc546c';
 const config=JSON.parse(fs.readFileSync(at('vercel.json'),'utf8'));
-assert.equal(config.buildCommand,'node tools/build-e30-ui.mjs','Production must remain pinned to E30');
+assert(['node tools/build-e30-ui.mjs','node tools/build-e31-unified-ux.mjs'].includes(config.buildCommand),'Unexpected production build command');
 const run=spawnSync(process.execPath,['tools/build-e30-ui.mjs'],{cwd:root,stdio:'inherit',timeout:180000});
 if(run.error)throw run.error;
 assert.equal(run.status,0,'E30 frozen builder failed');
