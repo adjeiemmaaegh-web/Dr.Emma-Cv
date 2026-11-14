@@ -17,7 +17,7 @@ const target=at('site/index.html');
 let html=fs.readFileSync(target,'utf8');
 const previous=sha(Buffer.from(html));
 const css=fs.readFileSync(at('src/legacy-unified-ux/e30-design-system.css'),'utf8');
-assert(!/<\\/(?:style|script)>/i.test(css),'Unexpected inline CSS terminator');
+assert(!css.toLowerCase().includes('</style')&&!css.toLowerCase().includes('</script'),'Unexpected inline CSS terminator');
 assert(html.includes('</head>')&&!html.includes('ledger-e31-unified-ux'),'Unexpected HTML');
 html=html.replace('</head>','<style id="ledger-e31-unified-ux">\n'+css+'\n</style>\n</head>');
 const bytes=Buffer.from(html,'utf8');
