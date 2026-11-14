@@ -1,7 +1,7 @@
 {
   "version": 2,
   "framework": null,
-  "buildCommand": "node tools/build-e30-ui.mjs",
+  "buildCommand": "node tools/build-e31-unified-ux.mjs",
   "outputDirectory": "site",
   "headers": [
     {
