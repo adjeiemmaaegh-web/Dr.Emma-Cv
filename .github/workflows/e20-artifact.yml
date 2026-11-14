@@ -1,0 +1,20 @@
+name: Ledger E20 artifact integrity (not release approval)
+
+on:
+  pull_request:
+  push:
+    branches: [main, review/e20-offline-calendar-2026-11-06]
+
+permissions:
+  contents: read
+
+jobs:
+  verify-e20-artifacts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify frozen file bytes, QA pin and standalone JS syntax
+        run: node --test tests/e20-artifact.test.mjs

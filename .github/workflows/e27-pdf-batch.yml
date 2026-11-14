@@ -1,0 +1,86 @@
+name: Ledger E27 transactional offline PDF OCR batch and inherited QA (development NO-GO)
+
+on:
+  push:
+    branches: [review/e27-pdf-batch-workflow-2026-11-11]
+  pull_request:
+    paths:
+      - 'src/features/pdf/e27-batch-review.inline.js'
+      - 'tools/build-e27-pdf-batch.mjs'
+      - 'tests/e27_*'
+      - 'development/e27/**'
+      - '.github/workflows/e27-pdf-batch.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  native-batch:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            channel: chromium
+          - os: windows-latest
+            channel: chrome
+          - os: windows-latest
+            channel: msedge
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pinned OCR and PDF renderer for build only
+        run: npm install --no-save --ignore-scripts --no-audit --no-fund tesseract-wasm@0.11.0 pdfjs-dist@6.5.438
+      - name: Fetch English trained model at build time only, verify pinned source
+        shell: bash
+        run: |
+          mkdir -p vendor/e25
+          curl --fail --location --retry 3 --proto '=https' --tlsv1.2 \
+            'https://raw.githubusercontent.com/tesseract-ocr/tessdata_fast/87416418657359cb625c412a48b6e1d6d41c29bd/eng.traineddata' \
+            --output vendor/e25/eng.traineddata
+          echo '7d4322bd2a7749724879683fc3912cb542f19906c83bcc1a52132556427170b2  vendor/e25/eng.traineddata' | sha256sum --check
+      - name: Reproducible frozen E25/E26 plus E27 standalone build
+        run: |
+          node tools/build-e25-trained-ocr.mjs
+          node tools/build-e26-scanned-pdf.mjs
+          node tools/build-e27-pdf-batch.mjs
+      - name: Install native browser testing and PDF fixture dependencies
+        run: python -m pip install playwright==1.57.0 pillow==11.3.0 pymupdf==1.26.5
+      - name: Install Chromium for Linux
+        if: runner.os == 'Linux'
+        run: python -m playwright install chromium --with-deps
+      - name: Install Chrome or Edge for Windows
+        if: runner.os == 'Windows'
+        run: python -m playwright install chromium ${{ matrix.channel }}
+      - name: Test real file-origin transactional OCR batch, stop, duplicate and approval
+        env:
+          LEDGER_BROWSER_CHANNEL: ${{ matrix.channel }}
+        run: python tests/e27_native_pdf_batch.py
+      - name: Retest E26 standalone single-page OCR on E27 artifact
+        env:
+          LEDGER_BROWSER_CHANNEL: ${{ matrix.channel }}
+        run: python tests/e27_inherited_e26.py
+      - name: Retest prior E25 photo OCR and source-verification flow
+        if: runner.os == 'Linux'
+        run: |
+          python tests/e25_native_trained_ocr.py
+          python tests/e25_native_ocr_ui.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: e27-transactional-pdf-ocr-${{ matrix.os }}-${{ matrix.channel }}-development-only
+          path: |
+            dist/Ledger_CV_Studio_E27_Transactional_PDF_Batch_OCR.html
+            dist/E27_MANIFEST.json
+            dist/E27_QA.json
+            development/e25/THIRD_PARTY_NOTICES.txt
+          if-no-files-found: ignore
+          retention-days: 14

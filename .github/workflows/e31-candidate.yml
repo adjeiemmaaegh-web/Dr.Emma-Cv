@@ -1,0 +1,46 @@
+name: Ledger E31 candidate engineering QA (NO DEPLOY)
+on:
+  push:
+    branches:
+      - development/e31-post-e30-quality-2026-11-14
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  e31-candidate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pinned build dependencies
+        run: npm install --no-save --ignore-scripts --no-audit --no-fund
+      - name: Audit frozen E30 safeguards
+        run: node tools/audit-e31-e30-preservation.mjs
+      - name: Build frozen E30 and verify original checksum
+        run: node tools/build-e30-ui.mjs
+      - name: Execute existing E30 browser regression on original build
+        run: |
+          python -m pip install playwright==1.57.0 pillow==11.3.0 pymupdf==1.26.5
+          python -m playwright install chromium
+          python tests/e30_ux_audit.py
+        env:
+          LEDGER_BROWSER_CHANNEL: chromium
+      - name: Build separate E31 candidate
+        run: node tools/build-e31-candidate.mjs
+      - name: Verify E31 candidate integrity and service worker
+        run: node tools/audit-e31-candidate.mjs
+      - name: E31 candidate real-browser keyboard and responsive smoke\n        run: python tests/e31_candidate_browser.py\n        env:\n          LEDGER_BROWSER_CHANNEL: chromium\n      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: e31-engineering-candidate-NO-GO
+          path: |
+            site/site-integrity.json
+            site/E30_QA.json
+          retention-days: 14
+          if-no-files-found: ignore

@@ -1,0 +1,72 @@
+name: Ledger E29 Vercel-hosted offline website QA (not release acceptance)
+
+on:
+  push:
+    branches: [review/e29-vercel-hosted-offline-web-2026-11-11]
+  pull_request:
+    paths:
+      - 'tools/build-e29-vercel.mjs'
+      - 'hosting/**'
+      - 'vercel.json'
+      - 'package.json'
+      - 'tests/e29_hosted_web.py'
+      - '.github/workflows/e29-web.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  hosted-website:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            browser: chromium
+          - os: windows-latest
+            browser: chrome
+          - os: windows-latest
+            browser: msedge
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install build-only pinned OCR and PDF runtime packages
+        run: npm install --no-save --ignore-scripts --no-audit --no-fund
+      - name: Rebuild website from frozen E25 E26 E27 E28 and pinned model
+        run: node tools/build-e29-vercel.mjs
+      - name: Install Playwright and synthetic image dependencies
+        run: python -m pip install playwright==1.57.0 pillow==11.3.0 pymupdf==1.26.5
+      - name: Install Chromium on Linux runner
+        if: runner.os == 'Linux'
+        run: python -m playwright install chromium
+      - name: Install hosted Windows browser
+        if: runner.os == 'Windows'
+        run: python -m playwright install chromium ${{ matrix.browser }}
+      - name: Browser-verify real HTTP origin, trained OCR, storage and offline cached reload
+        env:
+          LEDGER_BROWSER_CHANNEL: ${{ matrix.browser }}
+        run: python tests/e29_hosted_web.py
+      - name: Retain original E28 file-origin trained scanned CV baseline
+        if: runner.os == 'Linux'
+        run: python tests/e28_native_pdf_visual.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: e29-vercel-web-${{ matrix.os }}-${{ matrix.browser }}-engineering
+          path: |
+            site/index.html
+            site/sw.js
+            site/site.webmanifest
+            site/favicon.svg
+            site/site-integrity.json
+            site/E29_QA.json
+          retention-days: 14
+          if-no-files-found: ignore

@@ -1,0 +1,97 @@
+name: Ledger E28 offline scanned-PDF visual comparison + inherited release-gate QA (NO-GO)
+
+on:
+  push:
+    branches: [review/e28-scanned-pdf-visual-proof-2026-11-11]
+  pull_request:
+    paths:
+      - 'src/features/pdf/e28-pdf-visual-review.inline.js'
+      - 'tools/build-e28-visual-pdf-ocr.mjs'
+      - 'tests/e28_*'
+      - 'development/e28/**'
+      - '.github/workflows/e28-visual-pdf.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  visual-ocr-and-regressions:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            browser: chromium
+          - os: windows-latest
+            browser: chrome
+          - os: windows-latest
+            browser: msedge
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pinned local-only bundled PDF and OCR dependencies
+        run: npm install --no-save --ignore-scripts --no-audit --no-fund tesseract-wasm@0.11.0 pdfjs-dist@6.5.438
+      - name: Pin the trained English model at build time only
+        shell: bash
+        run: |
+          mkdir -p vendor/e25
+          curl --fail --location --retry 3 --proto '=https' --tlsv1.2 \
+            'https://raw.githubusercontent.com/tesseract-ocr/tessdata_fast/87416418657359cb625c412a48b6e1d6d41c29bd/eng.traineddata' \
+            --output vendor/e25/eng.traineddata
+          echo '7d4322bd2a7749724879683fc3912cb542f19906c83bcc1a52132556427170b2  vendor/e25/eng.traineddata' | sha256sum --check
+      - name: Reproduce exact frozen offline E25 E26 E27 and E28 single-HTML artifacts
+        run: |
+          node tools/build-e25-trained-ocr.mjs
+          node tools/build-e26-scanned-pdf.mjs
+          node tools/build-e27-pdf-batch.mjs
+          node tools/build-e28-visual-pdf-ocr.mjs
+      - name: Install synthetic-document native browser test dependencies
+        run: python -m pip install playwright==1.57.0 pillow==11.3.0 pymupdf==1.26.5
+      - name: Install hosted Linux Chromium
+        if: runner.os == 'Linux'
+        run: python -m playwright install chromium
+      - name: Install hosted Windows browser
+        if: runner.os == 'Windows'
+        run: python -m playwright install chromium ${{ matrix.browser }}
+      - name: Test real file-origin sideways PDF trained OCR and visual reference
+        env:
+          LEDGER_BROWSER_CHANNEL: ${{ matrix.browser }}
+        run: python tests/e28_native_pdf_visual.py
+      - name: Run frozen E27 multi-page atomic-approval regression on E28
+        env:
+          LEDGER_BROWSER_CHANNEL: ${{ matrix.browser }}
+        run: python tests/e28_inherited.py e27
+      - name: Run frozen E26 raster-PDF and review-gate regression on E28
+        env:
+          LEDGER_BROWSER_CHANNEL: ${{ matrix.browser }}
+        run: python tests/e28_inherited.py e26
+      - name: Run frozen document, calendar, restart, and 30-template 2-paper verification
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          set -e
+          python tests/e28_inherited.py word
+          python tests/e28_inherited.py documents
+          python tests/e28_inherited.py calendar
+          python tests/e28_inherited.py timezones
+          python tests/e28_inherited.py restart
+          python tests/e28_inherited.py templates
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: e28-visual-pdf-proof-${{ matrix.os }}-${{ matrix.browser }}-engineering-NO-GO
+          path: |
+            dist/Ledger_CV_Studio_E28_Offline_Visual_PDF_OCR.html
+            dist/E28_MANIFEST.json
+            dist/E28_QA.json
+            development/e25/THIRD_PARTY_NOTICES.txt
+          if-no-files-found: ignore
+          retention-days: 14
