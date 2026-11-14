@@ -20,6 +20,11 @@
   });
   // Announce the menu's purpose to assistive technology without a live-region
   // that would repeatedly announce DOM mutations from the legacy launchers.
+  for(const strip of document.querySelectorAll('#app .template-strip')){
+   if(!strip.hasAttribute('tabindex'))strip.tabIndex=0;
+   if(!strip.hasAttribute('role'))strip.setAttribute('role','region');
+   if(!strip.hasAttribute('aria-label'))strip.setAttribute('aria-label','CV template gallery — scroll to explore');
+  }
   panel.setAttribute('role','region');
   const heading=panel.querySelector('.e30-tools-heading');
   if(heading){
