@@ -148,7 +148,9 @@ def main():
    page.once('dialog',lambda dialog:dialog.accept())
    page.get_by_role('button',name='Save selected CV summary').click()
    page.wait_for_function("document.querySelector('[role=status]')?.textContent.includes('revision 3')")
-   page.locator('select[aria-label="Previous CV revision"]').select_option('2')
+   # Profile revision also counts evidence edits; the master CV's prior
+   # document revision here is 1, not profile revision 2.
+   page.locator('select[aria-label="Previous CV revision"]').select_option('1')
    page.once('dialog',lambda dialog:dialog.accept())
    page.get_by_role('button',name='Restore selected previous CV revision').click()
    page.wait_for_function("document.querySelector('[role=status]')?.textContent.includes('revision 4')")
