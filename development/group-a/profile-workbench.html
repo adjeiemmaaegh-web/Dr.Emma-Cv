@@ -1,0 +1,21 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Ledger Group A — Career Profile Workbench (Engineering Preview)</title>
+<link rel="stylesheet" href="../../src/ui/system/tokens.css">
+<style>body{margin:0;padding:1.5rem;background:#f5f7f9}main{max-width:850px;margin:0 auto}
+button,input,textarea{font:inherit;padding:.65rem;margin:.25rem 0;border:1px solid #aebbc9;border-radius:.4rem}
+input,textarea{display:block;width:100%}button{background:#e2efef;color:#14363a;cursor:pointer}
+pre{font:inherit;white-space:pre-wrap;overflow-wrap:anywhere}
+</style></head><body>
+<main class="ledger-platform-root" id="ledger-workbench-root">
+<h1>Ledger CV Studio — Platform Workbench</h1>
+<p>This is an isolated development demonstration for Group A. It is not the deployed CV editor. Use synthetic data and create a separate backup.</p>
+<div id="ledger-workbench-host"></div>
+</main>
+<script type="module">
+import {createCareerProfileWorkbenchRegistry} from '../../src/core/profile-workbench.mjs';
+const registry=createCareerProfileWorkbenchRegistry();
+registry.mount('career-profile-workbench',{host:document.getElementById('ledger-workbench-host')})
+ .catch(error=>{document.getElementById('ledger-workbench-host').textContent='Workbench could not start: '+error.message});
+</script>
+</body></html>
