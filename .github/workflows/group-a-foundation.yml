@@ -22,7 +22,7 @@ permissions:
   contents: read
 jobs:
   contracts:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
@@ -36,7 +36,7 @@ jobs:
       - name: Assert production build settings preserve frozen E30
         run: node tools/audit-e31-e30-preservation.mjs
   native-profile:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
