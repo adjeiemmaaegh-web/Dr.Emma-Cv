@@ -82,6 +82,44 @@ def main():
      return saved?.revision===1&&saved.value.variants.length===1;
    }""",result)
    assert persisted,'data lost after real browser restart/reload'
+   # Two distinct browser tabs sharing one IndexedDB origin. A stale tab must
+   # receive a typed conflict and retain the other tab's committed edit.
+   tab2=context.new_page()
+   tab2.on('pageerror',lambda error:errors.append(str(error)))
+   tab2.goto(url,wait_until='load')
+   tab2.wait_for_function('Boolean(window.ledgerPlatformFixture)')
+   second_read=tab2.evaluate("""async r=>{
+     const t=window.ledgerPlatformFixture;
+     const store=t.createIndexedDBRevisionStore({databaseName:r.databaseName});
+     const saved=await store.load(r.id);
+     const next=t.createCVVariant(saved.value,{id:'variantTABTWO123',expectedRevision:saved.revision});
+     window.syntheticTabTwo={store,next,expected:saved.revision,id:r.id};
+     return {revision:saved.revision,variants:saved.value.variants.length};
+   }""",result)
+   assert second_read=={'revision':1,'variants':1},second_read
+   first_saved=page.evaluate("""async r=>{
+     const t=window.ledgerPlatformFixture;
+     const store=t.createIndexedDBRevisionStore({databaseName:r.databaseName});
+     const current=await store.load(r.id);
+     const next=t.createCVVariant(current.value,{id:'variantTABONE123',expectedRevision:current.revision});
+     return (await store.save(r.id,next,current.revision)).revision;
+   }""",result)
+   assert first_saved==2,first_saved
+   stale_result=tab2.evaluate("""async()=>{
+     const {store,next,expected,id}=window.syntheticTabTwo;
+     try{await store.save(id,next,expected);return 'INCORRECTLY_SAVED'}
+     catch(error){return error.code}
+   }""")
+   assert stale_result=='CONFLICT',f'stale tab overwrote another commit: {stale_result}'
+   winner=tab2.evaluate("""async r=>{
+     const t=window.ledgerPlatformFixture;
+     const saved=await t.createIndexedDBRevisionStore({databaseName:r.databaseName}).load(r.id);
+     return {revision:saved.revision,variants:saved.value.variants.map(v=>v.id)};
+   }""",result)
+   assert winner['revision']==2 and 'variantTABONE123' in winner['variants'] and 'variantTABTWO123' not in winner['variants'],winner
+   assert tab2.evaluate("localStorage.getItem('ledger_cv_state_v2')")=='synthetic legacy sentinel'
+   tab2.close()
+   result['twoDistinctTabsConflictSafe']=True
    # Exercise the actual isolated workbench, not just the storage API.
    page.goto(f'http://127.0.0.1:{server.server_port}/development/group-a/profile-workbench.html',wait_until='load')
    page.wait_for_selector('button:has-text("Create new profile")')
