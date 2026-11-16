@@ -6,3 +6,4 @@ export {renderDocumentArtifact,renderPreview,RENDERER_VERSION} from '../export/e
 export {parseResumeText,createImportReview,approveImportReview} from '../import/text-import.mjs';
 export {htmlToImportText,docxToImportText} from '../import/html-import.mjs';
 export {runOcrBatch,OCR_LIMITS} from '../ocr/ocr-session.mjs';
+export {renderBlocksArtifact} from '../export/block-export.mjs';
