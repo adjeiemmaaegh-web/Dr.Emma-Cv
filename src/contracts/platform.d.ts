@@ -17,6 +17,9 @@ export interface ResumeDocument {
 export interface ResumeRevisionSnapshot {
  revision:number;document:ResumeDocument;appearance:Record<string,unknown>;updatedAt:string;
 }
+export interface RestoreCVRevisionCommand {
+ variantId:string;snapshotRevision:number;expectedRevision:number;confirmed:true;
+}
 export interface ResumeVariant {
  id:string; name:string; masterId:string; revision:number;
  document:ResumeDocument;appearance:Record<string,unknown>;

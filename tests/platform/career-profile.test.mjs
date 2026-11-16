@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {blankCareerDocument,createCareerProfile,validateCareerProfile,createCVVariant,
- updateCVVariant,replaceMasterDocument,addCareerEvidence,planLegacyProfileImport,approveLegacyProfileImport
+ updateCVVariant,replaceMasterDocument,restoreCVRevision,addCareerEvidence,planLegacyProfileImport,approveLegacyProfileImport
 } from '../../src/domain/profile/career-profile.mjs';
 const date='2026-11-17T10:00:00.000Z';
 const seed=()=>createCareerProfile({id:'profileABC123',now:date,idFactory:()=> 'masterABC123'});
@@ -96,4 +96,32 @@ test('empty variant edits and missing master document fail closed',()=>{
  const p=createCVVariant(seed(),{id:'variantABC123',expectedRevision:0,now:date});
  assert.throws(()=>updateCVVariant(p,{variantId:'variantABC123',expectedRevision:1,now:date}),e=>e.code==='INVALID');
  assert.throws(()=>replaceMasterDocument(p,{confirmed:true,expectedRevision:1,now:date}),e=>e.code==='INVALID');
+});
+
+test('explicit restore creates new revision without dropping displaced document',()=>{
+ let p=seed();
+ p=createCVVariant(p,{id:'variantABC123',expectedRevision:0,now:date});
+ const a=blankCareerDocument();a.summary='Entered A';
+ const b=blankCareerDocument();b.summary='Entered B';
+ p=updateCVVariant(p,{variantId:'variantABC123',document:a,expectedRevision:1,now:date});
+ p=updateCVVariant(p,{variantId:'variantABC123',document:b,expectedRevision:2,now:date});
+ assert.throws(()=>restoreCVRevision(p,{variantId:'variantABC123',snapshotRevision:1,expectedRevision:3}),e=>e.code==='UNCONFIRMED');
+ const restored=restoreCVRevision(p,{variantId:'variantABC123',snapshotRevision:1,expectedRevision:3,confirmed:true,now:date});
+ assert.equal(restored.variants[0].document.summary,'Entered A');
+ assert.equal(restored.variants[0].revision,3);
+ assert.equal(restored.variants[0].history.at(-1).document.summary,'Entered B');
+ assert.equal(p.variants[0].document.summary,'Entered B');
+ assert.throws(()=>restoreCVRevision(restored,{variantId:'variantABC123',snapshotRevision:404,expectedRevision:4,confirmed:true,now:date}),e=>e.code==='INVALID');
+ assert.throws(()=>restoreCVRevision(restored,{variantId:'variantABC123',snapshotRevision:1,expectedRevision:3,confirmed:true,now:date}),e=>e.code==='CONFLICT');
+});
+test('master restore requires positive approval and never mutates tailored copies',()=>{
+ let p=seed();
+ p=createCVVariant(p,{id:'variantABC123',expectedRevision:0,now:date});
+ const a=blankCareerDocument();a.summary='Corrected master statement';
+ p=replaceMasterDocument(p,{document:a,confirmed:true,expectedRevision:1,now:date});
+ const restored=restoreCVRevision(p,{variantId:p.master.id,snapshotRevision:0,confirmed:true,expectedRevision:2,now:date});
+ assert.equal(restored.master.document.summary,'');
+ assert.equal(restored.variants[0].document.summary,'');
+ assert.equal(restored.master.history.at(-1).document.summary,'Corrected master statement');
+ assert.equal(p.master.document.summary,'Corrected master statement');
 });

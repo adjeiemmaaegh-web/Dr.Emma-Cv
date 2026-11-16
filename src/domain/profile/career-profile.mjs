@@ -138,6 +138,30 @@ export function replaceMasterDocument(profile,{document:doc,appearance,confirmed
  copy.master.revision++;copy.master.updatedAt=iso(now);
  validateCareerProfile(copy);return copy;
 }
+/**
+ * Explicitly restore a former document/appearance snapshot while recording the
+ * displaced current state as another recoverable revision. No auto-restore.
+ * A master restore requires the same affirmative confirmation as a master edit.
+ */
+export function restoreCVRevision(profile,{variantId,snapshotRevision,expectedRevision,
+ confirmed=false,now=nowDefault()}={}){
+ if(confirmed!==true)throw contractError('UNCONFIRMED','Restoring a CV revision requires explicit confirmation');
+ const copy=nextProfile(profile,expectedRevision,now);
+ const target=variantId===copy.master.id?copy.master:copy.variants.find(item=>item.id===variantId);
+ if(!target)throw contractError('INVALID','Unknown CV variant');
+ if(!Number.isSafeInteger(snapshotRevision)||snapshotRevision<0)
+  throw contractError('INVALID','Invalid snapshot revision');
+ const snapshot=target.history?.find(item=>item.revision===snapshotRevision);
+ if(!snapshot)throw contractError('INVALID','Selected prior revision is unavailable');
+ const previous=cloneData(snapshot);
+ preserveVariantRevision(target);
+ target.document=document(previous.document);
+ target.appearance=cloneData(object(previous.appearance,'snapshot appearance'));
+ target.revision++;target.updatedAt=iso(now);
+ validateCareerProfile(copy);
+ return copy;
+}
+
 /** Plan only. No storage writes or automatic promotion of imported claims to verified. */
 export function planLegacyProfileImport(legacy,{now=nowDefault(),idFactory=idDefault}={}){
  if(!validLegacyCVState(legacy))return {status:'blocked',warnings:['Legacy CV schema is incompatible'],proposed:null,requiresUserConfirmation:true};
