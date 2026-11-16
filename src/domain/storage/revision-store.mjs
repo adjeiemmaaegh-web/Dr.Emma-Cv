@@ -43,7 +43,7 @@ export function createMemoryRevisionStore({beforeCommit}={}){
    if(beforeCommit)await beforeCommit({id,expectedRevision});
    // Check again after await: this is an in-memory test adapter, not multi-process storage.
    verifyExisting(records.get(id)||null,expectedRevision,id);
-   const next={revision:value.revision,value:cloneData(value)};
+   const next={id,revision:value.revision,value:cloneData(value)};
    records.set(id,next);return copyRecord(next,id);
   },
   async listIds(){return [...records.keys()].sort()}
