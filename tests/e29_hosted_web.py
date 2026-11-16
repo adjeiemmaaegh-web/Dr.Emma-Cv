@@ -37,7 +37,7 @@ def main():
  config=json.loads((ROOT/'vercel.json').read_text(encoding='utf-8'))
  # E30 appends its checksum-verified UI build to this same E29 chain.
  check(config['outputDirectory']=='site' and config['buildCommand'] in
-       ('node tools/build-e29-vercel.mjs','node tools/build-e30-ui.mjs'),
+       ('node tools/build-e29-vercel.mjs','node tools/build-e30-ui.mjs','node tools/build-e31-unified-ux.mjs'),
    'Vercel is configured to build verified static distribution')
  spec=importlib.util.spec_from_file_location('synthetic_e29_image',ROOT/'tests/e26_native_scanned_pdf.py')
  fixture=importlib.util.module_from_spec(spec)
@@ -88,7 +88,7 @@ def main():
     page.wait_for_function("""async ()=>{
       if(!('serviceWorker' in navigator))return false;
       const registration=await navigator.serviceWorker.ready;
-      return !!registration && !!(await caches.keys()).find(x=>x.startsWith('ledger-e29-'));
+      return !!registration && !!(await caches.keys()).find(x=>x.startsWith('ledger-e29-')||x.startsWith('ledger-e31-'));
     }""",timeout=25000)
     check(True,'service worker registered and created a versioned static shell cache')
     # Once cached, simulate complete network outage and reload the *website*.
