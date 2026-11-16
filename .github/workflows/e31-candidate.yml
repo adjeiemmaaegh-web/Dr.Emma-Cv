@@ -3,6 +3,18 @@ on:
   push:
     branches:
       - development/e31-post-e30-quality-2026-11-14
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/e31-candidate.yml'
+      - 'tools/**'
+      - 'tests/e31_candidate_browser.py'
+      - 'src/features/ui/**'
+      - 'src/legacy-unified-ux/**'
+      - 'src/styles/**'
+      - 'hosting/**'
+      - 'package.json'
+      - 'vercel.json'
   workflow_dispatch:
 permissions:
   contents: read
@@ -35,7 +47,19 @@ jobs:
         run: node tools/build-e31-candidate.mjs
       - name: Verify E31 candidate integrity and service worker
         run: node tools/audit-e31-candidate.mjs
-      - name: E31 candidate real-browser keyboard and responsive smoke\n        run: python tests/e31_candidate_browser.py\n        env:\n          LEDGER_BROWSER_CHANNEL: chromium\n      - uses: actions/upload-artifact@v4
+      - name: E31 candidate real-browser keyboard and responsive smoke
+        run: python tests/e31_candidate_browser.py
+        env:
+          LEDGER_BROWSER_CHANNEL: chromium
+      - name: Build the actual E31 unified public artifact
+        run: node tools/build-e31-unified-ux.mjs
+      - name: Audit actual E31 unified output
+        run: node tools/audit-e31-candidate.mjs
+      - name: E31 unified browser keyboard and responsive smoke
+        run: python tests/e31_candidate_browser.py
+        env:
+          LEDGER_BROWSER_CHANNEL: chromium
+      - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: e31-engineering-candidate-NO-GO
