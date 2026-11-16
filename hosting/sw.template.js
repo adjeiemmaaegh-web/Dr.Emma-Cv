@@ -13,7 +13,7 @@ self.addEventListener('install',event=>{
 self.addEventListener('activate',event=>{
  event.waitUntil((async()=>{
   for(const key of await caches.keys())
-   if(key.startsWith('ledger-e29-')&&key!==CACHE)await caches.delete(key);
+   if(/^ledger-e(?:29|30|31)-[a-f0-9]{14}$/.test(key)&&key!==CACHE)await caches.delete(key);
   await self.clients.claim();
  })());
 });
