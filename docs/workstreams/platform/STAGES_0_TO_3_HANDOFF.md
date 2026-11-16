@@ -55,3 +55,17 @@ Rollback: do not merge or deploy PR #17 until reviewed. Revert the additive Grou
 | Real-world release | Windows/Edge/Chrome/Safari/mobile, Word/PDF fidelity, storage denial/quota/interruption, accessibility/security, actual restoration | **Open; NO-GO** |
 
 **Known limitations / not disguised as completion:** the existing legacy UI still owns its own non-atomic localStorage data path; this Stage A port does not repair all legacy editing failures. No actual customer backup was restored. Clean checkout CI does not prove all transitive dependency versions are locked because no lockfile is committed. `file://`, private browsing, storage eviction, mobile browsers and origin transfer need independent tests. Stage 1 UI system is intentionally an opt-in module seam, not a full replacement of every legacy control. Stage 20 Group F benchmarking and owner release authorization remain separate.
+
+
+## 17 November 2026 — Group A continuation and test evidence
+
+**Source revision for this engineering signoff:** `8c9259831f332d32dd79378670e2281fd6aeb4e1` (before this documentation-only update).
+
+- **Versioned CV restore:** `restoreCVRevision` reuses an earlier immutable document/appearance snapshot, requires user confirmation and an expected aggregate profile revision, increments the selected CV revision, and preserves the displaced current state in history. No automatic master overwrite. The isolated workbench exposes a summary editor and previous-revision selector; it does **not** replace the full B-owned visual CV editor.
+- **Actual two-tab checks:** `tests/platform/platform_browser.py` creates two separate Chromium pages sharing a real HTTP origin/IndexedDB database. A stale second tab is rejected with `CONFLICT` after the first tab commits; stored data and the sentinel legacy key are preserved.
+- **Manual legacy portability:** `src/domain/storage/legacy-backup.mjs` preserves exact raw strings for the four customer-data keys, including corrupt JSON and absent keys, in a SHA-256 verified backup. Preview requires approval to return a detached **manual-only recovery plan**. There is intentionally no multi-key localStorage writer or automatic migration, because multi-key atomicity cannot be promised.
+- **Privacy:** All automated tests use generated synthetic data; the backup contents themselves are not emitted into CI logs. Real raw backups are unencrypted private data and must be secured by the user.
+- **Verified CI at source revision:** [Group A native Chromium and contracts success](https://github.com/adjeiemmaaegh-web/Dr.Emma-Cv/actions/runs/43982371670). Native Chromium verified cross-tab rejection, profile reload, summary edit, revision restore, continued reload, and unmodified legacy localStorage. Node platform suite **31 passed / 0 failed**, inherited E0 unit suite **16 passed / 0 failed**, static platform ownership audit passed.
+- **Known intermediate failures:** prior source commits had two browser automation failures: missing explicit confirmation and selecting the aggregate profile revision rather than the CV document revision. Both were fixed in the test and the final native run succeeded. The failures remain visible in GitHub Actions history.
+- **Unfinished gates:** native Word/PDF export fidelity, true cross-browser/mobile/device persistence, customer backup restoration, native accessibility, complete legacy editor storage safety, independent Group F review, merged contracts with consumer teams, and production authorization are still **OPEN**. No deploy, merge or public claims made.
+
