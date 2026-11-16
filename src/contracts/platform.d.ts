@@ -14,10 +14,13 @@ export interface ResumeDocument {
  accomplishments:Record<string,unknown>[];customSections:Record<string,unknown>[];
  [field:string]:unknown;
 }
+export interface ResumeRevisionSnapshot {
+ revision:number;document:ResumeDocument;appearance:Record<string,unknown>;updatedAt:string;
+}
 export interface ResumeVariant {
  id:string; name:string; masterId:string; revision:number;
  document:ResumeDocument;appearance:Record<string,unknown>;
- targetJobId?:string;createdAt:string;updatedAt:string;
+ targetJobId?:string;createdAt:string;updatedAt:string;history?:ResumeRevisionSnapshot[];
 }
 export interface CareerProfile {
  schemaVersion:1;id:string;revision:number;name:string;
@@ -57,6 +60,25 @@ export interface LocalRecord<T> {revision:number;value:T}
 export interface LocalRepositoryPort<T> {
  load(id:string):Promise<LocalRecord<T>|null>;
  save(id:string,value:T,expectedRevision:number|null):Promise<LocalRecord<T>>;
+ listIds():Promise<string[]>;
+ close?():void;
+}
+export interface BackupPreview<T> {
+ status:'review-required'|'blocked';warnings:string[];
+ proposed:T|null;requiresUserConfirmation:true;
+}
+export interface DocumentRenderRequest {
+ sourceVariantId:string;sourceRevision:number;document:ResumeDocument;
+ appearance:Record<string,unknown>;format:'pdf'|'docx'|'html';
+}
+export interface DocumentRenderer {
+ render(request:DocumentRenderRequest,signal?:AbortSignal):Promise<DocumentArtifact>;
+}
+export interface NavigationEvent {type:'route-changed';path:string;featureId:string}
+export interface FrontendComposition {
+ navigate(path:string):Promise<{path:string;featureId:string}>;
+ currentRoute():string|null;
+ dispose():Promise<void>;
 }
 export interface FeatureMountContext {
  host:object;services:Record<string,unknown>;

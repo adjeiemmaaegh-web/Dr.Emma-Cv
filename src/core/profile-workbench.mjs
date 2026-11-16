@@ -39,17 +39,36 @@ export function registerCareerProfileWorkbench(registry,{repository}={}){
   const variants=control(document,'input',{type:'text',placeholder:'Tailored CV version name'});variants.maxLength=120;
   const importInput=control(document,'textarea',{placeholder:'Paste a previously exported Ledger profile backup or legacy CV JSON'});importInput.rows=5;
   const importReview=control(document,'pre');importReview.style.whiteSpace='pre-wrap';
+  const savedPicker=control(document,'select');savedPicker.setAttribute('aria-label','Saved local profiles');
+  const savedLabel=control(document,'label',{text:'Open an existing profile on this device'});
+  savedLabel.append(savedPicker);
   const actions=control(document,'div');actions.style.display='flex';actions.style.flexWrap='wrap';actions.style.gap='0.5rem';
   const makeButton=(label,action)=>{const button=control(document,'button',{text:label,type:'button'});
     button.addEventListener('click',()=>void action().catch(e=>{status.textContent='Not saved: '+e.message}));
     actions.append(button);return button};
-  let profile=null,savedRevision=null,pending=null,busy=false;
+  let profile=null,savedRevision=null,pending=null,pendingRaw=null,busy=false;
+  async function refreshSavedProfiles(){
+   const ids=await store.listIds();
+   savedPicker.replaceChildren();
+   if(!ids.length){
+    const empty=control(document,'option',{text:'No saved profiles yet'});empty.value='';
+    savedPicker.append(empty);return;
+   }
+   for(const id of ids){
+    const option=control(document,'option',{text:id});option.value=id;savedPicker.append(option);
+   }
+   if(profile&&ids.includes(profile.id))savedPicker.value=profile.id;
+  }
   function render(){
    overview.textContent=profile?[
     'Name: '+profile.name,'Profile revision: '+profile.revision,
     'Master: '+profile.master.name,
     'Variants: '+profile.variants.map(v=>v.name).join(', '),
-    'Evidence entries: '+profile.evidence.length
+    'Evidence entries: '+profile.evidence.length,
+    'Recoverable CV document snapshots: '+[profile.master,...profile.variants]
+     .reduce((sum,entry)=>sum+(entry.history?.length||0),0),
+    ...profile.evidence.slice(-10).map(item=>
+     (item.verifiedByUser?'Owner-confirmed':'Not independently verified')+' ['+item.source+']: '+item.claim)
    ].join('\n'):'No profile in this preview.';
   }
   async function persist(next){
@@ -58,12 +77,31 @@ export function registerCareerProfileWorkbench(registry,{repository}={}){
    try{
     const result=await store.save(next.id,next,savedRevision);
     profile=result.value;savedRevision=result.revision;status.textContent='Saved locally at revision '+savedRevision;render();
+    try{await refreshSavedProfiles()}catch{status.textContent+='; profile list unavailable'}
    }finally{busy=false}
   }
   makeButton('Create new profile',async()=>{
    if(profile&&!document.defaultView.confirm('Replace the previewed profile? Your earlier saved profile is not deleted.'))return;
    const created=createCareerProfile({displayName:displayName.value.trim()||'My career profile'});
-   profile=null;savedRevision=null;await persist(created);
+   const previous=profile,previousRevision=savedRevision;
+   profile=null;savedRevision=null;
+   try{await persist(created)}catch(error){
+    profile=previous;savedRevision=previousRevision;render();throw error;
+   }
+  });
+  makeButton('Open selected saved profile',async()=>{
+   if(busy)throw Error('Operation already running');
+   if(!savedPicker.value)throw Error('Choose an existing profile');
+   if(profile&&profile.id!==savedPicker.value&&
+      !document.defaultView.confirm('Open a different saved profile?'))return;
+   busy=true;
+   try{
+    const found=await store.load(savedPicker.value);
+    if(!found)throw Error('Profile was not found; refresh the list');
+    profile=found.value;savedRevision=found.revision;
+    status.textContent='Loaded saved profile at revision '+savedRevision;
+    render();
+   }finally{busy=false}
   });
   makeButton('Add verified-by-me evidence',async()=>{
    if(!profile)throw Error('Create or import a profile first');
@@ -85,15 +123,25 @@ export function registerCareerProfileWorkbench(registry,{repository}={}){
   });
   makeButton('Review pasted import',async()=>{
    let input;try{input=JSON.parse(importInput.value)}catch{throw Error('Import is not valid JSON')}
+   pendingRaw=importInput.value;
    pending=typeof input?.format==='string'&&input.format==='ledger-career-profile-backup'
     ?await previewCareerProfileBackup(importInput.value)
     :planLegacyProfileImport(input);
-   importReview.textContent=[pending.status,...pending.warnings].join('\n');
+   importReview.textContent=[pending.status,...pending.warnings,
+    ...(pending.proposed?[
+     'Profile: '+pending.proposed.name,
+     'Master CV: '+pending.proposed.master.name,
+     'Career variants: '+pending.proposed.variants.length,
+     'Evidence entries requiring factual review: '+pending.proposed.evidence.length,
+     'Work history entries: '+pending.proposed.master.document.experience.length,
+     'Education entries: '+pending.proposed.master.document.education.length
+    ]:[])].join('\n');
    status.textContent=pending.status==='review-required'?
     'Preview only. No import or overwrite has occurred.':'Import blocked. Nothing was changed.';
   });
   makeButton('Approve reviewed import',async()=>{
    if(!pending||pending.status!=='review-required')throw Error('Review a valid import first');
+   if(pendingRaw!==importInput.value)throw Error('Import content changed; review it again before approval');
    if(!document.defaultView.confirm('Save the reviewed profile as a new separate local record? Existing legacy CV data will remain unchanged.'))return;
    const next=pending.sourceKey?approveLegacyProfileImport(pending,{confirmed:true}):
     approveCareerProfileBackup(pending,{confirmed:true});
@@ -101,12 +149,14 @@ export function registerCareerProfileWorkbench(registry,{repository}={}){
    const exists=await store.load(next.id);
    if(exists)throw Error('A local profile with this ID exists; automatic overwrite is blocked.');
    profile=null;savedRevision=null;await persist(next);
-   pending=null;importReview.textContent='Approved and saved. Imported claims require factual review.';
+   pending=null;pendingRaw=null;
+   importReview.textContent='Approved and saved. Imported claims require factual review.';
   });
-  root.append(heading,note,displayName,evidence,variants,actions,status,overview,
+  root.append(heading,note,displayName,savedLabel,evidence,variants,actions,status,overview,
    control(document,'h3',{text:'Manual, review-only import'}),importInput,importReview);
   host.append(root);render();
-  return ()=>{root.remove();profile=null;pending=null};
+  void refreshSavedProfiles().catch(()=>{status.textContent='Profile list unavailable; local storage may be blocked.'});
+  return ()=>{root.remove();profile=null;pending=null;pendingRaw=null};
  }});
 }
 export function createCareerProfileWorkbenchRegistry(options){

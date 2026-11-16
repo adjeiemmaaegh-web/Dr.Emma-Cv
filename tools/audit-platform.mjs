@@ -16,7 +16,7 @@ const sw=read('hosting/sw.template.js');
 assert(sw.includes("ledger-e(?:29|30|31)-"),'Old hosted shell caches not cleaned up');
 for(const path of [
  'src/contracts/platform.mjs','src/contracts/platform.d.ts',
- 'src/core/feature-registry.mjs','src/domain/profile/career-profile.mjs',
+ 'src/core/feature-registry.mjs','src/core/composition-root.mjs','src/domain/profile/career-profile.mjs',
  'src/domain/storage/revision-store.mjs','src/domain/storage/profile-backup.mjs',
  'src/ui/system/tokens.css','tests/platform/feature-registry.test.mjs',
  'tests/platform/career-profile.test.mjs','tests/platform/revision-store.test.mjs',
