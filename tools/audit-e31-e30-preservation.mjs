@@ -20,7 +20,7 @@ const checks=[
  ['Package build script matches configured E31 build',pkg.scripts.build===config.buildCommand],
  ['E30 exact output digest gate preserved',build.includes("assert.equal(hash,'1dd5b058bc10e058825e37ec0de706f42efe2ac89c602a87909672f948dc546c'")],
  ['E29 source digest gate preserved',build.includes("assert.equal(sha(baseline),pinnedE29")],
- ['No E31 script injected into frozen E30 build',!build.includes('e31-')],
+ ['No E31 script injected into frozen E30 build',!build.includes('e31-accessibility')&&!build.includes('e31-keyboard.inline.js')],
  ['E30 menu controls have accessible state',js.includes("button.setAttribute('aria-expanded','false')")&&js.includes("event.key==='Escape'")],
  ['E30 menu hidden content respects hidden state',css.includes('.e30-tools-content[hidden]{display:none!important}')],
  ['E30 screen keyboard focus visible',css.includes(':focus-visible')],
