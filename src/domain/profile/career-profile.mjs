@@ -67,7 +67,7 @@ export function validateCareerProfile(value){
    !LEDGER_EVIDENCE_SOURCES.includes(item.source)||typeof item.verifiedByUser!=='boolean'||
    item.verifiedByUser&&item.source!=='verified-by-user'||
    item.sourceRef!==undefined&&!text(item.sourceRef,1000)||
-   item.path!==undefined&&!text(item.path,300))throw contractError('INVALID','Invalid evidence');
+   item.path!==undefined&&!text(item.path,300))throw contractError('INVALID','Invalid or duplicate evidence');
   iso(item.capturedAt);evidenceIds.add(item.id);
  }
  return true;
