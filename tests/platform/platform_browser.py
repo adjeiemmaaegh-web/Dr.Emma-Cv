@@ -82,6 +82,27 @@ def main():
      return saved?.revision===1&&saved.value.variants.length===1;
    }""",result)
    assert persisted,'data lost after real browser restart/reload'
+   # Exercise the actual isolated workbench, not just the storage API.
+   page.goto(f'http://127.0.0.1:{server.server_port}/development/group-a/profile-workbench.html',wait_until='load')
+   page.wait_for_selector('button:has-text("Create new profile")')
+   page.locator('input[placeholder="Career profile name"]').fill('Synthetic QA Profile')
+   page.get_by_role('button',name='Create new profile').click()
+   page.wait_for_function("document.querySelector('[role=status]')?.textContent.startsWith('Saved locally')")
+   assert 'Synthetic QA Profile' in page.locator('pre').first.inner_text()
+   page.reload(wait_until='load')
+   page.wait_for_function("""[...document.querySelectorAll('select[aria-label="Saved local profiles"] option')].some(x=>x.value.startsWith('ledger_'))""")
+   page.get_by_role('button',name='Open selected saved profile').click()
+   page.wait_for_function("document.querySelector('[role=status]')?.textContent.startsWith('Loaded saved profile')")
+   assert 'Synthetic QA Profile' in page.locator('pre').first.inner_text()
+   page.locator('input[placeholder="Evidence-backed achievement or responsibility"]').fill('Synthetic owner-confirmed responsibility')
+   page.get_by_role('button',name='Add verified-by-me evidence').click()
+   page.wait_for_function("document.querySelector('[role=status]')?.textContent.includes('revision 1')")
+   page.reload(wait_until='load')
+   page.wait_for_function("""[...document.querySelectorAll('select[aria-label="Saved local profiles"] option')].some(x=>x.value.startsWith('ledger_'))""")
+   page.get_by_role('button',name='Open selected saved profile').click()
+   page.wait_for_function("document.querySelector('[role=status]')?.textContent.startsWith('Loaded saved profile')")
+   assert 'Evidence entries: 1' in page.locator('pre').first.inner_text()
+   result['workbenchReload']=True
    assert not errors,errors
    print('PASS native browser Group A',json.dumps(result),flush=True)
    context.close();browser.close()
