@@ -1,0 +1,51 @@
+name: Ledger Group A frontend foundation and data-contract QA (NO DEPLOY)
+on:
+  push:
+    branches:
+      - feat/ws-a-stages-00-03-foundation-2026-11-17
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/contracts/**'
+      - 'src/core/**'
+      - 'src/domain/profile/**'
+      - 'src/domain/storage/**'
+      - 'src/ui/system/**'
+      - 'tests/platform/**'
+      - 'tools/audit-platform.mjs'
+      - '.github/workflows/group-a-foundation.yml'
+      - 'package.json'
+      - 'hosting/**'
+      - 'vercel.json'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  contracts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Preserve frozen Stage 8 and existing E0 storage tests
+        run: npm run verify:e0
+      - name: Verify frontend contracts and Group A modules
+        run: npm run verify:platform
+      - name: Assert production build settings preserve frozen E30
+        run: node tools/audit-e31-e30-preservation.mjs
+  native-profile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pinned native Chromium testing dependency
+        run: |
+          python -m pip install playwright==1.57.0
+          python -m playwright install chromium
+      - name: Verify actual IndexedDB readwrite transaction and restart
+        run: python tests/platform/platform_browser.py
