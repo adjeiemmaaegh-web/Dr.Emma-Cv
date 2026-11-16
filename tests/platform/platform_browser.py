@@ -102,7 +102,24 @@ def main():
    page.get_by_role('button',name='Open selected saved profile').click()
    page.wait_for_function("document.querySelector('[role=status]')?.textContent.startsWith('Loaded saved profile')")
    assert 'Evidence entries: 1' in page.locator('pre').first.inner_text()
+   page.locator('textarea[placeholder="Applicant-written CV summary"]').fill('Synthetic owner-entered summary A')
+   page.get_by_role('button',name='Save selected CV summary').click()
+   page.wait_for_function("document.querySelector('[role=status]')?.textContent.includes('revision 2')")
+   page.locator('textarea[placeholder="Applicant-written CV summary"]').fill('Synthetic owner-entered summary B')
+   page.get_by_role('button',name='Save selected CV summary').click()
+   page.wait_for_function("document.querySelector('[role=status]')?.textContent.includes('revision 3')")
+   page.locator('select[aria-label="Previous CV revision"]').select_option('2')
+   page.once('dialog',lambda dialog:dialog.accept())
+   page.get_by_role('button',name='Restore selected previous CV revision').click()
+   page.wait_for_function("document.querySelector('[role=status]')?.textContent.includes('revision 4')")
+   assert page.locator('textarea[placeholder="Applicant-written CV summary"]').input_value()=='Synthetic owner-entered summary A'
+   page.reload(wait_until='load')
+   page.wait_for_function("""[...document.querySelectorAll('select[aria-label="Saved local profiles"] option')].some(x=>x.value.startsWith('ledger_'))""")
+   page.get_by_role('button',name='Open selected saved profile').click()
+   page.wait_for_function("document.querySelector('[role=status]')?.textContent.startsWith('Loaded saved profile')")
+   assert page.locator('textarea[placeholder="Applicant-written CV summary"]').input_value()=='Synthetic owner-entered summary A'
    result['workbenchReload']=True
+   result['workbenchRevisionRestore']=True
    assert not errors,errors
    print('PASS native browser Group A',json.dumps(result),flush=True)
    context.close();browser.close()

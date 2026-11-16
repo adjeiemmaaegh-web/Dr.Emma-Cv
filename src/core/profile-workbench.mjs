@@ -4,8 +4,10 @@
  * All user-visible data goes through textContent/value; no HTML injection.
  */
 import {createFeatureRegistry} from './feature-registry.mjs';
-import {createCareerProfile,createCVVariant,addCareerEvidence,planLegacyProfileImport,
+import {createCareerProfile,createCVVariant,updateCVVariant,replaceMasterDocument,
+ restoreCVRevision,addCareerEvidence,planLegacyProfileImport,
  approveLegacyProfileImport} from '../domain/profile/career-profile.mjs';
+import {cloneData} from '../contracts/platform.mjs';
 import {createIndexedDBRevisionStore} from '../domain/storage/revision-store.mjs';
 import {createCareerProfileBackup,previewCareerProfileBackup,approveCareerProfileBackup
 } from '../domain/storage/profile-backup.mjs';
@@ -40,6 +42,13 @@ export function registerCareerProfileWorkbench(registry,{repository}={}){
   const nameLabel=control(document,'label',{text:'Career profile name'});nameLabel.append(displayName);
   const evidenceLabel=control(document,'label',{text:'Owner-confirmed evidence or responsibility'});evidenceLabel.append(evidence);
   const variantLabel=control(document,'label',{text:'Tailored CV version name'});variantLabel.append(variants);
+  const cvPicker=control(document,'select');cvPicker.setAttribute('aria-label','CV version to edit');
+  const cvLabel=control(document,'label',{text:'CV version to edit or restore'});cvLabel.append(cvPicker);
+  const summaryEdit=control(document,'textarea',{placeholder:'Applicant-written CV summary'});summaryEdit.rows=4;
+  summaryEdit.maxLength=20000;
+  const summaryLabel=control(document,'label',{text:'Edit selected CV summary (applicant-written facts only)'});summaryLabel.append(summaryEdit);
+  const historyPicker=control(document,'select');historyPicker.setAttribute('aria-label','Previous CV revision');
+  const historyLabel=control(document,'label',{text:'Previous CV revision to restore'});historyLabel.append(historyPicker);
   const importInput=control(document,'textarea',{placeholder:'Paste a previously exported Ledger profile backup or legacy CV JSON'});importInput.rows=5;
   const importReview=control(document,'pre');importReview.style.whiteSpace='pre-wrap';
   const savedPicker=control(document,'select');savedPicker.setAttribute('aria-label','Saved local profiles');
@@ -67,7 +76,26 @@ export function registerCareerProfileWorkbench(registry,{repository}={}){
    }
    if(profile&&ids.includes(profile.id))savedPicker.value=profile.id;
   }
+  function renderCVSelection(){
+   const selected=cvPicker.value;
+   cvPicker.replaceChildren();historyPicker.replaceChildren();
+   if(!profile){summaryEdit.value='';return}
+   for(const item of [profile.master,...profile.variants]){
+    const option=control(document,'option',{text:item.name+' (revision '+item.revision+')'});
+    option.value=item.id;cvPicker.append(option);
+   }
+   if([...cvPicker.options].some(option=>option.value===selected))cvPicker.value=selected;
+   const active=[profile.master,...profile.variants].find(item=>item.id===cvPicker.value);
+   summaryEdit.value=active.document.summary;
+   for(const old of [...(active.history||[])].reverse()){
+    const option=control(document,'option',{text:'Revision '+old.revision+' (previously saved)'});
+    option.value=String(old.revision);historyPicker.append(option);
+   }
+   historyPicker.disabled=!active.history?.length;
+  }
+  cvPicker.addEventListener('change',renderCVSelection);
   function render(){
+   renderCVSelection();
    overview.textContent=profile?[
     'Name: '+profile.name,'Profile revision: '+profile.revision,
     'Master: '+profile.master.name,
@@ -123,6 +151,32 @@ export function registerCareerProfileWorkbench(registry,{repository}={}){
    const next=createCVVariant(profile,{name:variants.value.trim()||'Tailored CV',expectedRevision:profile.revision});
    await persist(next);variants.value='';
   });
+  makeButton('Save selected CV summary',async()=>{
+   if(!profile)throw Error('Create or open a profile first');
+   const current=[profile.master,...profile.variants].find(item=>item.id===cvPicker.value);
+   if(!current)throw Error('Choose a CV first');
+   if(current.document.summary===summaryEdit.value){status.textContent='Summary unchanged; no save was needed.';return}
+   const doc=cloneData(current.document);doc.summary=summaryEdit.value;
+   let next;
+   if(current.id===profile.master.id){
+    if(!document.defaultView.confirm('Edit the master CV summary? Existing tailored copies will stay separate.'))return;
+    next=replaceMasterDocument(profile,{document:doc,expectedRevision:profile.revision,confirmed:true});
+   }else{
+    next=updateCVVariant(profile,{variantId:current.id,document:doc,expectedRevision:profile.revision});
+   }
+   await persist(next);
+  });
+  makeButton('Restore selected previous CV revision',async()=>{
+   if(!profile)throw Error('Create or open a profile first');
+   const selected=cvPicker.value,revision=Number(historyPicker.value);
+   const item=[profile.master,...profile.variants].find(entry=>entry.id===selected);
+   if(!item||!historyPicker.value||!item.history?.some(old=>old.revision===revision))
+    throw Error('Choose an available previous CV revision');
+   if(!document.defaultView.confirm('Restore the selected previous CV content as a new revision? Current content will be retained in history.'))return;
+   const next=restoreCVRevision(profile,{variantId:selected,snapshotRevision:revision,
+    expectedRevision:profile.revision,confirmed:true});
+   await persist(next);
+  });
   makeButton('Export checksum backup',async()=>{
    if(!profile)throw Error('No career profile to export');
    const backup=await createCareerProfileBackup(profile);
@@ -130,6 +184,7 @@ export function registerCareerProfileWorkbench(registry,{repository}={}){
    status.textContent='Backup exported; preserve it somewhere safe.';
   });
   makeButton('Review pasted import',async()=>{
+   pending=null;pendingRaw=null;importReview.textContent='';
    let input;try{input=JSON.parse(importInput.value)}catch{throw Error('Import is not valid JSON')}
    pendingRaw=importInput.value;
    pending=typeof input?.format==='string'&&input.format==='ledger-career-profile-backup'
@@ -156,15 +211,22 @@ export function registerCareerProfileWorkbench(registry,{repository}={}){
    if(profile?.id===next.id)throw Error('An existing profile with this identity is already open. Export it first; overwrite is not permitted here.');
    const exists=await store.load(next.id);
    if(exists)throw Error('A local profile with this ID exists; automatic overwrite is blocked.');
-   profile=null;savedRevision=null;await persist(next);
+   const previous=profile,previousRevision=savedRevision;
+   profile=null;savedRevision=null;
+   try{await persist(next)}catch(error){
+    profile=previous;savedRevision=previousRevision;render();throw error;
+   }
    pending=null;pendingRaw=null;
    importReview.textContent='Approved and saved. Imported claims require factual review.';
   });
-  root.append(heading,note,nameLabel,savedLabel,evidenceLabel,variantLabel,actions,status,overview,
+  root.append(heading,note,nameLabel,savedLabel,evidenceLabel,variantLabel,
+   cvLabel,summaryLabel,historyLabel,actions,status,overview,
    control(document,'h3',{text:'Manual, review-only import'}),importInput,importReview);
   host.append(root);render();
   void refreshSavedProfiles().catch(()=>{status.textContent='Profile list unavailable; local storage may be blocked.'});
-  return ()=>{root.remove();profile=null;pending=null;pendingRaw=null};
+  return ()=>{root.remove();profile=null;pending=null;pendingRaw=null;
+   if(repository===undefined&&typeof store.close==='function')store.close();
+  };
  }});
 }
 export function createCareerProfileWorkbenchRegistry(options){
