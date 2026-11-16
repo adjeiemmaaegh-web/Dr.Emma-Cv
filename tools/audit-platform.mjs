@@ -18,6 +18,7 @@ for(const path of [
  'src/contracts/platform.mjs','src/contracts/platform.d.ts',
  'src/core/feature-registry.mjs','src/core/composition-root.mjs','src/domain/profile/career-profile.mjs',
  'src/domain/storage/revision-store.mjs','src/domain/storage/profile-backup.mjs',
+ 'src/domain/storage/legacy-backup.mjs','tests/platform/legacy-backup.test.mjs',
  'src/ui/system/tokens.css','tests/platform/feature-registry.test.mjs',
  'tests/platform/career-profile.test.mjs','tests/platform/revision-store.test.mjs',
  'tests/platform/profile-backup.test.mjs','tests/platform/platform_browser.py'
