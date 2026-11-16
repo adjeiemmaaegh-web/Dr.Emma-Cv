@@ -37,6 +37,9 @@ export function registerCareerProfileWorkbench(registry,{repository}={}){
   const displayName=control(document,'input',{type:'text',placeholder:'Career profile name'});displayName.maxLength=120;
   const evidence=control(document,'input',{type:'text',placeholder:'Evidence-backed achievement or responsibility'});evidence.maxLength=3000;
   const variants=control(document,'input',{type:'text',placeholder:'Tailored CV version name'});variants.maxLength=120;
+  const nameLabel=control(document,'label',{text:'Career profile name'});nameLabel.append(displayName);
+  const evidenceLabel=control(document,'label',{text:'Owner-confirmed evidence or responsibility'});evidenceLabel.append(evidence);
+  const variantLabel=control(document,'label',{text:'Tailored CV version name'});variantLabel.append(variants);
   const importInput=control(document,'textarea',{placeholder:'Paste a previously exported Ledger profile backup or legacy CV JSON'});importInput.rows=5;
   const importReview=control(document,'pre');importReview.style.whiteSpace='pre-wrap';
   const savedPicker=control(document,'select');savedPicker.setAttribute('aria-label','Saved local profiles');
@@ -55,7 +58,12 @@ export function registerCareerProfileWorkbench(registry,{repository}={}){
     savedPicker.append(empty);return;
    }
    for(const id of ids){
-    const option=control(document,'option',{text:id});option.value=id;savedPicker.append(option);
+    const option=control(document,'option',{text:id});option.value=id;
+    try{
+     const saved=await store.load(id);
+     option.textContent=saved?saved.value.name+' — '+id.slice(-8):'Missing record — '+id.slice(-8);
+    }catch{option.textContent='Unreadable record — '+id.slice(-8)}
+    savedPicker.append(option);
    }
    if(profile&&ids.includes(profile.id))savedPicker.value=profile.id;
   }
@@ -152,7 +160,7 @@ export function registerCareerProfileWorkbench(registry,{repository}={}){
    pending=null;pendingRaw=null;
    importReview.textContent='Approved and saved. Imported claims require factual review.';
   });
-  root.append(heading,note,displayName,savedLabel,evidence,variants,actions,status,overview,
+  root.append(heading,note,nameLabel,savedLabel,evidenceLabel,variantLabel,actions,status,overview,
    control(document,'h3',{text:'Manual, review-only import'}),importInput,importReview);
   host.append(root);render();
   void refreshSavedProfiles().catch(()=>{status.textContent='Profile list unavailable; local storage may be blocked.'});

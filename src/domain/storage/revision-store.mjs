@@ -63,7 +63,9 @@ export function createIndexedDBRevisionStore({indexedDBFactory=globalThis.indexe
  function db(){
   if(!opening)opening=new Promise((resolve,reject)=>{
    let done=false;
-   const request=indexedDBFactory.open(databaseName,1);
+   let request;
+   try{request=indexedDBFactory.open(databaseName,1)}
+   catch(error){done=true;reject(asStorageError(error));return}
    request.onupgradeneeded=()=>{
     const database=request.result;
     if(!database.objectStoreNames.contains(STORE))database.createObjectStore(STORE,{keyPath:'id'});
@@ -83,7 +85,9 @@ export function createIndexedDBRevisionStore({indexedDBFactory=globalThis.indexe
   const database=await db();
   return new Promise((resolve,reject)=>{
    let done=false,found=null;
-   const tx=database.transaction(STORE,'readonly');
+   let tx;
+   try{tx=database.transaction(STORE,'readonly')}
+   catch(error){reject(asStorageError(error));return}
    tx.objectStore(STORE).get(id).onsuccess=event=>{found=event.target.result||null};
    tx.oncomplete=()=>{done=true;try{resolve(copyRecord(found,id))}catch(e){reject(e)}};
    tx.onerror=tx.onabort=()=>{if(!done){done=true;reject(asStorageError(tx.error))}};
@@ -95,7 +99,9 @@ export function createIndexedDBRevisionStore({indexedDBFactory=globalThis.indexe
   const immutable=cloneData(value);
   return new Promise((resolve,reject)=>{
    let settled=false,accepted=false;
-   const tx=database.transaction(STORE,'readwrite');
+   let tx;
+   try{tx=database.transaction(STORE,'readwrite')}
+   catch(error){reject(asStorageError(error));return}
    const store=tx.objectStore(STORE);
    const get=store.get(id);
    get.onsuccess=()=>{
@@ -125,7 +131,9 @@ export function createIndexedDBRevisionStore({indexedDBFactory=globalThis.indexe
   const database=await db();
   return new Promise((resolve,reject)=>{
    let done=false,keys=[];
-   const tx=database.transaction(STORE,'readonly');
+   let tx;
+   try{tx=database.transaction(STORE,'readonly')}
+   catch(error){reject(asStorageError(error));return}
    const request=tx.objectStore(STORE).getAllKeys();
    request.onsuccess=()=>{keys=request.result};
    tx.oncomplete=()=>{

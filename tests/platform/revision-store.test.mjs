@@ -47,3 +47,33 @@ test('memory repository discovers saved profiles',async()=>{
  await store.save(p.id,p,null);
  assert.deepEqual(await store.listIds(),[p.id]);
 });
+
+test('browser storage denial, quota and invalid transaction emit typed failures',async()=>{
+ const denied=createIndexedDBRevisionStore({databaseName:'ledger_cv_denied_test',indexedDBFactory:{
+  open(){const error=new Error('Synthetic security denial');error.name='SecurityError';throw error}
+ }});
+ await assert.rejects(denied.load('profileABC123'),e=>e.code==='UNAVAILABLE');
+ const quota=createIndexedDBRevisionStore({databaseName:'ledger_cv_quota_test',indexedDBFactory:{
+  open(){
+   const request={};
+   queueMicrotask(()=>{request.error={name:'QuotaExceededError'};request.onerror()});
+   return request;
+  }
+ }});
+ await assert.rejects(quota.load('profileABC123'),e=>e.code==='QUOTA');
+ const invalidTx=createIndexedDBRevisionStore({databaseName:'ledger_cv_closed_test',indexedDBFactory:{
+  open(){
+   const request={};
+   queueMicrotask(()=>{
+    request.result={close(){},transaction(){
+     const error=new Error('Synthetic closed database');error.name='InvalidStateError';throw error
+    }};
+    request.onsuccess();
+   });
+   return request;
+  }
+ }});
+ await assert.rejects(invalidTx.load('profileABC123'),e=>e.code==='UNAVAILABLE');
+ await assert.rejects(invalidTx.save(seed().id,seed(),null),e=>e.code==='UNAVAILABLE');
+ await assert.rejects(invalidTx.listIds(),e=>e.code==='UNAVAILABLE');
+});

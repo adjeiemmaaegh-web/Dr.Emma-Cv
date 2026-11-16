@@ -14,8 +14,11 @@ pre{font:inherit;white-space:pre-wrap;overflow-wrap:anywhere}
 </main>
 <script type="module">
 import {createCareerProfileWorkbenchRegistry} from '../../src/core/profile-workbench.mjs';
+import {createFrontendComposition} from '../../src/core/composition-root.mjs';
 const registry=createCareerProfileWorkbenchRegistry();
-registry.mount('career-profile-workbench',{host:document.getElementById('ledger-workbench-host')})
+const composer=createFrontendComposition({registry,host:document.getElementById('ledger-workbench-host'),
+ routes:{'/career-profile':'career-profile-workbench'}});
+composer.navigate('/career-profile')
  .catch(error=>{document.getElementById('ledger-workbench-host').textContent='Workbench could not start: '+error.message});
 </script>
 </body></html>
