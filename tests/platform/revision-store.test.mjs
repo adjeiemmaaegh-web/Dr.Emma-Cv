@@ -40,3 +40,10 @@ test('the legacy browser storage is never a fallback database',()=>{
  assert.throws(()=>createIndexedDBRevisionStore({indexedDBFactory:null}),e=>e.code==='UNAVAILABLE');
  assert.throws(()=>createIndexedDBRevisionStore({indexedDBFactory:{open(){}},databaseName:'other'}),e=>e.code==='INVALID');
 });
+
+test('memory repository discovers saved profiles',async()=>{
+ const store=createMemoryRevisionStore(),p=seed();
+ assert.deepEqual(await store.listIds(),[]);
+ await store.save(p.id,p,null);
+ assert.deepEqual(await store.listIds(),[p.id]);
+});

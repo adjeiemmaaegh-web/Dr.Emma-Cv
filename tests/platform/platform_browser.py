@@ -41,6 +41,23 @@ def main():
         attempts.filter(x=>x.status==='rejected').length!==1)throw Error('two stale commits succeeded');
      const read=await store2.load(id);
      if(read.revision!==1)throw Error('revision not persisted');
+     if(JSON.stringify(await store1.listIds())!==JSON.stringify([id]))throw Error('profile discovery missing');
+     const corruptId='profileCORRUPT123';
+     const open=await new Promise((resolve,reject)=>{
+       const req=indexedDB.open(databaseName,1);
+       req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error);
+     });
+     await new Promise((resolve,reject)=>{
+       const tx=open.transaction('career_profiles','readwrite');
+       tx.objectStore('career_profiles').put({id:corruptId,revision:4,value:{id:corruptId,revision:4}});
+       tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);
+     });
+     open.close();
+     let corruptLoad=false,corruptSave=false;
+     try{await store1.load(corruptId)}catch(e){corruptLoad=e.code==='CORRUPT'}
+     try{await store1.save(corruptId,{...p,id:corruptId,revision:5},4)}
+     catch(e){corruptSave=e.code==='CORRUPT'}
+     if(!corruptLoad||!corruptSave)throw Error('corrupt row was accepted or overwritten');
      if(localStorage.getItem(storageKey)!=='synthetic legacy sentinel')throw Error('modified legacy');
      const backup=await t.createCareerProfileBackup(read.value);
      const restored=await t.previewCareerProfileBackup(backup);

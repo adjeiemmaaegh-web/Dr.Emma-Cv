@@ -69,3 +69,31 @@ test('duplicate variant and evidence identities are rejected',()=>{
  const e=addCareerEvidence(p,'Claim one',{id:'evidenceABC123',expectedRevision:0,now:date});
  assert.throws(()=>addCareerEvidence(e,'Claim two',{id:'evidenceABC123',expectedRevision:1,now:date}),/duplicate/);
 });
+
+test('edited variants and masters retain bounded, detached document snapshots',()=>{
+ let p=seed();
+ p=createCVVariant(p,{id:'variantABC123',expectedRevision:0,now:date});
+ for(let n=0;n<15;n++){
+  const doc=blankCareerDocument();doc.summary='Evidence revision '+n;
+  p=updateCVVariant(p,{variantId:'variantABC123',document:doc,expectedRevision:p.revision,now:date});
+ }
+ const history=p.variants[0].history;
+ assert.equal(p.variants[0].revision,15);
+ assert.equal(history.length,12);
+ assert.equal(history[0].revision,3);
+ assert.equal(history.at(-1).revision,14);
+ assert.equal(history.at(-1).document.summary,'Evidence revision 13');
+ const edited=blankCareerDocument();edited.summary='Master update';
+ const master=replaceMasterDocument(p,{document:edited,confirmed:true,expectedRevision:p.revision,now:date});
+ assert.equal(master.master.history.length,1);
+ assert.equal(master.master.history[0].document.summary,'');
+ assert.equal(p.master.history.length,0);
+ assert.throws(()=>validateCareerProfile({...master,master:{...master.master,
+   history:[{revision:99,document:blankCareerDocument(),appearance:{},updatedAt:date}]}}),
+   e=>e.code==='INVALID');
+});
+test('empty variant edits and missing master document fail closed',()=>{
+ const p=createCVVariant(seed(),{id:'variantABC123',expectedRevision:0,now:date});
+ assert.throws(()=>updateCVVariant(p,{variantId:'variantABC123',expectedRevision:1,now:date}),e=>e.code==='INVALID');
+ assert.throws(()=>replaceMasterDocument(p,{confirmed:true,expectedRevision:1,now:date}),e=>e.code==='INVALID');
+});

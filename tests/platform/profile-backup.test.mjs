@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {createCareerProfile} from '../../src/domain/profile/career-profile.mjs';
+import {createCareerProfile,createCVVariant,updateCVVariant,blankCareerDocument} from '../../src/domain/profile/career-profile.mjs';
 import {createCareerProfileBackup,previewCareerProfileBackup,approveCareerProfileBackup} from '../../src/domain/storage/profile-backup.mjs';
 const date='2026-11-17T10:00:00.000Z';
 const seed=()=>createCareerProfile({id:'profileABC123',now:date,idFactory:()=> 'masterABC123'});
@@ -24,4 +24,15 @@ test('invalid, absent and oversized backups do not return proposed data',async()
   const preview=await previewCareerProfileBackup(bad);
   assert.equal(preview.status,'blocked');assert.equal(preview.proposed,null);
  }
+});
+
+test('previous variant snapshots survive checksum backup and manual approval',async()=>{
+ let p=seed();
+ p=createCVVariant(p,{id:'variantABC123',expectedRevision:0,now:date});
+ const doc=blankCareerDocument();doc.summary='Only user-entered information';
+ p=updateCVVariant(p,{variantId:'variantABC123',document:doc,expectedRevision:1,now:date});
+ const raw=await createCareerProfileBackup(p,{now:date});
+ const restored=approveCareerProfileBackup(await previewCareerProfileBackup(raw),{confirmed:true});
+ assert.deepEqual(restored.variants[0].history,p.variants[0].history);
+ assert.equal(restored.variants[0].history[0].revision,0);
 });

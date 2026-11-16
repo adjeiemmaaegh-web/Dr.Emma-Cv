@@ -12,26 +12,39 @@ function verifySave(id,value,expected){
  if(expected!==null&&(!Number.isSafeInteger(expected)||expected<0))throw contractError('INVALID','Expected revision invalid');
  if(value.revision!==(expected===null?0:expected+1))throw contractError('CONFLICT','Profile mutation revision does not match saved revision');
 }
-function verifyExisting(existing,expected){
+function verifyExisting(existing,expected,id){
+ // A corrupt stored row cannot be overwritten using a nominal expected revision.
+ if(existing!==null)copyRecord(existing,id);
  if(expected===null){
   if(existing!==null)throw contractError('CONFLICT','Record already exists');
  }else if(existing===null||existing.revision!==expected){
   throw contractError('CONFLICT','Record changed or was removed');
  }
 }
-function copyRecord(row){return row?{revision:row.revision,value:cloneData(row.value)}:null;}
+function copyRecord(row,id){
+ if(!row)return null;
+ try{
+  if(row.id!==id||!Number.isSafeInteger(row.revision)||row.revision<0||
+     row.value?.id!==id||row.value?.revision!==row.revision)
+   throw Error('Row and payload revision disagree');
+  validateCareerProfile(row.value);
+  return {revision:row.revision,value:cloneData(row.value)};
+ }catch{
+  throw contractError('CORRUPT','Saved career profile is unreadable; no changes were made');
+ }
+}
 export function createMemoryRevisionStore({beforeCommit}={}){
  const records=new Map();
  return Object.freeze({
-  async load(id){if(!isSafeId(id))throw contractError('INVALID','Invalid record identifier');return copyRecord(records.get(id)||null);},
+  async load(id){if(!isSafeId(id))throw contractError('INVALID','Invalid record identifier');return copyRecord(records.get(id)||null,id);},
   async save(id,value,expectedRevision){
    verifySave(id,value,expectedRevision);
-   const current=records.get(id)||null;verifyExisting(current,expectedRevision);
+   const current=records.get(id)||null;verifyExisting(current,expectedRevision,id);
    if(beforeCommit)await beforeCommit({id,expectedRevision});
    // Check again after await: this is an in-memory test adapter, not multi-process storage.
-   verifyExisting(records.get(id)||null,expectedRevision);
+   verifyExisting(records.get(id)||null,expectedRevision,id);
    const next={revision:value.revision,value:cloneData(value)};
-   records.set(id,next);return copyRecord(next);
+   records.set(id,next);return copyRecord(next,id);
   },
   async listIds(){return [...records.keys()].sort()}
  });
@@ -57,7 +70,7 @@ export function createIndexedDBRevisionStore({indexedDBFactory=globalThis.indexe
    };
    request.onsuccess=()=>{
     const database=request.result;
-    database.onversionchange=()=>database.close();
+    database.onversionchange=()=>{database.close();opening=null};
     if(done)database.close();else{done=true;resolve(database)}
    };
    request.onerror=()=>{if(!done){done=true;reject(asStorageError(request.error))}};
@@ -72,7 +85,7 @@ export function createIndexedDBRevisionStore({indexedDBFactory=globalThis.indexe
    let done=false,found=null;
    const tx=database.transaction(STORE,'readonly');
    tx.objectStore(STORE).get(id).onsuccess=event=>{found=event.target.result||null};
-   tx.oncomplete=()=>{done=true;try{resolve(copyRecord(found))}catch(e){reject(e)}};
+   tx.oncomplete=()=>{done=true;try{resolve(copyRecord(found,id))}catch(e){reject(e)}};
    tx.onerror=tx.onabort=()=>{if(!done){done=true;reject(asStorageError(tx.error))}};
   });
  }
@@ -88,7 +101,7 @@ export function createIndexedDBRevisionStore({indexedDBFactory=globalThis.indexe
    get.onsuccess=()=>{
     try{
      const existing=get.result||null;
-     verifyExisting(existing,expectedRevision);
+     verifyExisting(existing,expectedRevision,id);
      store.put({id,revision:immutable.revision,value:immutable});
      accepted=true;
     }catch(error){
@@ -108,5 +121,27 @@ export function createIndexedDBRevisionStore({indexedDBFactory=globalThis.indexe
    };
   });
  }
- return Object.freeze({load,save});
+ async function listIds(){
+  const database=await db();
+  return new Promise((resolve,reject)=>{
+   let done=false,keys=[];
+   const tx=database.transaction(STORE,'readonly');
+   const request=tx.objectStore(STORE).getAllKeys();
+   request.onsuccess=()=>{keys=request.result};
+   tx.oncomplete=()=>{
+    if(done)return;done=true;
+    if(!Array.isArray(keys)||keys.some(id=>!isSafeId(id)))
+     reject(contractError('CORRUPT','Profile index contains an invalid identifier'));
+    else resolve(keys.sort());
+   };
+   tx.onerror=tx.onabort=()=>{
+    if(!done){done=true;reject(asStorageError(tx.error))}
+   };
+  });
+ }
+ function close(){
+  if(opening)void opening.then(database=>database.close()).catch(()=>{});
+  opening=null;
+ }
+ return Object.freeze({load,save,listIds,close});
 }

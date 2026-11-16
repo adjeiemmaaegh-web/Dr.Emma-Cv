@@ -5,7 +5,7 @@
 import {cloneData,contractError,isSafeId,isPlainObject,LEDGER_EVIDENCE_SOURCES} from '../../contracts/platform.mjs';
 import {validLegacyCVState,validLegacyDocument} from '../storage/legacy-shape.mjs';
 const DOCUMENT_ARRAYS=Object.freeze(['experience','education','skills','languages','certifications','projects','accomplishments','customSections']);
-const MAX_VARIANTS=40,MAX_EVIDENCE=500;
+const MAX_VARIANTS=40,MAX_EVIDENCE=500,MAX_SNAPSHOTS=12;
 const text=(value,max)=>typeof value==='string'&&value.length<=max;
 const nowDefault=()=>new Date().toISOString();
 const idDefault=()=>{if(!globalThis.crypto?.randomUUID)throw contractError('UNAVAILABLE','Secure identifier generator unavailable');return 'ledger_'+globalThis.crypto.randomUUID().replace(/-/g,'');};
@@ -24,7 +24,7 @@ export function blankCareerDocument(){
 function variant({id,masterId,name,document:doc,appearance={},targetJobId,now}){
  const out={id:checkId(id),masterId:checkId(masterId),name,revision:0,
   document:document(doc),appearance:cloneData(object(appearance,'appearance')),
-  createdAt:iso(now),updatedAt:iso(now)};
+  createdAt:iso(now),updatedAt:iso(now),history:[]};
  if(!text(name,120)||!name.trim())throw contractError('INVALID','Invalid variant name');
  if(targetJobId!==undefined)out.targetJobId=checkId(targetJobId);
  return out;
@@ -58,6 +58,21 @@ export function validateCareerProfile(value){
    !Number.isSafeInteger(entry.revision)||entry.revision<0)throw contractError('INVALID','Invalid or duplicate variant');
   ids.add(entry.id);iso(entry.createdAt);iso(entry.updatedAt);
   document(entry.document);object(entry.appearance,'appearance');
+  // Historical v1 backups without snapshots remain valid, while future edits
+  // preserve up to twelve former CV documents (all included in backups).
+  if(entry.history!==undefined){
+   if(!Array.isArray(entry.history)||entry.history.length>MAX_SNAPSHOTS)
+    throw contractError('INVALID','Invalid variant revision history');
+   let last=-1;
+   for(const snapshot of entry.history){
+    object(snapshot,'variant snapshot');
+    if(!Number.isSafeInteger(snapshot.revision)||snapshot.revision<=last||
+       snapshot.revision>=entry.revision)
+     throw contractError('INVALID','Invalid variant snapshot revision');
+    document(snapshot.document);object(snapshot.appearance,'snapshot appearance');
+    iso(snapshot.updatedAt);last=snapshot.revision;
+   }
+  }
   if(entry.targetJobId!==undefined&&!isSafeId(entry.targetJobId))throw contractError('INVALID','Invalid target job');
  }
  const evidenceIds=new Set();
@@ -95,11 +110,19 @@ export function createCVVariant(profile,{id,name='Tailored CV',targetJobId,expec
   appearance:copy.master.appearance,targetJobId,now});
  copy.variants.push(snapshot);validateCareerProfile(copy);return copy;
 }
+function preserveVariantRevision(target){
+ const snapshots=Array.isArray(target.history)?target.history:[];
+ snapshots.push({revision:target.revision,document:cloneData(target.document),
+  appearance:cloneData(target.appearance),updatedAt:target.updatedAt});
+ target.history=snapshots.slice(-MAX_SNAPSHOTS);
+}
 export function updateCVVariant(profile,{variantId,document:doc,appearance,expectedRevision,now=nowDefault()}={}){
  const copy=nextProfile(profile,expectedRevision,now);
  if(variantId===copy.master.id)throw contractError('UNCONFIRMED','Master changes require an explicit master-edit command');
  const target=copy.variants.find(x=>x.id===variantId);
  if(!target)throw contractError('INVALID','Unknown variant');
+ if(doc===undefined&&appearance===undefined)throw contractError('INVALID','No variant changes supplied');
+ preserveVariantRevision(target);
  if(doc!==undefined)target.document=document(doc);
  if(appearance!==undefined)target.appearance=cloneData(object(appearance,'appearance'));
  target.revision++;target.updatedAt=iso(now);
@@ -108,6 +131,8 @@ export function updateCVVariant(profile,{variantId,document:doc,appearance,expec
 export function replaceMasterDocument(profile,{document:doc,appearance,confirmed=false,expectedRevision,now=nowDefault()}={}){
  if(confirmed!==true)throw contractError('UNCONFIRMED','Master edits require explicit confirmation');
  const copy=nextProfile(profile,expectedRevision,now);
+ if(doc===undefined)throw contractError('INVALID','A master document is required');
+ preserveVariantRevision(copy.master);
  copy.master.document=document(doc);
  if(appearance!==undefined)copy.master.appearance=cloneData(object(appearance,'appearance'));
  copy.master.revision++;copy.master.updatedAt=iso(now);
