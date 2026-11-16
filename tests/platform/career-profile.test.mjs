@@ -33,7 +33,7 @@ test('explicit approval is required for master changes',()=>{
 test('evidence provenance cannot silently call an imported claim verified',()=>{
  const p=seed();
  assert.throws(()=>addCareerEvidence(p,'Revenue up 30%',{id:'evidenceABC123',
- source:'user-asserted',verifiedByUser:true,expectedRevision:0,now:date}),/Invalid evidence/);
+ source:'user-asserted',verifiedByUser:true,expectedRevision:0,now:date}),/Invalid or duplicate evidence/);
  const next=addCareerEvidence(p,'Managed eight colleagues',{id:'evidenceABC123',
  source:'user-asserted',expectedRevision:0,now:date});
  assert.equal(next.evidence[0].verifiedByUser,false);
