@@ -212,7 +212,7 @@ export function checkView(ctx){
    el('h2',{},'Potential career-story opportunities'),
    el('ul',{class:'lw-findings'},expanded.opportunities.map(f=>
     el('li',{class:'lw-finding info'},el('strong',{},f.message),
-     el('p',{class:'lw-help'},f.explanation+' '+f.correction)))));
+     el('p',{class:'lw-help'},f.explanation+' '+f.correction))))));
  root.append(el('details',{class:'lw-card'},
   el('summary',{},'27 published categories/checks — what we can and cannot assess'),
   el('p',{class:'lw-help'},'Scope reference from Enhancv’s published checklist. A local check is NOT an external ATS result, and no job-match score is generated.'),
@@ -225,7 +225,7 @@ export function checkView(ctx){
        c.observed==='no-local-flag'?'No local flag':c.observed==='opportunity'?'Possible opportunity':
        c.status==='needs-input'?'Input needed':'Not verified')),
       el('p',{class:'lw-help'},c.reason),
-      c.preview?el('p',{class:'lw-help'},'Example finding: '+c.preview):null)))))));
+      c.preview?el('p',{class:'lw-help'},'Example finding: '+c.preview):null))))))));
  const tips=analyzeWriting(s.document).slice(0,8);
  if(tips.length){root.append(el('h2',{style:'margin:var(--s-6) 0 var(--s-3)'},'Writing tips'));
   root.append(el('ul',{class:'lw-findings'},tips.map(t=>el('li',{class:'lw-finding info'},el('span',{class:'ic','aria-hidden':'true'},'✎'),el('div',{},el('p',{},t.message),el('p',{class:'why'},'“'+t.before+'”'+(t.after?' → suggested: “'+t.after+'” (check it still reads correctly)':'')))))));}
