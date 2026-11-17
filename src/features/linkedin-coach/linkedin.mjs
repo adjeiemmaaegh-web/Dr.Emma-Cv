@@ -103,19 +103,41 @@ export function fromPastedText(text){
  return {source:'pasted',headline,about:about.join('\n'),positions};
 }
 const norm=x=>s(x).toLowerCase().replace(/[^a-z0-9 ]/g,'').replace(/\b(ltd|limited|inc|llc|plc|co|corp|corporation)\b/g,'').replace(/\s+/g,' ').trim();
-const year=v=>{const m=String(v||'').match(/(19|20)\d{2}/);return m?+m[0]:null;};
+const year=v=>{const m=String(v||'').match(/(?:19|20)\d{2}/);return m?+m[0]:null;};
+/** Month precision is compared only when both sources actually specify a month. */
+function partialDate(value){
+ const raw=s(value).toLowerCase();if(!raw)return null;
+ const y=year(raw);if(!y)return null;
+ const names=['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
+ const word=raw.match(/\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\b/i);
+ if(word)return {year:y,month:names.indexOf(word[1].toLowerCase())+1};
+ const first=raw.match(/^(0?[1-9]|1[0-2])[/.-](?:19|20)\d{2}$/);
+ if(first)return {year:y,month:+first[1]};
+ const second=raw.match(/^(?:19|20)\d{2}[/.-](0?[1-9]|1[0-2])(?:[/.-]\d{1,2})?$/);
+ return {year:y,month:second?+second[1]:null};
+}
 /** Consistency between LinkedIn and the CV (read-only). */
 export function compareWithCv(linkedin,document){
- const out=[],cv=document.experience||[],used=new Set();
- // The exported Positions.csv category might not have been selected. Unknown is not empty.
+ const out=[],cv=document.experience||[];
  if(linkedin.coverage?.positions===false)return out;
- for(const {linkedin:p,cv:e,index:i} of matchedRoles(linkedin,document)){
+ const {roles,used,reserved}=matchedRoles(linkedin,document);
+ for(const {linkedin:p,cv:e,index:i,ambiguous,possibleCvPaths} of roles){
+  if(ambiguous){
+   out.push({kind:'role-ambiguous',severity:'warning',message:'Multiple CV roles at '+p.company+' could correspond to LinkedIn "'+p.title+'". Verify the specific employer, role and dates before matching.',citations:possibleCvPaths});
+   continue;
+  }
   if(i<0){out.push({kind:'linkedin-only',severity:'info',message:'"'+p.title+'" at '+p.company+' is on LinkedIn but not on your CV.',citations:[]});continue;}
-  used.add(i);const path='experience['+(e.id??i)+']';
+  const path='experience['+(e.id??i)+']';
   if(norm(e.title)!==norm(p.title))out.push({kind:'title-differs',severity:'warning',message:'Title differs for '+p.company+': LinkedIn "'+p.title+'" vs CV "'+e.title+'". Decide which is accurate.',citations:[path+'.title']});
-  const a=year(e.start),b=year(p.start);if(a&&b&&a!==b)out.push({kind:'start-differs',severity:'warning',message:'Start year differs for '+p.company+': LinkedIn '+b+' vs CV '+a+'.',citations:[path+'.start']});
+  const a=year(e.start),b=year(p.start);
+  if(a&&b&&a!==b)out.push({kind:'start-differs',severity:'warning',message:'Start year differs for '+p.company+': LinkedIn '+b+' vs CV '+a+'.',citations:[path+'.start']});
+  else if(a&&b&&a===b){
+   const cvDate=partialDate(e.start),liDate=partialDate(p.start);
+   if(cvDate?.month&&liDate?.month&&cvDate.month!==liDate.month)
+    out.push({kind:'start-month-differs',severity:'warning',message:'Start month differs for '+p.title+' at '+p.company+'.',citations:[path+'.start']});
+  }
  }
- cv.forEach((e,k)=>{if(!used.has(k)&&s(e.employer))out.push({kind:'cv-only',severity:'info',message:'"'+e.title+'" at '+e.employer+' is on your CV but not on LinkedIn.',citations:['experience['+(e.id??k)+']']});});
+ cv.forEach((e,k)=>{if(!used.has(k)&&!reserved.has(k)&&s(e.employer))out.push({kind:'cv-only',severity:'info',message:'"'+e.title+'" at '+e.employer+' is on your CV but not in the supplied LinkedIn positions.',citations:['experience['+(e.id??k)+']']});});
  return out;
 }
 /** Editable suggestions, built only from the CV. Each cites its sources and passes the unsupported-claim guard. */
@@ -131,25 +153,51 @@ export function suggestProfileText(linkedin,document){
   if(after!==linkedin.headline)sugg.push(mk('headline',linkedin.headline,after.slice(0,LINKEDIN_LIMITS.headline),'Your CV title plus your first listed skills. Edit freely.',['personalInfo.title',...skills.slice(0,3).map((_,i)=>'skills['+i+']')]));
  }
  if(s(document.summary)&&!s(linkedin.about))sugg.push(mk('about','',document.summary.slice(0,LINKEDIN_LIMITS.about),'Starts from your CV summary. LinkedIn "About" often reads better in the first person; adapt it yourself.',['summary']));
- for(const p of linkedin.positions){
-  if(s(p.description))continue;
-  const e=(document.experience||[]).find(x=>norm(x.employer)&&norm(x.employer)===norm(p.company));
-  if(!e)continue;
+ for(const {linkedin:p,cv:e,index} of matchedRoles(linkedin,document).roles){
+  if(s(p.description)||!e)continue;
   const bullets=[...String(e.description||'').matchAll(/<li[^>]*>([\s\S]*?)<\/li>/gi)].map(m=>m[1].replace(/<[^>]*>/g,'').trim()).filter(Boolean);
-  if(bullets.length)sugg.push(mk('position:'+p.company,'',bullets.map(b=>'• '+b).join('\n'),'Your CV bullets for this role; LinkedIn has no description for it.',['experience['+(e.id??'')+'].description']));
+  if(bullets.length){
+   const after=bullets.map(b=>'• '+b).join('\n');
+   sugg.push(mk('position:'+p.company+':'+p.title,'',after,
+    'Only existing CV bullets for this matched role; verify wording before copying.',['experience['+(e.id??index)+'].description']));
+  }
  }
  return sugg;
 }
 
 /** Matched by employer+role first, then employer; one CV role is never matched twice. */
+/**
+ * Conservative one-to-one role matching.
+ * A shared employer is NOT sufficient to join two different jobs where multiple
+ * roles exist. Ambiguous records are reported for review rather than assigned.
+ */
 function matchedRoles(linkedin,document){
- const cv=document.experience||[],used=new Set();
- return (linkedin.positions||[]).map((p)=>{
-  let index=cv.findIndex((e,i)=>!used.has(i)&&norm(e.employer)&&norm(e.employer)===norm(p.company)&&norm(e.title)===norm(p.title));
-  if(index<0)index=cv.findIndex((e,i)=>!used.has(i)&&norm(e.employer)&&norm(e.employer)===norm(p.company));
-  if(index>=0)used.add(index);
-  return {linkedin:p,cv:index<0?null:cv[index],index};
- });
+ const cv=document.experience||[],used=new Set(),reserved=new Set(),result=[];
+ for(const p of linkedin.positions||[]){
+  const company=norm(p.company),title=norm(p.title);
+  if(!company){result.push({linkedin:p,cv:null,index:-1,ambiguous:false});continue;}
+  const candidates=cv.map((e,i)=>({e,i})).filter(({e,i})=>!used.has(i)&&norm(e.employer)===company);
+  const exact=title?candidates.filter(({e})=>norm(e.title)===title):[];
+  let choice=null;
+  if(exact.length===1)choice=exact[0];
+  else if(exact.length>1){
+   const start=year(p.start);
+   const dated=exact.filter(({e})=>start&&year(e.start)===start);
+   if(dated.length===1)choice=dated[0];
+  }else if(candidates.length===1){
+   choice=candidates[0]; // a single employer match is reviewable, including title variations
+  }else if(candidates.length>1){
+   const start=year(p.start);
+   const dated=candidates.filter(({e})=>start&&year(e.start)===start);
+   if(dated.length===1)choice=dated[0];
+  }
+  if(choice){used.add(choice.i);result.push({linkedin:p,cv:choice.e,index:choice.i,ambiguous:false});}
+  else{
+   if(candidates.length>1)candidates.forEach(x=>reserved.add(x.i));
+   result.push({linkedin:p,cv:null,index:-1,ambiguous:candidates.length>1,possibleCvPaths:candidates.map(x=>'experience['+(x.e.id??x.i)+']')});
+  }
+ }
+ return {roles:result,used,reserved};
 }
 const stripped=x=>plainText({summary:String(x||'')}).trim();
 const words=x=>new Set(norm(x).split(' ').filter(w=>w.length>=4));
@@ -185,11 +233,16 @@ export function compareLinkedInDetails(linkedin,document){
  if(s(document.summary)&&!s(linkedin.about))issue('about-missing','info','LinkedIn About text is missing from the supplied profile.',['summary']);
  else if(s(document.summary)&&s(linkedin.about)&&textDifference(document.summary,linkedin.about))
   issue('about-differs','info','LinkedIn About and the CV summary emphasize different content; review their accuracy.',['summary']);
- for(const {linkedin:p,cv:e,index} of matchedRoles(linkedin,document)){
+ for(const {linkedin:p,cv:e,index} of matchedRoles(linkedin,document).roles){
   if(!e)continue;
   const path='experience['+(e.id??index)+']';
   if(year(p.end)!==year(e.end)&&(year(p.end)||year(e.end)))
    issue('end-differs','warning','End date differs for '+p.company+' / '+p.title+'.',[''+path+'.end']);
+  else if(year(p.end)&&year(e.end)){
+   const cvEnd=partialDate(e.end),liEnd=partialDate(p.end);
+   if(cvEnd?.month&&liEnd?.month&&cvEnd.month!==liEnd.month)
+    issue('end-month-differs','warning','End month differs for '+p.title+' at '+p.company+'.',[path+'.end']);
+  }
   if(p.location&&e.location&&norm(p.location)!==norm(e.location))
    issue('location-differs','info','Location differs for '+p.company+' / '+p.title+'.',[path+'.location']);
   if(!s(p.description)&&stripped(e.description))
