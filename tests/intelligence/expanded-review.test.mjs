@@ -249,3 +249,14 @@ test('promotion inference excludes undated ambiguous or overlapping titles',()=>
  assert.equal(analyzeResumeReadiness(ctx(d2)).signals.careerProgression,0,
   'overlapping multi-year roles are not inferred as promotion');
 });
+
+
+test('common typo patterns are flagged as suggestions without inventing a rewrite',()=>{
+ const d=withRole('<ul><li>Improved store managment and recieved daily reports.</li></ul>');
+ const report=analyzeResumeReadiness(ctx(d));
+ const flags=issues(report,'grammar-pattern');
+ assert(flags.length>=2);
+ assert(flags.some(x=>x.message.includes('management')));
+ assert(flags.some(x=>x.message.includes('received')));
+ assert(flags.every(x=>x.requiresHumanReview&&x.correction));
+});
