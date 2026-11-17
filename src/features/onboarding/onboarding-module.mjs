@@ -15,7 +15,7 @@ export const onboardingFeature=Object.freeze({
   const ann=createAnnouncer(root); // lives outside the re-rendered section so announcements are not destroyed
   let existing=null;try{existing=(await services.documentSource?.load())||null;}catch{existing=null;}
   const hasDoc=!!existing?.document&&JSON.stringify(existing.document)!==undefined&&(existing.document.experience?.length||existing.document.summary||existing.document.personalInfo?.firstName);
-  let state=null,errors=[],saving=false,result=null;
+  let state=null,errors=[],saving=false,result=null,firstEntry=true;
   const saveDraft=()=>{try{services.draftStore?.save(serializeDraft(state));}catch{}};
   const h=(text)=>{const n=el('h2',{id:'ob-h'},text);return n;};
   function entry(){
@@ -30,7 +30,8 @@ export const onboardingFeature=Object.freeze({
    if(services.draftStore){let d=null;try{d=services.draftStore.load();}catch{}
     if(d)wrap.append(el('button',{type:'button',on:{click:()=>{try{state=restoreDraft(d);errors=[];render();}catch{services.draftStore.clear?.();ann.announce('The saved draft could not be read and was discarded.');entry();}}}},'Continue where I left off'));}
    else wrap.append(el('p',{class:'ledger-help'},'Saving a draft to continue later is not available here. Finish in one go, or export a backup.'));
-   focusHeading(wrap.querySelector('#ob-h'));
+   if(!(firstEntry&&services.autoFocus===false))focusHeading(wrap.querySelector('#ob-h'));
+   firstEntry=false;
   }
   function render(){
    const ctx={document:existing?.document,appearance:existing?.appearance};

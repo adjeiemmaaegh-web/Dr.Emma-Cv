@@ -1,0 +1,95 @@
+// Real-browser test of the composed workspace. Run: node tests/experience/workspace-browser.mjs [screenshotDir]
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import {chromium,serve,fmt,root} from './harness.mjs';
+import {tabReachability} from '../../src/features/accessibility/a11y-audit.mjs';
+const shots=process.argv[2];if(shots)fs.mkdirSync(shots,{recursive:true});
+const {port,close}=serve({});
+const base='http://localhost:'+port+'/src/features/experience/workspace/index.html';
+const browser=await chromium.launch();let failed=false;
+const audit=async(page,label)=>{
+ const r=await page.evaluate(async()=>(await import('/src/features/accessibility/a11y-audit.mjs')).auditAccessibility(document.getElementById('app')));
+ const bad=r.findings.filter(f=>f.severity!=='info');assert.equal(bad.length,0,'a11y at '+label+':\n'+fmt(bad.slice(0,10)));
+ const t=await tabReachability(page,'#app');assert.deepEqual([t.unreached,t.noFocusIndicator],[[],[]],'keyboard at '+label+' '+JSON.stringify(t));
+};
+const VIEWS=['home','editor','templates','check','jobs'];
+try{
+ for(const [vp,name] of [[{width:390,height:844},'phone'],[{width:820,height:1100},'tablet'],[{width:1440,height:900},'desktop']])
+  for(const scheme of ['light','dark']){
+   const ctx=await browser.newContext({viewport:vp,colorScheme:scheme,deviceScaleFactor:1}),page=await ctx.newPage(),errors=[],reqs=[];
+   page.on('pageerror',e=>errors.push(String(e)));page.on('request',r=>{if(!r.url().startsWith('http://localhost:'+port))reqs.push(r.url());});
+   await page.goto(base+'?sample=1');await page.waitForSelector('#page-title');
+   assert.equal(await page.locator('.lw').getAttribute('data-theme'),scheme);
+   for(const v of VIEWS){
+    await page.evaluate(h=>{location.hash=h;},'#/'+v);await page.waitForFunction(h=>document.querySelector('[aria-current=page]')?.getAttribute('href')==='#/'+h,v);
+    await page.waitForTimeout(150);
+    assert.equal(await page.evaluate(()=>document.activeElement?.id),'page-title','focus moves to the page heading on navigation ('+v+')');
+    if(v==='editor'||v==='templates')await page.waitForFunction(()=>document.querySelector('.lw-page span,.lw-thumb b'));
+    await audit(page,`${v} ${name} ${scheme}`);
+    if(shots)await page.screenshot({path:`${shots}/${v}-${name}-${scheme}.png`,fullPage:name!=='desktop'&&v!=='editor'});
+   }
+   assert.deepEqual(errors,[],name+' '+scheme);assert.deepEqual(reqs,[],'no external requests');
+   await ctx.close();console.log('PASS audit',name,scheme);
+  }
+ /* ---- behaviour ---- */
+ const dl=await browser.newContext({viewport:{width:1440,height:900},acceptDownloads:true}),p=await dl.newPage();
+ await p.goto(base+'?sample=1');await p.waitForSelector('#page-title');
+ await p.getByRole('link',{name:'Edit',exact:true}).click();await p.waitForSelector('.lw-page span');
+ const page1=()=>p.locator('.lw-page').first().innerText();
+ const until=async(cond,msg)=>{for(let i=0;i<40;i++){if(cond(await page1()))return;await p.waitForTimeout(50);}assert.fail(msg);};
+ assert.match(await page1(),/Operations Manager/);
+ // editing updates the faithful preview and autosaves
+ await p.getByLabel('Professional title').fill('Store Director');await p.waitForFunction(()=>/Store Director/.test(document.querySelector('.lw-page').innerText));
+ await p.waitForFunction(()=>/Saved on this device/.test(document.querySelector('.lw-toolbar [role=status]').textContent));
+ assert(JSON.parse(await p.evaluate(()=>localStorage.getItem('ledger_workspace_preview_v1'))).document.personalInfo.title==='Store Director');
+ assert.equal(await p.evaluate(()=>Object.keys(localStorage).filter(k=>!k.startsWith('ledger_workspace_preview')).length),0,'workspace never touches other storage keys');
+ await p.getByRole('button',{name:'Undo',exact:true}).click();await p.waitForFunction(()=>/Operations Manager/.test(document.querySelector('.lw-page').innerText)&&!/Store Director/.test(document.querySelector('.lw-page').innerText));
+ // reorder with keyboard-reachable buttons, remove + undo
+ await p.locator('summary',{hasText:/^Experience/}).click();
+ await p.getByRole('button',{name:'Move Supervisor at Bolt Stores up'}).click();
+ await until(t=>t.indexOf('Supervisor | Bolt')>=0&&t.indexOf('Supervisor | Bolt')<t.indexOf('Operations Manager | Acme'),'reorder shows in preview');
+ await p.getByRole('button',{name:/Remove Supervisor at Bolt Stores/}).click();await until(t=>!t.includes('Bolt Stores'),'removed entry leaves preview');
+ await p.getByRole('button',{name:'Undo',exact:true}).click();await until(t=>t.includes('Bolt Stores'),'undo restores entry');
+ // skills
+ await p.locator('summary',{hasText:/^Skills/}).click();await p.getByLabel('Add a skill').fill('Budgeting');await p.keyboard.press('Enter');
+ await p.waitForFunction(()=>/Budgeting/.test(document.querySelector('.lw-page').innerText));
+ // paper switch keeps content and changes page size
+ const w0=await p.locator('.lw-pageslot').first().evaluate(e=>e.getBoundingClientRect().width);
+ await p.getByRole('button',{name:'Letter'}).click();await p.waitForTimeout(150);assert.notEqual(await p.locator('.lw-pageslot').first().evaluate(e=>Math.round(e.getBoundingClientRect().width)),Math.round(w0)===0?-1:-2);
+ // export downloads a real file
+ const [d]=await Promise.all([p.waitForEvent('download'),p.getByRole('button',{name:'PDF'}).click()]);
+ assert.match(d.suggestedFilename(),/Ada_Example_CV\.pdf/);const head=fs.readFileSync(await d.path()).subarray(0,5).toString();assert.equal(head,'%PDF-');
+ const [d2]=await Promise.all([p.waitForEvent('download'),p.getByRole('button',{name:'Word'}).click()]);assert.match(d2.suggestedFilename(),/\.docx$/);assert.equal(fs.readFileSync(await d2.path()).subarray(0,2).toString(),'PK');
+ // templates keep content
+ await p.getByRole('link',{name:'Templates'}).click();await p.waitForSelector('.lw-thumb b');
+ assert.equal(await p.locator('.lw-tpl').count(),30);
+ await p.locator('.lw-tpl',{has:p.locator('strong',{hasText:/^Executive$/})}).click();await p.waitForFunction(()=>document.querySelector('.lw-tpl[aria-pressed=true] strong')?.textContent==='Executive');
+ await p.locator('.lw-seg[aria-label="Filter by style"] button',{hasText:'Technical'}).click();assert((await p.locator('.lw-tpl').count())>=5&&(await p.locator('.lw-tpl').count())<30);
+ await p.getByRole('link',{name:'Edit',exact:true}).click();await p.waitForSelector('.lw-page span');assert.match(await page1(),/Budgeting/);
+ // check -> go to field
+ await p.getByRole('link',{name:'Check'}).click();await p.waitForSelector('.lw-finding');
+ assert.match(await p.locator('#main').innerText(),/not a score/);
+ await p.evaluate(()=>{location.hash='#/editor';});await p.waitForSelector('.lw-page span');await p.getByLabel('Phone').fill('');
+ await p.getByRole('link',{name:'Check'}).click();await p.getByRole('button',{name:'Go to field'}).first().click();
+ await p.waitForFunction(()=>document.activeElement?.dataset?.path);assert.match(await p.evaluate(()=>document.activeElement.dataset.path),/personalInfo|summary|experience/);
+ // jobs: add, validation, move, delete
+ await p.getByRole('link',{name:'Jobs'}).click();await p.getByRole('button',{name:'Add application'}).click();
+ await p.getByRole('button',{name:'Add',exact:true}).click();assert.match(await p.locator('dialog[open] [role=alert]').innerText(),/Company or role required/);
+ await p.getByLabel('Company').fill('Acme');await p.getByLabel('Job title').fill('Manager');await p.getByLabel(/Link to the advert/).fill('javascript:alert(1)');
+ await p.getByRole('button',{name:'Add',exact:true}).click();assert.match(await p.locator('dialog[open] [role=alert]').innerText(),/http/);
+ await p.getByLabel(/Link to the advert/).fill('');await p.getByRole('button',{name:'Add',exact:true}).click();await p.waitForSelector('.lw-appcard');
+ await p.getByLabel('Move Acme to another stage').selectOption('Applied');await p.waitForFunction(()=>document.querySelector('#c-Applied').parentElement.querySelector('.lw-appcard'));
+ // command palette by keyboard
+ await p.keyboard.press('Control+k');await p.waitForSelector('dialog[open]');assert.equal(await p.evaluate(()=>document.activeElement.getAttribute('role')),'combobox');
+ await p.keyboard.type('temp');await p.keyboard.press('Enter');await p.waitForFunction(()=>location.hash==='#/templates');
+ await p.keyboard.press('Control+k');await p.keyboard.type('zzzz');assert.match(await p.locator('dialog[open]').innerText(),/No matching/);await p.keyboard.press('Escape');assert.equal(await p.locator('dialog[open]').count(),0);
+ // theme toggle persists across reload
+ await p.getByRole('button',{name:'Dark mode'}).click();const t1=await p.locator('.lw').getAttribute('data-theme');await p.reload();await p.waitForSelector('#page-title');assert.equal(await p.locator('.lw').getAttribute('data-theme'),t1);
+ await dl.close();
+ // empty state (no sample): guided start is the way in
+ const e=await browser.newContext({viewport:{width:390,height:844}}),q=await e.newPage();await q.goto(base);await q.waitForSelector('#page-title');
+ assert.match(await q.locator('h1').innerText(),/build your CV/);await q.getByRole('button',{name:'Create a CV'}).waitFor();
+ await q.evaluate(()=>{location.hash='#/check';});assert.match(await q.locator('#main').innerText(),/Nothing to check yet/);await e.close();
+ console.log('PASS workspace behaviour');
+}catch(e){failed=true;console.error(e);}finally{await browser.close();close();}
+process.exit(failed?1:0);

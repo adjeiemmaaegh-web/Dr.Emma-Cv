@@ -58,6 +58,26 @@ node tests/experience/audit-selftest.mjs       # negative control for the audit
 ### Not tested (open, listed so a green run is never read as conformance)
 Screen readers (NVDA/JAWS/VoiceOver/TalkBack), real phones and tablets, Safari and Firefox, Windows High Contrast, 200%/400% zoom, dark mode appearance, cognitive/usability testing with real beginners, the legacy shipped UI (only the new modules were audited), Arabic/RTL.
 
+## Workspace UI (advanced UX/UI pass) — `src/features/experience/workspace/`
+A composed, responsive shell around the new modules. Open `src/features/experience/workspace/index.html` over http (add `?sample=1` for demo data). It is a **preview build**: it uses its own storage key (`ledger_workspace_preview_v1`) and never touches the legacy app or its keys; in a composed app Group A's storage port replaces `store.mjs`.
+
+| Area | What it does |
+|---|---|
+| Design system | Tokens for light and dark (follows the system, user toggle persists), type scale, 44 px targets, visible focus, reduced-motion and forced-colours support, phone bottom navigation / desktop sidebar |
+| Editor | Accordion form beside a **page-faithful preview**: it draws the exact positioned lines Group B's layout engine gives the PDF writer, so the preview is what exports. Autosave status, undo/redo (also Ctrl+Z / Ctrl+Y), keyboard reorder buttons, skills as chips, accent colour, size/spacing/margin/paper controls, Fit/100% zoom, Edit/Preview tabs on small screens, PDF and Word download |
+| Templates | Gallery of all 30 templates drawn from the user's own CV (true-position thumbnails), family filter, selection never changes content |
+| Check | Findings with icon + text severity (never colour alone), plain-language "why", **Go to field** that jumps to and focuses the exact input, writing tips |
+| Jobs | Kanban board, add dialog with validation, move/delete from each card, CSV download, empty-state callout |
+| Everywhere | Ctrl/Cmd+K command palette (combobox/listbox semantics), toasts through a polite live region, focus moves to each page heading on navigation, skip link |
+
+Screenshots (rendered by the real browser test): `docs/workstreams/experience/screenshots/`.
+
+Verified by `node tests/experience/workspace-browser.mjs [screenshotDir]`: all five views at phone (390), tablet (820) and desktop (1440) widths in light **and** dark pass the audit (names, labels, contrast, target size, reflow, text spacing, headings) plus real-keyboard Tab reachability and focus indicators, then a behaviour run (edit→preview→autosave, undo, reorder, template switch, real PDF/DOCX downloads, go-to-field, kanban add/move, palette, theme persistence, empty state, no external requests, no storage keys outside the workspace's own).
+
+Defects the audit and screenshots caught and that were fixed: skip-link contrast (generic link rule outranked it), nested accessibility tokens ignoring the dark theme, kanban headings skipping a level, the embedded guided start stealing focus on load, plain journey buttons (now tappable cards), and an empty Jobs board with no guidance.
+
+Limits: not a replacement for the shipped legacy UI until Group A composes it; Chromium only; no screen-reader, real-device or user testing; the preview uses system fonts (Inter/Helvetica if present); drag-and-drop is intentionally absent (menus and buttons instead); Letters, Interview and LinkedIn views are not yet in the shell.
+
 ## Known limitations
 - Journeys cover one job and one education entry per run; more can be added in the editor. Starter examples are single-line hints, not templates.
 - The `onboarding` module's DOM is tested in Chromium only. `pwa-status` shows an update prompt only if A's worker waits (see request 1).

@@ -51,7 +51,7 @@ export function auditAccessibility(root=document.body,{minTarget=24,preferTarget
  checked.push('autocomplete');for(const el of root.querySelectorAll('input[name]'))if(vis(el)){const k=AUTOCOMPLETE[el.name.toLowerCase()];if(k&&!el.getAttribute('autocomplete'))add('autocomplete','1.3.5','warning',el,'Personal-data field "'+el.name+'" has no autocomplete ('+k+').');}
  checked.push('reflow');if(document.documentElement.scrollWidth>window.innerWidth+1)add('reflow','1.4.10','error',document.documentElement,'Page scrolls horizontally at '+window.innerWidth+'px.');
  checked.push('text-spacing');{const st=document.createElement('style');st.textContent='*{line-height:1.5!important;letter-spacing:.12em!important;word-spacing:.16em!important}p{margin-bottom:2em!important}';document.head.append(st);
-  for(const el of root.querySelectorAll('*')){if(!vis(el))continue;const cs=getComputedStyle(el);if((cs.overflow==='hidden'||cs.overflowY==='hidden')&&el.scrollHeight>el.clientHeight+2&&el.textContent.trim())add('text-spacing','1.4.12','error',el,'Text is clipped when text spacing is increased.');}
+  for(const el of root.querySelectorAll('*')){if(!vis(el))continue;const bb=el.getBoundingClientRect();if(bb.width<=2&&bb.height<=2)continue; /* visually-hidden labels are meant to be clipped */ const cs=getComputedStyle(el);if((cs.overflow==='hidden'||cs.overflowY==='hidden')&&el.scrollHeight>el.clientHeight+2&&el.textContent.trim())add('text-spacing','1.4.12','error',el,'Text is clipped when text spacing is increased.');}
   if(document.documentElement.scrollWidth>window.innerWidth+1)add('text-spacing-reflow','1.4.12','warning',document.documentElement,'Increased text spacing causes horizontal scrolling.');st.remove();}
  checked.push('viewport-zoom');{const m=document.querySelector('meta[name=viewport]');if(m&&/user-scalable\s*=\s*(no|0)|maximum-scale\s*=\s*1(\.0)?\b/i.test(m.content))add('viewport-zoom','1.4.4','error',m,'Viewport disables zoom.');}
  checked.push('motion');{const running=document.getAnimations?document.getAnimations().filter(a=>a.playState==='running').length:0;if(running&&matchMedia('(prefers-reduced-motion: reduce)').matches)add('reduced-motion','2.3.3 (AAA, best practice)','warning',root,running+' animation(s) still run with reduced motion requested.');}
@@ -72,10 +72,11 @@ export const MANUAL_REQUIRED=Object.freeze([
  * Reports interactive elements never reached (2.1.1) and focused elements with no visible indicator (2.4.7 / 2.4.13).
  */
 export async function tabReachability(page,rootSelector){
- const targets=await page.evaluate(sel=>[...document.querySelector(sel).querySelectorAll('a[href],button:not([disabled]),input:not([type=hidden]):not([disabled]),select:not([disabled]),textarea:not([disabled])')].filter(e=>{const r=e.getBoundingClientRect();return r.width>0&&r.height>0&&getComputedStyle(e).visibility!=='hidden';}).map((e,i)=>{e.setAttribute('data-a11y-i',String(i));return i;}),rootSelector);
+ const targets=await page.evaluate(sel=>[...document.querySelector(sel).querySelectorAll('a[href],button:not([disabled]),input:not([type=hidden]):not([disabled]),select:not([disabled]),textarea:not([disabled])')].filter(e=>{const r=e.getBoundingClientRect();return r.width>0&&r.height>0&&getComputedStyle(e).visibility!=='hidden'&&!e.closest('details:not([open])');}).map((e,i)=>{e.setAttribute('data-a11y-i',String(i));return i;}),rootSelector);
  await page.evaluate(()=>document.activeElement&&document.activeElement.blur());
+ const stops=await page.evaluate(sel=>[...document.querySelectorAll('a[href],button:not([disabled]),input:not([type=hidden]):not([disabled]),select:not([disabled]),textarea:not([disabled]),summary,[tabindex]:not([tabindex="-1"])')].filter(e=>{const r=e.getBoundingClientRect();const d=e.closest('details:not([open])');return r.width>0&&r.height>0&&(!d||(e.tagName==='SUMMARY'&&e.parentElement===d));}).length,rootSelector);
  const reached=new Set(),noRing=[];
- for(let i=0;i<targets.length+8;i++){
+ for(let i=0;i<stops+6;i++){
   await page.keyboard.press('Tab');
   const r=await page.evaluate(()=>{const e=document.activeElement;if(!e||!e.hasAttribute('data-a11y-i'))return null;const cs=getComputedStyle(e);
    return {i:+e.getAttribute('data-a11y-i'),ring:(cs.outlineStyle!=='none'&&parseFloat(cs.outlineWidth)>=2)||(cs.boxShadow&&cs.boxShadow!=='none'),text:(e.textContent||e.getAttribute('aria-label')||e.name||e.tagName).trim().slice(0,40)};});
