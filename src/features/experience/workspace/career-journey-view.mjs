@@ -204,7 +204,8 @@ export function careerJourneyView(ctx){
      await store.importProfile(approved,{confirmed:true});
      linkedReview=null;linkedProfile=null;
      notice('Approved fields saved to a separate local CV profile. The original profile was not overwritten.');
-     draw();
+     // Remount the workspace on the new active profile: never reuse the prior profile’s career-journey ID.
+     ctx.go('#/editor');
     },true));
   };
   content.append(section('6. LinkedIn consistency coach',
