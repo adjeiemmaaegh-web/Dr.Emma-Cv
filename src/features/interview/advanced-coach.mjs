@@ -47,6 +47,7 @@ export function buildInterviewPlan({job,document,limit=16}={}){
      ?'Explain what you personally did and which achievement you can substantiate.'
      :'Use a genuine personal example. This is a generic practice prompt, not a statement about your career.'
   };
+ });
 }
 
 /** Review is rule-based, not a model-produced score or a hiring prediction. */
