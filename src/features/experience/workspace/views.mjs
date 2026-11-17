@@ -196,6 +196,17 @@ export function editorView(ctx){
     if(strong&&strong.textContent!==text)strong.textContent=text;
    }
   }
+  for(const row of form.querySelectorAll('.lw-section-row[data-section-key^="custom:"]')){
+   const id=row.dataset.sectionKey.slice('custom:'.length);
+   const item=snap.document.customSections.find(x=>x.id===id);
+   if(!item)continue;
+   const name=item.title||item.name||'New section';
+   const span=row.querySelector('label span'),check=row.querySelector('input[type=checkbox]'),buttons=row.querySelectorAll('button');
+   if(span&&span.textContent!==name)span.textContent=name;
+   check?.setAttribute('aria-label','Show '+name);
+   buttons[0]?.setAttribute('aria-label','Move '+name+' up');
+   buttons[1]?.setAttribute('aria-label','Move '+name+' down');
+  }
   redrawSoon();
  }
  let off=ed.subscribe(sync);const offStore=store.subscribe(()=>sync(ed.snapshot()));
