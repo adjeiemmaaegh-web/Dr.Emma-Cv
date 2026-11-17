@@ -51,6 +51,7 @@ const asMonth=d=>d.y*12+(d.m?d.m-1:0);
 const firstMonth=d=>asMonth(d);
 const lastMonth=d=>d.y*12+(d.m?d.m-1:11);
 const safeDate=v=>{const d=parseDate(tidy(v));return d&&d!=='present'?d:null;};
+const dateLabel=d=>d?String(d.y)+(d.m?'-'+String(d.m).padStart(2,'0'):''):'unknown';
 
 function investigateChronology(document,now){
  const items=(document.experience||[]).map((e,i)=>{
