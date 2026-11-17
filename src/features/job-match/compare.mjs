@@ -4,7 +4,7 @@
  * Numeric requirements cannot be satisfied by unrelated numbers or job titles.
  */
 import {documentUnits,stems,tokens,isStop} from '../intelligence/text.mjs';
-import {analyzeJobSkills,positiveEvidenceText} from './skill-evidence.mjs';
+import {analyzeJobSkills,positiveEvidenceText,findPositiveMention,SKILL_TAXONOMY} from './skill-evidence.mjs';
 const SYN={js:'javascript',ts:'typescript',ml:'machine learning',pm:'project management',
  crm:'customer relationship management',qa:'quality assurance',hr:'human resources',kpi:'key performance indicators'};
 const expand=t=>SYN[t]?[t,...SYN[t].split(' ')]:[t];
@@ -15,7 +15,7 @@ const GENERIC=new Set('experience skills ability knowledge strong good excellent
 const scopePattern=[
  {type:'team-size',rx:/\b(?:team|staff|employees|people|direct reports)\s+(?:of\s+|with\s+)?(\d{1,3})\s*\+?/i},
  {type:'team-size',rx:/\b(\d{1,3})\s*\+?\s*(?:staff|employees|people|direct reports)\b/i},
- {type:'years-experience',rx:/\b(\d{1,2})\s*\+?\s*(?:years|yrs)\s+(?:of\s+)?(?:relevant\s+)?(?:experience|practice|work)\b/i},
+ {type:'years-experience',rx:/\b(\d{1,2})\s*\+?\s*(?:years|yrs)\b/i},
  {type:'years-experience',rx:/\b(?:minimum|at least)\s+(\d{1,2})\s*(?:years|yrs)\b/i}
 ];
 /** Bounded, explicit scope checks. Does not calculate industry tenure from role dates. */
@@ -33,13 +33,15 @@ export function extractScopeRequirements(text){
  }
  return [...found.values()];
 }
-function numericEvidence(constraint,units){
+function numericEvidence(constraint,units,requiredSkills=[]){
  const candidates=[];
  const regex=constraint.type==='team-size'?
   /(?:\b(?:team|staff|employees|people|direct reports)\s+(?:of\s+|with\s+)?(\d{1,3})\s*\+?|\b(\d{1,3})\s*\+?\s*(?:staff|employees|people|direct reports)\b)/gi:
-  /(?:\b(\d{1,2})\s*\+?\s*(?:years|yrs)\s+(?:of\s+)?(?:relevant\s+)?(?:experience|practice|work)\b|\b(?:minimum|at least)\s+(\d{1,2})\s*(?:years|yrs)\b)/gi;
+  /(?:\b(\d{1,2})\s*\+?\s*(?:years|yrs)\b|\b(?:minimum|at least)\s+(\d{1,2})\s*(?:years|yrs)\b)/gi;
  for(const u of units){
   if(!/\.description\[|^summary$|^projects\[/.test(u.path))continue;
+  if(constraint.type==='years-experience'&&requiredSkills.length&&
+    !requiredSkills.every(skill=>findPositiveMention(u.text,skill.aliases)))continue;
   for(const match of positiveEvidenceText(u.text).matchAll(regex)){
    const count=Number(match[1]||match[2]);
    if(Number.isSafeInteger(count))candidates.push({path:u.path,value:count,excerpt:u.text.slice(0,200)});
@@ -64,7 +66,8 @@ export function compareToDocument(job,document){
   const terms=requirementTerms(requirement).filter(t=>!GENERIC.has(t));
   const tokenTerms=terms.map(t=>({t,st:stems(t)[0]})).filter(x=>x.st);
   const relatedSkills=skillEvidence.items.filter(x=>String(x.requirementId)===String(id));
-  const scopes=extractScopeRequirements(requirement).map(x=>numericEvidence(x,units));
+  const requiredSkillDefs=relatedSkills.map(x=>SKILL_TAXONOMY.find(d=>d.id===x.id)).filter(Boolean);
+  const scopes=extractScopeRequirements(requirement).map(x=>numericEvidence(x,units,requiredSkillDefs));
   if(!tokenTerms.length)return {requirementId:id,requirement,priority:r.priority||'unknown',
    status:'not-assessable',coverage:0,citations:[],matchedTerms:[],missingTerms:[],
    scopes,skillEvidence:relatedSkills,reason:'No distinctive requirement terms; review this manually.',
