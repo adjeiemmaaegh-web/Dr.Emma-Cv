@@ -7,6 +7,7 @@ Status: **engineering integration branch, NOT ACCEPTED, NO DEPLOY / NO MERGE**.
 - The 39 B/C/D-only source, tests and handoff files are imported by exact Git blob SHA from `6783a1374cfa4238eccec1d929e015a8156fe847`.
 - The eleven shared divergent paths intentionally retain Group A's bytes, avoiding implicit rollback of A contracts, storage, audits and workflows.
 - E30/E31 production/main build output and legacy application data are unmodified.
+- After the A branch advanced to commit `f4999e3`, the integration branch copied its production-safety `vercel.json` blob (`git.deploymentEnabled.main=false`) without invoking any deployment.
 - B editor accepts Group A's direct DOM slot and older `{element: ...}` host; Group A composition remains unchanged.
 
 ## Safety repairs in this review branch

@@ -191,16 +191,24 @@ test('approved edits on initially safe tailoring suggestions still reject invent
  assert.match(out.skipped[0].reason,/unsupported-fact/);
 });
 test('stale reordered bullet text is refused even when line count matches',()=>{
- const {job,profile,suggestions}=setup();
- const bullet=suggestions.find(s=>s.operation.type==='reorder-lines');
- assert(bullet,'test needs a reorder suggestion');
+ const {job,profile}=setup();
+ // Construct a legitimate reorder patch deterministically: matching a particular
+ // job ranking is not a precondition for rejecting a stale saved suggestion.
+ const original=profile.master.document.experience[0].description;
+ const lines=[...original.matchAll(/<li>(.*?)<\/li>/g)].map(m=>m[1]);
+ assert.equal(lines.length,3);
+ const bullet={id:'sg-stale-bullet',path:'experience[e1].description',
+  before:lines.join('\n'),after:[lines[2],lines[0],lines[1]].join('\n'),
+  explanation:'Reorder existing bullet lines without altering their wording.',
+  evidenceIds:[],unsupportedFact:false,status:'proposed',
+  operation:{type:'reorder-lines',experienceKey:'e1',order:[2,0,1],
+   rebuilt:'<ul><li>Stale, untrusted precomputed output.</li></ul>'}};
  const changed=structuredClone(profile);
- const entry=changed.master.document.experience.find((e,i)=>(e.id??i)===bullet.operation.experienceKey);
- assert(entry);
+ const entry=changed.master.document.experience[0];
  entry.description=entry.description.replace(/(<li>)([^<]+)/,'$1A freshly edited achievement');
  const out=applyApprovedSuggestions(changed,{job,suggestions:[bullet],
   decisions:{[bullet.id]:'approved'},expectedRevision:0,now:NOW});
  assert.equal(out.applied.length,0);
  assert.match(out.skipped[0].reason,/changed/);
- assert.match(out.profile.variants[0].document.experience.find(e=>e.id===entry.id).description,/freshly edited/);
+ assert.match(out.profile.variants[0].document.experience[0].description,/freshly edited/);
 });
