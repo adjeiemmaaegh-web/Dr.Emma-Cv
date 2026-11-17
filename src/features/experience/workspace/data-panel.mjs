@@ -69,7 +69,7 @@ export function createWorkspaceDataPanel(ctx){
    if(!updateSlot.isConnected)return;
    if(!reg){updateSlot.replaceChildren(el('p',{},'No service-worker update is waiting for this preview origin.'));return}
    updateManager=createUpdateManager({registration:reg,serviceWorker:navigator.serviceWorker,
-    hasUnsavedWork:()=>store.hasUnsavedWork(),onChange:()=>drawUpdate()});
+    hasUnsavedWork:()=>store.hasUnsavedWork(),onChange:()=>{if(updateManager)drawUpdate()}});
    drawUpdate();
    function drawUpdate(){
     if(!updateSlot.isConnected)return;
