@@ -116,10 +116,14 @@ export function analyzeJobSkills(job,document){
  const units=documentUnits(document||{}),requested=[];
  for(const [i,req] of requirements.entries()){
   if(typeof req?.text!=='string')continue;
-  for(const skill of SKILL_TAXONOMY)if(findPositiveMention(req.text,skill.aliases))
-   requested.push({skill,requirementId:req.id??'req-'+i,requirement:req.text,priority:req.priority||'unknown'});
+  for(const skill of SKILL_TAXONOMY){
+   const mention=findPositiveMention(req.text,skill.aliases);
+   if(mention)requested.push({skill,requirementId:req.id??'req-'+i,requirementIndex:i,
+    mentionStart:mention.index,mentionEnd:mention.index+mention.term.length,
+    requirement:req.text,priority:req.priority||'unknown'});
+  }
  }
- const items=requested.map(({skill,requirementId,requirement,priority})=>{
+ const items=requested.map(({skill,requirementId,requirement,priority,requirementIndex,mentionStart,mentionEnd})=>{
   const evidence=units.flatMap(u=>{
    const mention=findPositiveMention(u.text,skill.aliases);
    return mention?[{path:u.path,excerpt:u.text.slice(0,200),term:mention.term,source:unitKind(u.path)}]:[];
@@ -129,16 +133,48 @@ export function analyzeJobSkills(job,document){
   const correction=status==='not-found'?'If you have used this skill, add a truthful example and the actual context in a relevant role or project.':
    status==='mentioned'?'The wording appears without a specific work example. Add one only if you can substantiate it.':
    'A related action is described. Confirm it demonstrates the advertised requirement and its scope.';
-  return {id:skill.id,kind:skill.kind,skill:skill.name,requirementId,requirement,priority,status,
+  return {id:skill.id,kind:skill.kind,skill:skill.name,requirementId,requirement,requirementIndex,mentionStart,mentionEnd,priority,status,
    evidence,explanation:'Whole-phrase local matching with cautious alias and negation rules. CV text is not independent validation of competence.',
    correction};
  });
- const priorityRank={required:0,preferred:1,unknown:2},statusRank={'not-found':0,mentioned:1,described:2};
+ // A clearly written "SQL or Python" is one set of alternatives, not two compulsory skills.
+ // Complex conjunctions and ambiguous slash syntax remain visible for human interpretation.
+ const alternatives=[];
+ for(const [i,req] of requirements.entries()){
+  if(typeof req?.text!=='string')continue;
+  const ordered=items.filter(x=>x.requirementIndex===i).sort((a,b)=>a.mentionStart-b.mentionStart);
+  let group=[];
+  const close=()=>{
+   if(group.length<2){group=[];return;}
+   const key='alternative-'+i+'-'+alternatives.length;
+   const options=group.map(x=>x.skill),present=group.some(x=>x.status!=='not-found');
+   for(const x of group){
+    x.alternativeGroup=key;x.alternativeOptions=options;x.alternativeTextPresent=present;
+    if(present&&x.status==='not-found'){
+     x.status='alternative-covered';
+     x.correction='The vacancy offers an alternative and another option appears in the CV. Do not add this skill solely for a keyword; verify the employer’s intended requirement.';
+    }
+   }
+   alternatives.push({id:key,requirementId:group[0].requirementId,options,textPresent:present,
+    note:'An “or” is treated as a possible alternative, not proof that either option meets the employer’s standard.'});
+   group=[];
+  };
+  for(const item of ordered){
+   if(!group.length){group=[item];continue;}
+   const prev=group[group.length-1],between=req.text.slice(prev.mentionEnd,item.mentionStart).trim();
+   if(/^(?:or|\/)$/i.test(between))group.push(item);
+   else{close();group=[item];}
+  }
+  close();
+ }
+ const priorityRank={required:0,preferred:1,unknown:2},
+  statusRank={'not-found':0,mentioned:1,'alternative-covered':2,described:3};
  items.sort((a,b)=>(priorityRank[a.priority]??2)-(priorityRank[b.priority]??2)||
   statusRank[a.status]-statusRank[b.status]||a.skill.localeCompare(b.skill)||String(a.requirementId).localeCompare(String(b.requirementId)));
  return {items,hardSkills:items.filter(x=>x.kind==='hard'),softSkills:items.filter(x=>x.kind==='soft'),
-  summary:{requiredMissing:items.filter(x=>x.priority==='required'&&x.status==='not-found').length,
+  summary:{requiredMissing:(()=>{const missing=items.filter(x=>x.priority==='required'&&x.status==='not-found');
+    return new Set(missing.map(x=>x.alternativeGroup||x.requirementIndex+':'+x.id)).size;})(),
    mentionedOnly:items.filter(x=>x.status==='mentioned').length,described:items.filter(x=>x.status==='described').length},
-  lexiconVersion:SKILL_LEXICON_VERSION,score:null,validated:false,
+  alternatives,lexiconVersion:SKILL_LEXICON_VERSION,score:null,validated:false,
   disclaimer:'Deterministic, incomplete English phrase checks, not independent proof of ability. A missing mention is not a missing skill. No job-fit percentage or hiring probability.'};
 }
