@@ -1,0 +1,287 @@
+{
+  "source": "https://enhancv.com/resources/resume-checker/",
+  "accessed": "2026-11-17",
+  "evidenceType": "competitor-published checklist only; NOT tested as a logged-in customer",
+  "note": "Paraphrased 27 public checklist claims; mapped local rules are not assertions of equivalent behavior. No ATS acceptance probability.",
+  "criteria": [
+    {
+      "id": "E01",
+      "category": "ATS essentials",
+      "criterion": "File type/size guidance",
+      "localRuleIds": [],
+      "assessment": "not-assessed",
+      "competitorHandsOn": "unverified",
+      "qualityEquivalence": "unverified"
+    },
+    {
+      "id": "E02",
+      "category": "ATS essentials",
+      "criterion": "Simple parser-friendly layout",
+      "localRuleIds": [
+        "layout.columns"
+      ],
+      "assessment": "partial",
+      "competitorHandsOn": "unverified",
+      "qualityEquivalence": "unverified"
+    },
+    {
+      "id": "E03",
+      "category": "ATS essentials",
+      "criterion": "Email validity",
+      "localRuleIds": [
+        "contact.email"
+      ],
+      "assessment": "automated-local",
+      "competitorHandsOn": "unverified",
+      "qualityEquivalence": "unverified"
+    },
+    {
+      "id": "E04",
+      "category": "ATS essentials",
+      "criterion": "Safe header hyperlinks",
+      "localRuleIds": [
+        "links.safe"
+      ],
+      "assessment": "partial",
+      "competitorHandsOn": "unverified",
+      "qualityEquivalence": "unverified"
+    },
+    {
+      "id": "E05",
+      "category": "ATS essentials",
+      "criterion": "Document filename hygiene",
+      "localRuleIds": [],
+      "assessment": "not-assessed",
+      "competitorHandsOn": "unverified",
+      "qualityEquivalence": "unverified"
+    },
+    {
+      "id": "E06",
+      "category": "ATS essentials",
+      "criterion": "Date/link consistency",
+      "localRuleIds": [
+        "dates.format",
+        "dates.valid",
+        "links.safe"
+      ],
+      "assessment": "partial",
+      "competitorHandsOn": "unverified",
+      "qualityEquivalence": "unverified"
+    },
+    {
+      "id": "E07",
+      "category": "Sections",
+      "criterion": "Core section presence",
+      "localRuleIds": [
+        "experience.present",
+        "education.present",
+        "skills.present"
+      ],
+      "assessment": "automated-local",
+      "competitorHandsOn": "unverified",
+      "qualityEquivalence": "unverified"
+    },
+    {
+      "id": "E08",
+      "category": "Sections",
+      "criterion": "Contact completeness",
+      "localRuleIds": [
+        "contact.name",
+        "contact.phone",
+        "contact.location"
+      ],
+      "assessment": "automated-local",
+      "competitorHandsOn": "unverified",
+      "qualityEquivalence": "unverified"
+    },
+    {
+      "id": "E09",
+      "category": "Sections",
+      "criterion": "Section ordering",
+      "localRuleIds": [
+        "export.order"
+      ],
+      "assessment": "partial",
+      "competitorHandsOn": "unverified",
+      "qualityEquivalence": "unverified"
+    },
+    {
+      "id": "E10",
+      "category": "Content",
+      "criterion": "Extractability",
+      "localRuleIds": [
+        "export.text",
+        "export.encoding"
+      ],
+      "assessment": "partial",
+      "competitorHandsOn": "unverified",
+      "qualityEquivalence": "unverified"
+    },
+    {
+      "id": "E11",
+      "category": "Content",
+      "criterion": "Measurable impact suggestions",
+      "localRuleIds": [
+        "bullets.numbers"
+      ],
+      "assessment": "partial",
+      "competitorHandsOn": "unverified",
+      "qualityEquivalence": "unverified"
+    },
+    {
+      "id": "E12",
+      "category": "Content",
+      "criterion": "Repeated words",
+      "localRuleIds": [
+        "text.repetition"
+      ],
+      "assessment": "automated-local",
+      "competitorHandsOn": "unverified",
+      "qualityEquivalence": "unverified"
+    },
+    {
+      "id": "E13",
+      "category": "Content",
+      "criterion": "Grammar and spelling",
+      "localRuleIds": [],
+      "assessment": "not-assessed",
+      "competitorHandsOn": "unverified",
+      "qualityEquivalence": "unverified"
+    },
+    {
+      "id": "E14",
+      "category": "Content",
+      "criterion": "Bullet consistency and length",
+      "localRuleIds": [
+        "bullets.length",
+        "bullets.count"
+      ],
+      "assessment": "partial",
+      "competitorHandsOn": "unverified",
+      "qualityEquivalence": "unverified"
+    },
+    {
+      "id": "E15",
+      "category": "Job targeting",
+      "criterion": "Technical skills match",
+      "localRuleIds": [],
+      "assessment": "partial",
+      "competitorHandsOn": "unverified",
+      "qualityEquivalence": "unverified"
+    },
+    {
+      "id": "E16",
+      "category": "Job targeting",
+      "criterion": "Interpersonal skills match",
+      "localRuleIds": [],
+      "assessment": "partial",
+      "competitorHandsOn": "unverified",
+      "qualityEquivalence": "unverified"
+    },
+    {
+      "id": "E17",
+      "category": "Job targeting",
+      "criterion": "Strong action verbs",
+      "localRuleIds": [
+        "bullets.verbs"
+      ],
+      "assessment": "automated-local",
+      "competitorHandsOn": "unverified",
+      "qualityEquivalence": "unverified"
+    },
+    {
+      "id": "E18",
+      "category": "Job targeting",
+      "criterion": "Role title alignment",
+      "localRuleIds": [
+        "contact.title"
+      ],
+      "assessment": "partial",
+      "competitorHandsOn": "unverified",
+      "qualityEquivalence": "unverified"
+    },
+    {
+      "id": "E19",
+      "category": "Recruiter risks",
+      "criterion": "Credibility flags",
+      "localRuleIds": [],
+      "assessment": "partial",
+      "competitorHandsOn": "unverified",
+      "qualityEquivalence": "unverified"
+    },
+    {
+      "id": "E20",
+      "category": "Recruiter risks",
+      "criterion": "Interview concerns",
+      "localRuleIds": [],
+      "assessment": "not-assessed",
+      "competitorHandsOn": "unverified",
+      "qualityEquivalence": "unverified"
+    },
+    {
+      "id": "E21",
+      "category": "Recruiter risks",
+      "criterion": "Peer comparison",
+      "localRuleIds": [],
+      "assessment": "not-assessed",
+      "competitorHandsOn": "unverified",
+      "qualityEquivalence": "unverified"
+    },
+    {
+      "id": "E22",
+      "category": "Recruiter risks",
+      "criterion": "LinkedIn alignment",
+      "localRuleIds": [],
+      "assessment": "partial",
+      "competitorHandsOn": "unverified",
+      "qualityEquivalence": "unverified"
+    },
+    {
+      "id": "E23",
+      "category": "Bias and discrimination",
+      "criterion": "Personal date/age bias",
+      "localRuleIds": [],
+      "assessment": "not-assessed",
+      "competitorHandsOn": "unverified",
+      "qualityEquivalence": "unverified"
+    },
+    {
+      "id": "E24",
+      "category": "Bias and discrimination",
+      "criterion": "Employment gap detection",
+      "localRuleIds": [
+        "chronology.gaps"
+      ],
+      "assessment": "automated-local",
+      "competitorHandsOn": "unverified",
+      "qualityEquivalence": "unverified"
+    },
+    {
+      "id": "E25",
+      "category": "Seniority and impact",
+      "criterion": "Career trajectory",
+      "localRuleIds": [],
+      "assessment": "not-assessed",
+      "competitorHandsOn": "unverified",
+      "qualityEquivalence": "unverified"
+    },
+    {
+      "id": "E26",
+      "category": "Seniority and impact",
+      "criterion": "Evidence for listed skills",
+      "localRuleIds": [],
+      "assessment": "partial",
+      "competitorHandsOn": "unverified",
+      "qualityEquivalence": "unverified"
+    },
+    {
+      "id": "E27",
+      "category": "Seniority and impact",
+      "criterion": "Leadership indicators",
+      "localRuleIds": [],
+      "assessment": "not-assessed",
+      "competitorHandsOn": "unverified",
+      "qualityEquivalence": "unverified"
+    }
+  ]
+}
