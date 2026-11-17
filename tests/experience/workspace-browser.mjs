@@ -25,6 +25,14 @@ try{
     await page.waitForTimeout(150);
     assert.equal(await page.evaluate(()=>document.activeElement?.id),'page-title','focus moves to the page heading on navigation ('+v+')');
     if(v==='editor'||v==='templates')await page.waitForFunction(()=>document.querySelector('.lw-page span,.lw-thumb b'));
+    if(v==='check'){
+     const register=page.locator('details').filter({hasText:'27 published categories/checks'});
+     assert.equal(await register.count(),1,'27-check coverage disclosure visible');
+     await register.locator('summary').click();
+     assert.equal(await register.locator('h3').count(),7,'seven reference categories');
+     assert.equal(await register.locator('section ul > li').count(),27,'exact 27 disclosures');
+     assert.match(await register.innerText(),/Not verified|Input needed/,'unsupported checks stay labelled');
+    }
     await audit(page,`${v} ${name} ${scheme}`);
     if(shots)await page.screenshot({path:`${shots}/${v}-${name}-${scheme}.png`,fullPage:name!=='desktop'&&v!=='editor'});
    }

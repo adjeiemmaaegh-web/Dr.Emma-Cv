@@ -3,7 +3,7 @@ import {el,icon,download,debounceFrame} from './ui.mjs';
 import {layoutFor,drawPages,thumbnail} from './preview.mjs';
 import {listTemplates,FAMILIES,applyTemplate,getTemplate,OPTIONS,TEMPLATES,resolveStyle} from '../../templates/registry.mjs';
 import {renderDocumentArtifact} from '../../export/export-service.mjs';
-import {runAtsChecks,analyzeWriting} from '../../intelligence/index.mjs';
+import {runAtsChecks,analyzeWriting,analyzeResumeReadiness} from '../../intelligence/index.mjs';
 import * as T from '../../tracker/tracker.mjs';
 import {exportCsv,exportBook} from '../../tracker/io.mjs';
 import {onboardingFeature} from '../../onboarding/onboarding-module.mjs';
@@ -240,19 +240,52 @@ export function templatesView(ctx){
 const SEV={error:['✖','Error','err'],warning:['▲','Warning','warn'],info:['ℹ','Tip','info']};
 export function checkView(ctx){
  const {store}=ctx,root=el('div'),s=store.editor.snapshot();
- root.append(el('header',{class:'lw-page-head'},el('div',{},el('h1',{id:'page-title',tabindex:'-1'},'Check your CV'),el('p',{},'Local checks on the exact file you would send. They are suggestions, not a score, and cannot predict any employer’s system.'))));
+ root.append(el('header',{class:'lw-page-head'},el('div',{},el('h1',{id:'page-title',tabindex:'-1'},'Check your CV'),el('p',{},'Local checks on your CV text and generated layout preview. Review the exported PDF/DOCX separately; no ATS or hiring prediction is produced.'))));
  if(!store.hasContent()){root.append(el('div',{class:'lw-empty'},el('h3',{},'Nothing to check yet'),el('p',{},'Create or import a CV first.'),el('a',{class:'lw-btn primary',href:'#/home'},'Get started')));return {node:root};}
  const lay=layoutFor(s.document,s.appearance);
  const art={text:lay.text,pageCount:lay.pageCount,warnings:lay.warnings};
- const r=runAtsChecks({document:s.document,appearance:s.appearance,artifact:art});
+ const expanded=analyzeResumeReadiness({document:s.document,appearance:s.appearance,artifact:art});
+ const r=expanded.baseline;
  root.append(el('div',{class:'lw-stats',style:'margin-bottom:var(--s-5)'},[['Errors',r.counts.error,'err'],['Warnings',r.counts.warning,'warn'],['Tips',r.counts.info,'info'],['Pages',lay.pageCount,'']].map(([l,n,c])=>el('div',{class:'lw-card lw-stat'},el('span',{class:'lw-help'},l),el('strong',{},String(n))))));
- if(!r.findings.length)root.append(el('div',{class:'lw-card'},el('h2',{},'✓ No problems found'),el('p',{class:'lw-help'},'Nice work. Re-run after big edits.')));
+ if(!expanded.prioritizedCorrections.length)root.append(el('div',{class:'lw-card'},el('h2',{},'No local concerns detected'),el('p',{class:'lw-help'},'This does not establish ATS compatibility or writing accuracy. Review your exported file and re-check after edits.')));
  const ul=el('ul',{class:'lw-findings','aria-label':'Findings'});
  for(const f of r.findings){const [ic,label,cls]=SEV[f.severity];
   ul.append(el('li',{class:'lw-finding '+f.severity},el('span',{class:'ic','aria-hidden':'true'},ic),
    el('div',{},el('p',{},el('span',{class:'lw-visually-hidden'},label+': '),f.message),el('p',{class:'why'},f.explanation)),
    f.path?el('button',{type:'button',class:'lw-btn sm',on:{click:()=>ctx.goField(f.path)}},'Go to field'):null));}
- root.append(ul);
+ const technicalFindings=el('details',{class:'lw-card'},el('summary',{},'Technical findings ('+r.findings.length+')'),ul);
+ root.append(el('section',{class:'lw-card','aria-labelledby':'h-priority'},
+  el('h2',{id:'h-priority'},'Priority corrections and recruiter review'),
+  el('p',{class:'lw-help'},'High-priority corrections first. This is not a score or a hiring prediction. The checks are local heuristics requiring review.')));
+ const top=expanded.prioritizedCorrections.slice(0,12);
+ if(top.length)root.append(el('ol',{class:'lw-findings','aria-label':'Prioritized corrections'},top.map(f=>
+  el('li',{class:'lw-finding '+(f.priority==='critical'?'error':f.priority==='high'?'warning':'info')},
+   el('div',{},el('strong',{},f.priority.toUpperCase()+': '+f.message),
+    el('p',{class:'why'},f.explanation),
+    el('p',{class:'lw-help'},'Next step: '+f.correction)),
+   f.path&&/^(personalInfo|experience|education|skills|summary)/.test(f.path)?
+    el('button',{type:'button',class:'lw-btn sm',on:{click:()=>ctx.goField(f.path)}},'Go to field'):null
+  ))));
+ else root.append(el('p',{class:'lw-help'},'No additional issues detected by the local heuristics.'));
+ root.append(technicalFindings);
+ if(expanded.opportunities.length)root.append(el('section',{class:'lw-card'},
+   el('h2',{},'Potential career-story opportunities'),
+   el('ul',{class:'lw-findings'},expanded.opportunities.map(f=>
+    el('li',{class:'lw-finding info'},el('strong',{},f.message),
+     el('p',{class:'lw-help'},f.explanation+' '+f.correction))))));
+ root.append(el('details',{class:'lw-card'},
+  el('summary',{},'27 published categories/checks — what we can and cannot assess'),
+  el('p',{class:'lw-help'},'Scope reference from Enhancv’s published checklist. A local check is NOT an external ATS result, and no job-match score is generated.'),
+  expanded.byCategory.map(g=>el('section',{},
+   el('h3',{style:'margin:var(--s-4) 0 var(--s-2)'},g.name),
+   el('ul',{class:'lw-findings','aria-label':g.name+' checks'},g.checks.map(c=>
+    el('li',{class:'lw-finding '+(c.observed==='review-suggested'?'warning':'info')},
+     el('div',{},
+      el('strong',{},c.label+' — '+(c.observed==='review-suggested'?'Review suggested':
+       c.observed==='no-local-flag'?'No local flag':c.observed==='opportunity'?'Possible opportunity':
+       c.status==='needs-input'?'Input needed':'Not verified')),
+      el('p',{class:'lw-help'},c.reason),
+      c.preview?el('p',{class:'lw-help'},'Example finding: '+c.preview):null))))))));
  const tips=analyzeWriting(s.document).slice(0,8);
  if(tips.length){root.append(el('h2',{style:'margin:var(--s-6) 0 var(--s-3)'},'Writing tips'));
   root.append(el('ul',{class:'lw-findings'},tips.map(t=>el('li',{class:'lw-finding info'},el('span',{class:'ic','aria-hidden':'true'},'✎'),el('div',{},el('p',{},t.message),el('p',{class:'why'},'“'+t.before+'”'+(t.after?' → suggested: “'+t.after+'” (check it still reads correctly)':'')))))));}
