@@ -1,0 +1,58 @@
+name: Ledger A-D user-led career journey (NO DEPLOY)
+on:
+  push:
+    branches: [integration/career-journey-ui-main-2026-11-17]
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/core/workspace-persistence.mjs'
+      - 'src/domain/storage/career-journey-store.mjs'
+      - 'src/features/experience/workspace/**'
+      - 'tests/integration/career-*.mjs'
+      - 'tests/platform/workspace-persistence.test.mjs'
+      - 'tests/experience/workspace-browser.mjs'
+      - '.github/workflows/career-journey.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  journey-node:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check new source for syntax errors
+        run: |
+          node --check src/domain/storage/career-journey-store.mjs
+          node --check src/features/experience/workspace/career-journey-view.mjs
+          node --check src/core/workspace-persistence.mjs
+          node --check tests/integration/career-journey-store.test.mjs
+          node --check tests/integration/career-browser.mjs
+      - name: Legacy and deployment invariants
+        run: |
+          node tools/audit-platform.mjs
+          node tools/audit-e31-e30-preservation.mjs
+          node -e "if (require('./vercel.json').git?.deploymentEnabled?.main !== false) process.exit(1)"
+      - name: E0 and all A-E native unit/integration tests
+        run: |
+          npm run verify:e0
+          node --test tests/platform/*.test.mjs tests/documents/*.test.mjs tests/intelligence/*.test.mjs tests/career/*.test.mjs tests/integration/*.test.mjs tests/experience/*.test.mjs
+  journey-browser:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install test-only Playwright Chromium runtime
+        run: |
+          npm install --no-save --ignore-scripts --no-audit --no-fund playwright@1.57.0
+          npx playwright install --with-deps chromium
+      - name: Human-led job to application journey with real IndexedDB across reloads
+        run: node tests/integration/career-browser.mjs
+      - name: Six-view mobile/tablet/desktop light/dark UI regression
+        run: node tests/experience/workspace-browser.mjs
