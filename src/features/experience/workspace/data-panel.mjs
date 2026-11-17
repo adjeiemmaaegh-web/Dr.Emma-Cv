@@ -9,6 +9,7 @@ import {validLegacyDocument} from '../../../domain/storage/legacy-shape.mjs';
 import {createCareerProfileBackup,previewCareerProfileBackup,approveCareerProfileBackup,prepareCareerProfileImportAsNewRecord} from '../../../domain/storage/profile-backup.mjs';
 import {createLegacyRawBackup,previewLegacyRawBackup} from '../../../domain/storage/legacy-backup.mjs';
 import {exportBook,reviewBookImport,approveBookImport} from '../../tracker/io.mjs';
+import {createUpdateManager} from '../../pwa-ui/update-manager.mjs';
 const MAX_FILE=32*1024*1024+8192;
 const toDownload=(raw,name)=>download(raw,name,'application/json;charset=utf-8');
 export function createWorkspaceDataPanel(ctx){
@@ -61,6 +62,31 @@ export function createWorkspaceDataPanel(ctx){
   btn('Reopen saved versions',async()=>{if(!confirm('Discard all unsaved CV and application changes and reopen the last committed versions? Export a draft first if necessary.'))return;
    await store.reopenSaved({confirmed:true});location.reload()}));
  root.append(control);
+ const updateSlot=el('section',{class:'lw-help','aria-label':'Offline update management'},el('p',{},'Checking for an existing installed offline app…'));
+ let updateManager=null;
+ if(globalThis.navigator?.serviceWorker?.getRegistration){
+  void navigator.serviceWorker.getRegistration().then(reg=>{
+   if(!updateSlot.isConnected)return;
+   if(!reg){updateSlot.replaceChildren(el('p',{},'No service-worker update is waiting for this preview origin.'));return}
+   updateManager=createUpdateManager({registration:reg,serviceWorker:navigator.serviceWorker,
+    hasUnsavedWork:()=>store.hasUnsavedWork(),onChange:()=>drawUpdate()});
+   drawUpdate();
+   function drawUpdate(){
+    if(!updateSlot.isConnected)return;
+    const state=updateManager.getState();
+    updateSlot.replaceChildren(el('p',{},state.status==='available'||state.status==='deferred'?
+      'An offline update is waiting. It will only activate when you approve it.':
+      state.status==='applying'?'Applying your approved update…':'No offline update is waiting.'));
+    if(state.status==='available'||state.status==='deferred'){
+     updateSlot.append(btn('Update now',()=>{
+      const outcome=updateManager.apply();
+      if(!outcome.ok)message(outcome.reason==='unsaved'?'Save all changes before activating an update.':'Update is not available.');
+     }));
+    }
+   }
+  }).catch(()=>{updateSlot.replaceChildren(el('p',{},'Update status could not be read. No update was triggered.'))});
+ }else updateSlot.replaceChildren(el('p',{},'Service-worker updates are not supported in this browser context.'));
+ root.append(updateSlot);
  const legacyControls=el('div',{class:'lw-row'});
  legacyControls.append(btn('Download exact legacy data backup',async()=>{
   const raw=await createLegacyRawBackup(key=>localStorage.getItem(key));
