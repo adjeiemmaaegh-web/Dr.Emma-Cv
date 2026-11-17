@@ -23,7 +23,7 @@ test('DOCX style-hidden and tracked-deleted text stay out of reviewed text; tabl
 });
 test('ZIP import refuses silent corruption and duplicate selected entries',async()=>{
  const a=zipStore([{name:'word/document.xml',data:utf8(xml(para('hello')))}]);
- const broken=new Uint8Array(a);broken[31]^=1;
+ const broken=new Uint8Array(a);broken[30+'word/document.xml'.length]^=1;
  await assert.rejects(()=>unzipEntries(broken),/CRC32 mismatch/);
  const dup=zipStore([{name:'one.txt',data:utf8('A')},{name:'one.txt',data:utf8('B')}]);
  await assert.rejects(()=>unzipEntries(dup),/Duplicate ZIP entry/);
