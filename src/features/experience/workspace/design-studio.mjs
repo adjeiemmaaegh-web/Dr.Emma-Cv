@@ -4,7 +4,9 @@ import {SECTION_KEYS,NUMERIC_OPTIONS,OPTIONS,resolveStyle} from '../../templates
 import {readDesigns,saveDesign,removeDesign} from '../../templates/design-library.mjs';
 import {htmlToLines} from '../../documents/layout.mjs';
 const NAMES={summary:'Summary',experience:'Experience',education:'Education',skills:'Skills',certifications:'Certifications',languages:'Languages',projects:'Projects',accomplishments:'Accomplishments',hobbies:'Interests',references:'References'};
-const PRECISION=[['Body size','bodySize',0.5,' pt'],['Line height','leading',0.05,'×'],['Section spacing','sectionGap',1,' pt'],['Page margin','marginSize',2,' pt'],['Name scale','headerScale',0.1,'×']];
+const PRECISION=[['Body size','bodySize',0.5,' pt'],['Line height','leading',0.05,'×'],['Section spacing','sectionGap',1,' pt'],['Page margin','marginSize',2,' pt'],
+ ['Name scale','headerScale',0.1,'×'],['Section heading scale','headingScale',0.05,'×'],['Entry spacing','entryGap',1,' pt'],
+ ['Paragraph spacing','paragraphGap',0.5,' pt'],['Divider weight','ruleWeight',0.2,' pt']];
 const safe=(ctx,fn)=>{try{fn()}catch(e){ctx.toast(e.message||'Could not update the design')}};
 const label=(name,input)=>el('label',{class:'lw-designer-control'},el('span',{},name),input);
 export function designControls(ed,ctx){
@@ -18,12 +20,15 @@ export function designControls(ed,ctx){
  select('Header treatment','headerStyle',OPTIONS.headerStyle.map(x=>[x,x==='template'?'Template default':x]));
  select('Section dividers','ruleStyle',OPTIONS.ruleStyle.map(x=>[x,x==='template'?'Template default':x.replace(/-/g,' ')]));
  select('Column treatment','columns',OPTIONS.columns.map(x=>[x,x==='sidebar'?'Sidebar-inspired (single-column output)':x]));
- const defaults={bodySize:style.size,leading:style.lineHeight,sectionGap:style.sectionGap,marginSize:style.margin,headerScale:style.headerScale};
+ const defaults={bodySize:style.size,leading:style.lineHeight,sectionGap:style.sectionGap,marginSize:style.margin,headerScale:style.headerScale,
+ headingScale:style.headingScale,entryGap:style.entryGap,paragraphGap:style.paragraphGap,ruleWeight:style.ruleWeight};
  for(const [name,key,step,unit] of PRECISION){
-  const [min,max]=NUMERIC_OPTIONS[key],digits=key==='leading'||key==='headerScale'?2:1;
+  const [min,max]=NUMERIC_OPTIONS[key],digits=['leading','headerScale','headingScale'].includes(key)?2:1;
   const output=el('output',{'data-output':key},Number(a[key]??defaults[key]).toFixed(digits)+unit);
   const input=el('input',{type:'range',min,max,step,'data-appearance':key,'aria-label':name,
-   on:{input:e=>{output.textContent=Number(e.target.value).toFixed(digits)+unit;safe(ctx,()=>ed.setAppearance({[key]:Number(e.target.value)}));}}});
+   on:{input:e=>{output.textContent=Number(e.target.value).toFixed(digits)+unit;
+    safe(ctx,()=>ed.setAppearance({[key]:Number(e.target.value)},{coalesceKey:key}));},
+    change:()=>ed.endCoalescing()}});
   input.value=a[key]??defaults[key];
   grid.append(el('label',{class:'lw-designer-control'},el('span',{},name,' ',output),input));
  }
@@ -34,16 +39,21 @@ export function designControls(ed,ctx){
  return grid;
 }
 export function sectionsControls(ed,ctx){
- const a=ed.snapshot().appearance,visibility=a.enabledSections||{},order=[...(a.sectionOrder||SECTION_KEYS)];
- for(const name of SECTION_KEYS)if(!order.includes(name))order.push(name);
+ const snap=ed.snapshot(),a=snap.appearance;
+ const custom=new Map(snap.document.customSections.map(c=>['custom:'+c.id,c.title||c.name||'New section']));
+ const keys=[...SECTION_KEYS,...custom.keys()];
+ const order=[...(a.sectionOrder||[]).filter(k=>keys.includes(k))];
+ for(const k of keys)if(!order.includes(k))order.push(k);
  const rows=el('div',{class:'lw-section-rows'});
  for(const [i,key] of order.entries()){
-  const check=el('input',{type:'checkbox','aria-label':'Show '+NAMES[key],on:{change:e=>safe(ctx,()=>ed.setAppearance({enabledSections:{...ed.snapshot().appearance.enabledSections,[key]:e.target.checked}}))}});check.checked=visibility[key]!==false;
-  rows.append(el('div',{class:'lw-section-row'},el('label',{},check,el('span',{},NAMES[key])),
-   el('button',{type:'button',class:'lw-btn sm icon','aria-label':'Move '+NAMES[key]+' up',disabled:i===0||undefined,on:{click:()=>safe(ctx,()=>ed.moveSection(key,-1))}},icon('up',{size:16})),
-   el('button',{type:'button',class:'lw-btn sm icon','aria-label':'Move '+NAMES[key]+' down',disabled:i===order.length-1||undefined,on:{click:()=>safe(ctx,()=>ed.moveSection(key,1))}},icon('down',{size:16}))));
+  const title=custom.get(key)||(NAMES[key]||key);
+  const check=el('input',{type:'checkbox','aria-label':'Show '+title,on:{change:e=>safe(ctx,()=>ed.setAppearance({enabledSections:{...ed.snapshot().appearance.enabledSections,[key]:e.target.checked}}))}});
+  check.checked=a.enabledSections?.[key]!==false;
+  rows.append(el('div',{class:'lw-section-row'},el('label',{},check,el('span',{},title)),
+   el('button',{type:'button',class:'lw-btn sm icon','aria-label':'Move '+title+' up',disabled:i===0||undefined,on:{click:()=>safe(ctx,()=>ed.moveSection(key,-1))}},icon('up',{size:16})),
+   el('button',{type:'button',class:'lw-btn sm icon','aria-label':'Move '+title+' down',disabled:i===order.length-1||undefined,on:{click:()=>safe(ctx,()=>ed.moveSection(key,1))}},icon('down',{size:16}))));
  }
- return el('div',{class:'lw-section-manager'},el('p',{class:'lw-help'},'Hide sections without deleting content, and change their printed reading order.'),rows,
+ return el('div',{class:'lw-section-manager'},el('p',{class:'lw-help'},'Show, hide and reorder standard and custom sections. Hidden content is preserved and remains undoable.'),rows,
   el('button',{type:'button',class:'lw-btn sm',on:{click:()=>safe(ctx,()=>ed.addItem('customSections',{title:'New section',content:''}))}},icon('plus',{size:16}),'Add custom section'));
 }
 export function saveDesignControls(ed,ctx,storage=globalThis.localStorage){
