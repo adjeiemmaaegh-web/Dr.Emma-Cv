@@ -1,10 +1,11 @@
 // Real Chromium coverage for the new visual editor flow; no deployment or user data.
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import {chromium,serve} from './harness.mjs';
 const {port,close}=serve({});
 const browser=await chromium.launch();
 try{
- const context=await browser.newContext({viewport:{width:1440,height:900},colorScheme:'light'});
+ const context=await browser.newContext({viewport:{width:1440,height:900},colorScheme:'light',acceptDownloads:true});
  const page=await context.newPage(),errors=[];
  page.on('pageerror',e=>errors.push(String(e)));
  const base='http://localhost:'+port+'/src/features/experience/workspace/index.html?sample=1';
@@ -55,7 +56,43 @@ try{
  await page.waitForFunction(()=>location.hash==='#/editor');
  await page.waitForFunction(()=>JSON.parse(localStorage.getItem('ledger_workspace_preview_v1')).appearance.bodySize===12);
  assert.match(await page.locator('.lw-page').first().innerText(),/A revised summary edited on the CV page/);
+ // Advanced direct editing: a whole field group, not only one clipped text line.
+ await page.locator('.lw-page-edit[data-path="personalInfo.name"]').first().click();
+ assert.equal(await page.locator('.lw-inline-editor input').count(),2);
+ await page.locator('.lw-inline-editor input').first().fill('Grace');
+ await page.waitForFunction(()=>JSON.parse(localStorage.getItem('ledger_workspace_preview_v1')).document.personalInfo.firstName==='Grace');
+ await page.getByRole('button',{name:'Done',exact:true}).click();
+ await page.locator('.lw-page-edit[data-path="personalInfo.contact"]').first().click();
+ assert.equal(await page.locator('.lw-inline-editor input').count(),5);
+ await page.locator('.lw-inline-editor input').first().fill('grace@example.test');
+ await page.getByRole('button',{name:'Done',exact:true}).click();
+ await page.waitForFunction(()=>document.querySelector('.lw-page')?.innerText.includes('grace@example.test'));
+ await page.locator('.lw-page-edit[data-path="experience[e1].meta"]').first().click();
+ assert.equal(await page.locator('.lw-inline-editor input').count(),5);
+ await page.locator('.lw-inline-editor input').nth(1).fill('Delta Retail');
+ await page.getByRole('button',{name:'Done',exact:true}).click();
+ await page.waitForFunction(()=>document.querySelector('.lw-page')?.innerText.includes('Delta Retail'));
+ await page.getByRole('button',{name:'Undo',exact:true}).click();
+ await page.waitForFunction(()=>document.querySelector('.lw-page')?.innerText.includes('Acme Retail'));
+ assert.equal(await page.locator('input[data-path="experience[e1].employer"]').inputValue(),'Acme Retail',
+  'Undo refreshes the matching form input without reconstructing the document editor');
+ // Export portable preset, clear the local design-library key, then review/import it.
+ await page.getByRole('link',{name:'Templates'}).click();
+ const [file]=await Promise.all([
+  page.waitForEvent('download'),page.locator('.lw-saved-designs').getByRole('button',{name:'Export designs'}).click()
+ ]);
+ const json=fs.readFileSync(await file.path(),'utf8'),parsed=JSON.parse(json);
+ assert.equal(parsed.format,'ledger-cv-appearance-library');
+ assert.equal(parsed.designs.length,1);
+ assert.ok(!json.includes('grace@example.test')&&!json.includes('Delta Retail'));
+ await page.evaluate(()=>localStorage.removeItem('ledger_workspace_cv_designs_v1'));
+ await page.reload();await page.waitForSelector('.lw-saved-designs');
+ page.once('dialog',dlg=>dlg.accept());
+ await page.getByLabel('Import saved designs JSON').setInputFiles({
+  name:'presets.json',mimeType:'application/json',buffer:Buffer.from(json)
+ });
+ await page.waitForFunction(()=>JSON.parse(localStorage.getItem('ledger_workspace_cv_designs_v1')||'null')?.designs?.length===1);
  assert.deepEqual(errors,[]);
- console.log('PASS visual editor: on-paper edit, precise appearance, hidden/revealed section and reusable preset');
+ console.log('PASS advanced visual editor: direct multi-field edit, undo sync, precision preview, portable design round trip');
  await context.close();
 }finally{await browser.close();close();}
