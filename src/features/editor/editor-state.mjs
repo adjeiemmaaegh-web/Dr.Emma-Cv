@@ -53,6 +53,11 @@ export function createEditor({document,appearance={},limit=100,onChange}={}){
    order.splice(i,1);order.splice(j,0,key);d.appearance.sectionOrder=order;return commit(d);},
   setAppearance(patch){const d=draft();const r=normalizeAppearance({...d.appearance,...patch});
    if(r.errors.length)throw fail('INVALID',r.errors.join('; '));d.appearance=r.appearance;return commit(d);},
+  replaceAppearance(appearance){
+   const d=draft(),r=normalizeAppearance(appearance);
+   if(r.errors.length)throw fail('INVALID',r.errors.join('; '));
+   d.appearance=r.appearance;return commit(d);
+  },
   undo(){if(!past.length)return api.snapshot();future.push(state);state=past.pop();lastKey=null;emit();return api.snapshot();},
   redo(){if(!future.length)return api.snapshot();past.push(state);state=future.pop();lastKey=null;emit();return api.snapshot();}
  };
