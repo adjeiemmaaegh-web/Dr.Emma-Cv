@@ -75,9 +75,12 @@ test('LinkedIn conversion is a review, never a master CV overwrite',()=>{
  assert.equal(review.requiresUserConfirmation,true);
  assert(review.items.some(i=>i.path==='experience[0]'&&i.sourceRef.includes('Positions.csv')));
  assert.throws(()=>approveImportReview(review,{accepted:review.items.map(i=>i.path)}),e=>e.code==='UNCONFIRMED');
+ review.proposed.master.document.experience[0].title='Senior Regional Manager';
  const imported=approveImportReview(review,{accepted:review.items.map(i=>i.path),confirmed:true,
   idFactory:next,now:'2026-11-17T10:00:00Z'});
  assert.equal(imported.master.document.experience.length,2);
+ assert.equal(imported.master.document.experience[0].title,'Senior Regional Manager');
+ assert(imported.evidence.some(e=>e.claim.includes('Senior Regional Manager')));
  assert.equal(imported.master.document.personalInfo.firstName,'Ada');
  assert(imported.evidence.some(e=>e.sourceRef.includes('Positions.csv')));
  assert.equal(JSON.stringify(cv),before);
@@ -138,4 +141,14 @@ test('education dates, certifications and project differences are surfaced with 
 });
 test('duplicate important CSV columns are rejected rather than silently discarding a value',()=>{
  assert.throws(()=>fromOfficialExport({profileCsv:'Headline,Headline,Summary\none,two,some\n'}),e=>e.code==='INVALID');
+});
+
+test('LinkedIn review exposes every selected category without implying current role for unknown end date',()=>{
+ const review=linkedinToCvReview(fromOfficialExport(rows),{now:'2026-11-17T10:00:00Z',
+  idFactory:()=> 'reviewId123456'});
+ assert(review.sourceText.includes('Stock review'));
+ assert(review.sourceText.includes('Leadership Certificate'));
+ assert(review.sourceText.includes('City University'));
+ assert.equal(review.proposed.master.document.experience[0].current,false,
+  'an empty export Finished On field is not verified current status');
 });
