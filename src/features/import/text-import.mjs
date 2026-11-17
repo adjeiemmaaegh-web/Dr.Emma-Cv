@@ -15,6 +15,7 @@ const SECTION_RX=[
  ['accomplishments',/^(achievements?|accomplishments?|awards)$/i],
  ['hobbies',/^(interests|hobbies)$/i],['references',/^references$/i]
 ];
+const EXTRA_SECTION_RX=/^(volunteer(ing)?(\s+experience)?|publications?|research|patents?|professional\s+memberships?|memberships?|conferences?|community\s+service|professional\s+development|additional\s+information|other\s+experience)$/i;
 const MONTH='(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\\.?\\s+';
 const DATE=`(?:(?:${MONTH})?(?:19|20)\\d{2}|(?:0?[1-9]|1[0-2])[\\/-](?:19|20)\\d{2}|(?:19|20)\\d{2}[\\/-](?:0?[1-9]|1[0-2]))`;
 const RANGE=new RegExp(`(${DATE})\\s*(?:-|–|—|to)\\s*(${DATE}|present|current|now)`,'i');
@@ -32,13 +33,20 @@ export function parseResumeText(raw){
  const doc=blankCareerDocument(),items=[],uncertain=[];
  const add=(path,value,line,isUncertain)=>{items.push({path,value,sourceLine:line,uncertain:!!isUncertain});};
  let i=0;while(i<lines.length&&!lines[i].trim())i++;
- const head=[];
+ const head=[],otherSections=[];
  let section=null,sectionLine=0;const buckets={};
  for(let n=i;n<lines.length;n++){
   const l=lines[n].trim();
   if(!l)continue;
   const key=l.length<40?SECTION_RX.find(([,rx])=>rx.test(l.replace(/[:\s]+$/,'')))?.[0]:null;
   if(key){section=key;sectionLine=n+1;buckets[key]??=[];continue;}
+  if(l.length<60&&EXTRA_SECTION_RX.test(l.replace(/[:\s]+$/,''))){
+   const sectionInfo={title:l.replace(/[:\s]+$/,''),sourceLine:n+1,rows:[]};
+   otherSections.push(sectionInfo);section='__custom';continue;
+  }
+  if(section==='__custom'){
+   otherSections[otherSections.length-1].rows.push([l,n+1]);continue;
+  }
   if(!section){head.push([l,n+1]);continue;}
   buckets[section].push([l,n+1]);
  }
@@ -97,6 +105,19 @@ export function parseResumeText(raw){
   const entry={degree,school:school||e.second||'',start:e.start,end:e.end,description:descHtml(e.desc)};
   doc.education.push(entry);add('education['+(doc.education.length-1)+']',entry,e.line,!degree||!entry.school);
  }
+ for(const [index,sectionInfo] of otherSections.entries()){
+  if(!sectionInfo.rows.length){
+   warnings.push('A '+sectionInfo.title+' heading was found without body text. Check the source.');
+   continue;
+  }
+  const entry={id:'importSection'+index,title:sectionInfo.title,
+   content:'<p>'+sectionInfo.rows.map(([line])=>html(line)).join('<br>')+'</p>'};
+  doc.customSections.push(entry);
+ }
+ if(doc.customSections.length){
+  add('customSections',doc.customSections,otherSections[0].sourceLine,true);
+  warnings.push('Additional CV sections were preserved as editable custom sections; verify their titles and content.');
+ }
  if(buckets.skills?.length){
   const names=buckets.skills.flatMap(([l])=>l.replace(BULLET,'').split(/[,;|•]/)).map(s=>s.trim()).filter(s=>s&&s.length<60);
   doc.skills=[...new Set(names)].map(name=>({name,level:3}));add('skills',doc.skills,buckets.skills[0][1]);
@@ -135,7 +156,7 @@ export function approveImportReview(review,{accepted,confirmed=false,idFactory,n
   if(it.path==='personalInfo.name'){personal.firstName=src.personalInfo.firstName;personal.lastName=src.personalInfo.lastName;}
   else if(it.path.startsWith('personalInfo.'))personal[it.path.split('.')[1]]=src.personalInfo[it.path.split('.')[1]];
   else if(['summary','hobbies','references'].includes(it.path))doc[it.path]=src[it.path];
-  else if(['skills','certifications','languages','projects','accomplishments'].includes(it.path))doc[it.path]=cloneData(src[it.path]);
+  else if(['skills','certifications','languages','projects','accomplishments','customSections'].includes(it.path))doc[it.path]=cloneData(src[it.path]);
   else{const m=it.path.match(/^(experience|education)\[(\d+)\]$/);if(m){const revised=cloneData(src[m[1]][+m[2]]);doc[m[1]].push(revised);keep[keep.length-1]={...it,approvedValue:revised};}}
  }
  doc.personalInfo=personal;
