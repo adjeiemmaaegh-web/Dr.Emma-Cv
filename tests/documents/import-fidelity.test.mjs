@@ -133,3 +133,11 @@ test('scanned PDF cannot produce partial CV; manual reconstruction requires comp
  assert.equal(recovered.requiresUserConfirmation,true);
  assert.equal(pending.status,'blocked','the original incomplete review must remain blocked');
 });
+
+test('DOCX paragraph-level hidden text is omitted even when its runs are otherwise visible',async()=>{
+ const body=xml('<w:p><w:pPr><w:rPr><w:vanish/></w:rPr></w:pPr><w:r><w:t>CONFIDENTIAL</w:t></w:r></w:p>'+para('Visible facts'));
+ const result=await docxToImportText(zipStore([{name:'word/document.xml',data:utf8(body)}]));
+ assert(!result.text.includes('CONFIDENTIAL'));
+ assert(result.text.includes('Visible facts'));
+ assert(result.warnings.some(w=>/hidden paragraph/.test(w)));
+});
