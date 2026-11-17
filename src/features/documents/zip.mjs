@@ -23,10 +23,27 @@ export function zipStore(files){
  return out;
 }
 export const ZIP_LIMITS=Object.freeze({maxEntries:200,maxEntryBytes:20*1024*1024,maxTotalBytes:60*1024*1024});
-async function defaultInflate(bytes){
+/**
+ * Streaming, bounded raw-deflate reader. A fraudulent small ZIP size must not
+ * force Response.arrayBuffer() to allocate an arbitrarily large decompression.
+ */
+async function defaultInflate(bytes,maxBytes=ZIP_LIMITS.maxEntryBytes){
  if(typeof DecompressionStream!=='function')throw new Error('No inflate implementation available');
- const stream=new Blob([bytes]).stream().pipeThrough(new DecompressionStream('deflate-raw'));
- return new Uint8Array(await new Response(stream).arrayBuffer());
+ const reader=new Blob([bytes]).stream().pipeThrough(new DecompressionStream('deflate-raw')).getReader();
+ const chunks=[];let size=0;
+ try{
+  for(;;){
+   const {value,done}=await reader.read();
+   if(done)break;
+   size+=value.byteLength;
+   if(size>maxBytes)throw new Error('Archive decompression exceeds declared size');
+   chunks.push(value);
+  }
+ }catch(error){try{await reader.cancel(error);}catch{}throw error;}
+ finally{reader.releaseLock();}
+ const out=new Uint8Array(size);let pos=0;
+ for(const chunk of chunks){out.set(chunk,pos);pos+=chunk.byteLength;}
+ return out;
 }
 /** Reads selected entries. Declared sizes are bounded and verified against actual output (zip-bomb guard). */
 export async function unzipEntries(bytes,{want=()=>true,inflate=defaultInflate,limits=ZIP_LIMITS}={}){
@@ -52,7 +69,7 @@ export async function unzipEntries(bytes,{want=()=>true,inflate=defaultInflate,l
   const start=lho+30+localNameLen+localExtraLen;
   if(start+csize>bytes.length)throw new Error('Truncated ZIP entry');
   const raw=bytes.subarray(start,start+csize);
-  const data=method===0?raw:method===8?await inflate(raw):null;
+  const data=method===0?raw:method===8?await inflate(raw,Math.min(usize,limits.maxEntryBytes)):null;
   if(!data)throw new Error('Unsupported compression');
   if(data.length!==usize||data.length>limits.maxEntryBytes)throw new Error('Archive size mismatch');
   if(crc32(data)!==declaredCrc)throw new Error('Archive CRC32 mismatch: '+name);
