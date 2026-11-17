@@ -63,7 +63,7 @@ export const editorFeature=Object.freeze({
    if(snap.dirty)status.textContent='Unsaved changes';
   }
   const off=editor.subscribe(draw);
-  const wrap=el('div',{class:'cv-editor'},el('div',{role:'toolbar','aria-label':'Editor actions'},undo,redo,tpl,paper,save),status,form,preview);
+  const wrap=el('div',{class:'cv-editor ledger-a11y'},el('div',{role:'toolbar','aria-label':'Editor actions'},undo,redo,tpl,paper,save),status,form,preview);
   root.append(wrap);draw(editor.snapshot());
   return ()=>{off();wrap.remove();};
  }
