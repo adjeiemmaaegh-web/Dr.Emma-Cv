@@ -194,7 +194,7 @@ export function checkView(ctx){
   ul.append(el('li',{class:'lw-finding '+f.severity},el('span',{class:'ic','aria-hidden':'true'},ic),
    el('div',{},el('p',{},el('span',{class:'lw-visually-hidden'},label+': '),f.message),el('p',{class:'why'},f.explanation)),
    f.path?el('button',{type:'button',class:'lw-btn sm',on:{click:()=>ctx.goField(f.path)}},'Go to field'):null));}
- root.append(el('details',{class:'lw-card'},el('summary',{},'Technical findings ('+r.findings.length+')'),ul));
+ const technicalFindings=el('details',{class:'lw-card'},el('summary',{},'Technical findings ('+r.findings.length+')'),ul);
  root.append(el('section',{class:'lw-card','aria-labelledby':'h-priority'},
   el('h2',{id:'h-priority'},'Priority corrections and recruiter review'),
   el('p',{class:'lw-help'},'High-priority corrections first. These are heuristics to review, not hiring predictions. No score is shown.')));
@@ -208,6 +208,7 @@ export function checkView(ctx){
     el('button',{type:'button',class:'lw-btn sm',on:{click:()=>ctx.goField(f.path)}},'Go to field'):null
   ))));
  else root.append(el('p',{class:'lw-help'},'No additional issues detected by the local heuristics.'));
+ root.append(technicalFindings);
  if(expanded.opportunities.length)root.append(el('section',{class:'lw-card'},
    el('h2',{},'Potential career-story opportunities'),
    el('ul',{class:'lw-findings'},expanded.opportunities.map(f=>
