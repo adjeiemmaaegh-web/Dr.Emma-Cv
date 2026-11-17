@@ -5,11 +5,23 @@
  */
 import {el,icon,createToaster} from './ui.mjs';
 import {createStore} from './store.mjs';
+import {createPersistentWorkspaceStore} from '../../../core/workspace-persistence.mjs';
+import {download} from './ui.mjs';
 import {homeView,editorView,templatesView,checkView,jobsView,exportAs} from './views.mjs';
 const ROUTES=[['home','Home','home'],['editor','Edit','edit'],['templates','Templates','grid'],['check','Check','check'],['jobs','Jobs','board']];
 const DRAFT_KEY='ledger_workspace_preview_draft_v1';
-export function mountWorkspace(root,{storage=globalThis.localStorage,sample=false}={}){
- const store=createStore({storage,sample});
+export async function mountWorkspace(root,{storage=globalThis.localStorage,sample=false,profileRepository,applicationRepository}={}){
+ let store;
+ try{
+  store=sample?createStore({storage,sample}):await createPersistentWorkspaceStore({storage,profileRepository,applicationRepository});
+ }catch(e){
+  const msg=el('section',{class:'lw ledger-a11y',role:'alert'},
+   el('h1',{},'Saved workspace is unavailable'),
+   el('p',{},'Your existing CVs have not been changed. Storage did not open safely: '+(e.message||'unknown error')+'. Retry after checking browser permissions.'),
+   el('button',{type:'button',on:{click:()=>location.reload()}},'Retry opening workspace'));
+  root.replaceChildren(msg);
+  return {store:null,error:e,destroy(){root.replaceChildren()}};
+ }
  root.classList.add('lw','ledger-a11y');
  const mq=typeof matchMedia==='function'?matchMedia('(prefers-color-scheme: dark)'):null;
  const applyTheme=()=>{const t=store.theme;root.dataset.theme=t||(mq?.matches?'dark':'light');themeBtn.setAttribute('aria-pressed',String(root.dataset.theme==='dark'));};
@@ -20,7 +32,25 @@ export function mountWorkspace(root,{storage=globalThis.localStorage,sample=fals
  const themeBtn=el('button',{type:'button',class:'lw-btn icon ghost','aria-label':'Dark mode','aria-pressed':'false',on:{click:()=>{store.setTheme(root.dataset.theme==='dark'?'light':'dark');applyTheme();}}},icon('moon'));
  const palBtn=el('button',{type:'button',class:'lw-btn ghost','aria-haspopup':'dialog',on:{click:()=>openPalette()}},icon('search'),el('span',{class:'lw-visually-hidden'},'Search and commands'),el('kbd',{'aria-hidden':'true'},'Ctrl K'));
  const bar=el('header',{class:'lw-bar'},el('a',{class:'lw-brand',href:'#/home'},el('span',{class:'lw-logo','aria-hidden':'true'},'L'),'Ledger CV Studio'),palBtn,themeBtn);
- root.append(el('a',{class:'lw-skip',href:'#main',on:{click:e=>{e.preventDefault();main.focus();}}},'Skip to content'),el('div',{class:'lw-shell'},bar,nav,main));
+ const danger=el('section',{class:'lw-storage-warning',role:'alert'});
+ const showStorage=()=>{
+  if(store.mode!=='persistent')return;
+  const a=store.status,b=store.applicationStatus;
+  if(a.state!=='error'&&b.state!=='error'){danger.replaceChildren();danger.hidden=true;return}
+  danger.hidden=false;
+  const message=a.state==='error'?(a.detail||'Your CV could not be saved; another tab or storage restriction may have changed the record.'):
+   'Your applications could not be saved. Export your unsaved draft before reloading.';
+  danger.replaceChildren(el('strong',{},'Unsaved changes — '+(a.error||b.error)),
+   el('p',{},message+' Your data remains in this tab, not safely stored.'),
+   el('button',{type:'button',class:'lw-btn',on:{click:()=>{
+    download(store.exportDraft(),'ledger-unsaved-draft.json','application/json');
+   }}},'Download unsaved draft'),
+   el('a',{class:'lw-btn',href:'#/home'},'Open recovery controls'));
+ };
+ root.append(el('a',{class:'lw-skip',href:'#main',on:{click:e=>{e.preventDefault();main.focus();}}},'Skip to content'),el('div',{class:'lw-shell'},bar,danger,nav,main));
+ const offStorage=store.subscribe(showStorage);showStorage();
+ const unload=e=>{if(store.mode==='persistent'&&store.hasUnsavedWork()){e.preventDefault();e.returnValue=''}};
+ window.addEventListener('beforeunload',unload);
  main.tabIndex=-1;
  const ul=el('ul',{});nav.append(ul);
  const links={};
@@ -61,5 +91,5 @@ export function mountWorkspace(root,{storage=globalThis.localStorage,sample=fals
  window.addEventListener('hashchange',render);
  mq?.addEventListener?.('change',applyTheme);
  applyTheme();render();
- return {store,openPalette,destroy(){current.view?.destroy?.();document.removeEventListener('keydown',onKey);window.removeEventListener('hashchange',render);toaster.destroy();root.replaceChildren();}};
+ return {store,openPalette,destroy(){current.view?.destroy?.();document.removeEventListener('keydown',onKey);window.removeEventListener('hashchange',render);window.removeEventListener('beforeunload',unload);mq?.removeEventListener?.('change',applyTheme);offStorage();store.close?.();toaster.destroy();root.replaceChildren();}};
 }

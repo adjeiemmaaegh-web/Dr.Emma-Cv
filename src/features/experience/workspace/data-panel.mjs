@@ -9,7 +9,7 @@ import {validLegacyDocument} from '../../../domain/storage/legacy-shape.mjs';
 import {createCareerProfileBackup,previewCareerProfileBackup,approveCareerProfileBackup,prepareCareerProfileImportAsNewRecord} from '../../../domain/storage/profile-backup.mjs';
 import {createLegacyRawBackup,previewLegacyRawBackup} from '../../../domain/storage/legacy-backup.mjs';
 import {exportBook,reviewBookImport,approveBookImport} from '../../tracker/io.mjs';
-const MAX_FILE=8*1024*1024+8192;
+const MAX_FILE=32*1024*1024+8192;
 const toDownload=(raw,name)=>download(raw,name,'application/json;charset=utf-8');
 export function createWorkspaceDataPanel(ctx){
  const {store}=ctx,root=el('section',{class:'lw-card ledger-a11y','aria-labelledby':'data-panel-h'});
@@ -93,7 +93,7 @@ export function createWorkspaceDataPanel(ctx){
    p.warnings=[...(p.warnings||[]),...rawReview.warnings,'Other raw recovery/application keys stay in your download; they are not written to this browser.'];
    setPending(p,'legacy-file',raw);return;
   }
-  if(src?.document&&validLegacyDocument(src.document)&&src?.appearance!==undefined){
+  if(src?.document&&validLegacyDocument(src.document)&&src?.appearance!==undefined&&!Array.isArray(src?.versions)){
    // Explicit import from the old independent preview workspace format.
    const p={status:'review-required',warnings:['Old preview CV only; its application board is NOT imported with this profile. Export applications separately.'],
     proposed:createCareerProfile({document:src.document,appearance:src.appearance||{}})};
