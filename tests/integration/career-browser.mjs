@@ -40,6 +40,27 @@ try{
  await page.getByRole('button',{name:'Save application and link CV'}).click();
  await page.waitForFunction(()=>location.hash==='#/jobs');
  assert.match(await page.locator('.lw-board').innerText(),/Example Stores/);
+ // User-authorized official export -> local comparison -> per-field consent -> new saved profile.
+ const originalId=await page.evaluate(()=>localStorage.getItem('ledger_workspace_active_profile_v1'));
+ await page.getByRole('link',{name:'Career tools'}).click();
+ await page.getByLabel('Choose LinkedIn export ZIP or selected official CSV files').setInputFiles([
+  {name:'Profile.csv',mimeType:'text/csv',buffer:Buffer.from('First Name,Last Name,Headline,Summary\nAda,Example,Store Director,Operations summary\n')},
+  {name:'Positions.csv',mimeType:'text/csv',buffer:Buffer.from('Company Name,Title,Started On,Finished On,Description\nNew Store,Store Director,2022,,Managed a local team\n')}
+ ]);
+ await page.getByRole('button',{name:'Review selected official LinkedIn export'}).click();
+ await page.waitForFunction(()=>document.body.textContent.includes('LinkedIn analysis completed locally'));
+ await page.getByRole('button',{name:'Review LinkedIn-to-CV reconstruction'}).click();
+ await page.getByLabel('Accept personalInfo.name').check();
+ await page.getByLabel('Accept experience[0]').check();
+ page.once('dialog',d=>d.accept());
+ await page.getByRole('button',{name:'Create separate profile from selected fields'}).click();
+ await page.waitForFunction(()=>location.hash==='#/editor');
+ const importedId=await page.evaluate(()=>localStorage.getItem('ledger_workspace_active_profile_v1'));
+ assert(importedId&&importedId!==originalId,'a new local profile must be created, not an overwrite');
+ assert.match(await page.locator('.lw-editor').innerText(),/Store Director/);
+ await page.reload();await page.getByRole('link',{name:'Edit'}).click();
+ assert.match(await page.locator('.lw-editor').innerText(),/New Store/,'approved LinkedIn fields must survive a real browser restart');
+
  assert.deepEqual(errors,[]);assert.deepEqual(external,[],'no external requests');
  console.log('PASS real persisted A-D career journey vacancy, letter, interview, LinkedIn and application linking');
  await ctx.close();
