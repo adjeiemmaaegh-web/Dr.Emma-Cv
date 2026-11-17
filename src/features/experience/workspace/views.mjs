@@ -3,7 +3,7 @@ import {el,icon,download,debounceFrame} from './ui.mjs';
 import {layoutFor,drawPages,thumbnail} from './preview.mjs';
 import {listTemplates,FAMILIES,applyTemplate,getTemplate,OPTIONS,TEMPLATES} from '../../templates/registry.mjs';
 import {renderDocumentArtifact} from '../../export/export-service.mjs';
-import {runAtsChecks,analyzeWriting} from '../../intelligence/index.mjs';
+import {runAtsChecks,analyzeWriting,analyzeResumeReadiness} from '../../intelligence/index.mjs';
 import * as T from '../../tracker/tracker.mjs';
 import {exportCsv,exportBook} from '../../tracker/io.mjs';
 import {onboardingFeature} from '../../onboarding/onboarding-module.mjs';
@@ -194,6 +194,27 @@ export function checkView(ctx){
    el('div',{},el('p',{},el('span',{class:'lw-visually-hidden'},label+': '),f.message),el('p',{class:'why'},f.explanation)),
    f.path?el('button',{type:'button',class:'lw-btn sm',on:{click:()=>ctx.goField(f.path)}},'Go to field'):null));}
  root.append(ul);
+ const expanded=analyzeResumeReadiness({document:s.document,appearance:s.appearance,artifact:art});
+ root.append(el('section',{class:'lw-card','aria-labelledby':'h-priority'},
+  el('h2',{id:'h-priority'},'Priority corrections and recruiter review'),
+  el('p',{class:'lw-help'},'High-priority corrections first. These are heuristics to review, not hiring predictions. No score is shown.')));
+ const top=expanded.prioritizedCorrections.slice(0,12);
+ if(top.length)root.append(el('ol',{class:'lw-findings','aria-label':'Prioritized corrections'},top.map(f=>
+  el('li',{class:'lw-finding '+(f.priority==='critical'?'error':f.priority==='high'?'warning':'info')},
+   el('div',{},el('strong',{},f.priority.toUpperCase()+': '+f.message),
+    el('p',{class:'why'},f.explanation),
+    el('p',{class:'lw-help'},'Next step: '+f.correction)),
+   f.path&&/^(personalInfo|experience|education|skills|summary)/.test(f.path)?
+    el('button',{type:'button',class:'lw-btn sm',on:{click:()=>ctx.goField(f.path)}},'Go to field'):null
+  ))));
+ else root.append(el('p',{class:'lw-help'},'No additional issues detected by the local heuristics.'));
+ root.append(el('details',{class:'lw-card'},
+  el('summary',{},'Published 27-check coverage and limitations'),
+  el('p',{class:'lw-help'},'Mapped against Enhancv’s public categories, not a copy of its proprietary checker. “Local” and “limited” do not imply employer ATS validation.'),
+  el('ul',{class:'lw-findings','aria-label':'Published checks'},expanded.coverage.map(c=>
+   el('li',{class:'lw-finding info'},el('div',{},
+    el('strong',{},c.label+' — '+c.status),
+    el('p',{class:'lw-help'},c.category+': '+c.reason)))))));
  const tips=analyzeWriting(s.document).slice(0,8);
  if(tips.length){root.append(el('h2',{style:'margin:var(--s-6) 0 var(--s-3)'},'Writing tips'));
   root.append(el('ul',{class:'lw-findings'},tips.map(t=>el('li',{class:'lw-finding info'},el('span',{class:'ic','aria-hidden':'true'},'✎'),el('div',{},el('p',{},t.message),el('p',{class:'why'},'“'+t.before+'”'+(t.after?' → suggested: “'+t.after+'” (check it still reads correctly)':'')))))));}
