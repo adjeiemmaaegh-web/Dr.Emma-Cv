@@ -25,7 +25,8 @@ try{
  page.on('request',q=>{if(!q.url().startsWith(origin))remote.push(q.url())});
  page.on('response',r=>{if(r.status()>=400)missing.push(r.url()+': '+r.status())});
  await page.goto(origin+'/');
- await page.getByRole('link',{name:'Career tools'}).waitFor();
+ try{await page.getByRole('link',{name:'Career tools'}).waitFor({timeout:15000});}
+ catch(e){throw new Error('Workspace navigation did not mount: '+e.message+'; pageErrors='+JSON.stringify(errors)+'; missing='+JSON.stringify(missing)+'; remote='+JSON.stringify(remote));}
  assert.equal(await page.locator('nav[aria-label="Main"] a').count(),6);
  assert.match(await page.title(),/Ledger CV Studio/);
  await page.getByRole('link',{name:'Career tools'}).click();
