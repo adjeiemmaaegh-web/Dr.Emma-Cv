@@ -5,6 +5,7 @@
  */
 import {el} from './ui.mjs';
 import {createLocalFileImportReview} from '../../import/local-file.mjs';
+import {reviewPdfManualTranscription} from '../../import/pdf-import.mjs';
 import {approveImportReview} from '../../import/text-import.mjs';
 
 const escapeHtml=value=>String(value||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -55,9 +56,9 @@ export function createWorkspaceCvImportPanel(ctx){
    'aria-label':'Select existing CV PDF DOCX TXT or HTML'}),
   status=el('p',{role:'status','aria-live':'polite',class:'lw-help'},'No CV file has been read.'),
   reviewBox=el('div');
- let current=null,sourceFile=null,loading=false;
+ let current=null,sourceFile=null,sourceUrl=null,loading=false;
  const tell=message=>{status.textContent=message;};
- const reset=()=>{current=null;sourceFile=null;reviewBox.replaceChildren();};
+ const reset=()=>{if(sourceUrl){URL.revokeObjectURL(sourceUrl);sourceUrl=null;}current=null;sourceFile=null;reviewBox.replaceChildren();};
  picker.addEventListener('change',()=>{reset();tell('File selected. Click Extract to review; nothing is imported yet.');});
  async function extract(){
   if(loading)return;
@@ -66,6 +67,7 @@ export function createWorkspaceCvImportPanel(ctx){
   try{
    const r=await createLocalFileImportReview(f);
    current=r;sourceFile=f;
+   if(r.format==='pdf')sourceUrl=URL.createObjectURL(f);
    tell(r.status==='blocked'?'Import is blocked; inspect the extraction warnings and use a complete readable source.':
     'Extracted locally. Select and edit the information you want in a new independent CV.');
    display(r);
@@ -105,6 +107,23 @@ export function createWorkspaceCvImportPanel(ctx){
     el('p',{class:'lw-help'},'Compare titles, organisations, dates, bullets and contact details against the original PDF or Word file.'));
   if(review.pages){
    left.append(el('p',{class:'lw-help'},'PDF pages: '+review.pages.map(p=>p.page+' ('+p.method+')').join(', ')));
+   if(sourceUrl)left.append(el('a',{href:sourceUrl,target:'_blank',rel:'noopener noreferrer'},'View the original selected PDF locally for page-by-page checking'));
+   if(review.status==='blocked'&&review.missingPages?.length){
+    const notes=el('p',{class:'lw-help'},'This PDF has scanned or empty-text page(s). You can manually transcribe ALL missing pages using the original PDF, then explicitly request another review. No OCR result is assumed.');
+    const typed={};
+    const fields=review.missingPages.map(n=>textField('Complete manual transcription of PDF page '+n,'',v=>{typed[n]=v;},{multiline:true}));
+    const checked=el('input',{type:'checkbox','aria-label':'I checked every missing PDF page against the original'});
+    const consent=el('label',{class:'lw-field'},checked,' I transcribed and checked every missing page from the original PDF.');
+    left.append(notes,...fields,consent,
+     btn('Reconstruct review using my checked page transcriptions',async()=>{
+      if(!checked.checked)throw Error('Check the complete-page transcription confirmation first.');
+      if(sourceFile!==picker.files?.[0]||current!==review)throw Error('The source file or review changed. Extract again.');
+      const corrected=reviewPdfManualTranscription(review,{transcriptions:typed,confirmed:true});
+      current=corrected;
+      tell('Manually transcribed PDF pages added to a NEW review. Confirm every proposed field before saving.');
+      display(corrected);
+     }));
+   }
   }
   const right=el('div',{},el('h3',{},'Reviewed CV fields — edit before approval'),editable);
   const columns=el('div',{style:'display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,19rem),1fr));gap:var(--s-4);align-items:start'},
