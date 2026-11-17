@@ -82,3 +82,18 @@ test('LinkedIn conversion is a review, never a master CV overwrite',()=>{
  assert(imported.evidence.some(e=>e.sourceRef.includes('Positions.csv')));
  assert.equal(JSON.stringify(cv),before);
 });
+
+test('missing LinkedIn export categories never imply an empty skills, education or positions profile',()=>{
+ const li=fromOfficialExport({profileCsv:'Headline,Summary\\nRetail Manager,About\\n'});
+ const cv=doc();
+ const result=coachLinkedIn(li,cv);
+ assert(!result.findings.some(x=>/^(cv-only|skill-cv-only|education-cv-only|certification-cv-only)$/.test(x.kind)));
+ assert(!result.suggestions.some(x=>x.path==='skills'));
+ assert.equal(li.coverage.positions,false);
+});
+test('repeated employers are matched by role rather than export ordering in every comparison layer',()=>{
+ const li=fromOfficialExport(rows),cv=doc(),result=coachLinkedIn(li,cv);
+ assert(!result.findings.some(x=>x.kind==='title-differs'||x.kind==='start-differs'),
+  JSON.stringify(result.findings.filter(x=>x.kind==='title-differs'||x.kind==='start-differs')));
+ assert(result.findings.some(x=>x.kind==='end-differs'&&x.citations[0].includes('roleABC2')));
+});
