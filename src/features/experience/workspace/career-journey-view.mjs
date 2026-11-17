@@ -11,6 +11,7 @@ import {renderInterviewCoach} from './interview-coach-view.mjs';
 import {fromPastedText,fromOfficialExport,fromOfficialZip,coachLinkedIn} from '../../linkedin-coach/linkedin.mjs';
 import {linkedinToCvReview} from '../../linkedin-coach/to-cv.mjs';
 import {approveImportReview} from '../../import/text-import.mjs';
+import {reviewFieldEditors} from './cv-import-panel.mjs';
 import {REGIONS,regionChecks} from '../../career-region/regions.mjs';
 import {addApplication,linkDocuments} from '../../tracker/tracker.mjs';
 let persistentRepository;
@@ -183,15 +184,18 @@ export function careerJourneyView(ctx){
    linkedReview=linkedinToCvReview(linkedProfile);
    reviewChoices=[];
    reviewedFields.replaceChildren(
-    el('p',{class:'lw-help'},'Nothing has changed in your saved CV. Choose individual fields for a NEW separate career profile. Unselected fields are omitted.'),
+    el('p',{class:'lw-help'},'Nothing has changed in your saved CV. Check and expand each proposed field to correct the extracted wording before approval. A NEW separate career profile will be created; unselected fields are omitted.'),
+    el('details',{},el('summary',{},'Review source information provided to LinkedIn import'),
+     el('pre',{class:'lw-help',style:'white-space:pre-wrap;overflow-wrap:anywhere'},linkedReview.sourceText||'')),
     ...linkedReview.warnings.map(w=>el('p',{class:'lw-help'},w)),
     ...linkedReview.items.map(item=>{
      const control=el('input',{type:'checkbox','aria-label':'Accept '+item.path});
      reviewChoices.push({control,path:item.path});
      const preview=typeof item.value==='string'?item.value:JSON.stringify(item.value);
-     return el('label',{class:'lw-field',style:'display:flex;gap:var(--s-2);align-items:flex-start'},
-      control,el('span',{},item.path+(item.uncertain?' — uncertain':'')+
-       (item.sourceRef?' ('+item.sourceRef+')':'')+': '+preview.slice(0,200)));
+     return el('details',{class:'lw-sec'},el('summary',{},control,
+      el('span',{},' '+item.path+(item.uncertain?' — uncertain':'')+
+       (item.sourceRef?' ('+item.sourceRef+')':'')+': '+preview.slice(0,200))),
+       el('div',{class:'lw-sec-body'},...reviewFieldEditors(item,linkedReview.proposed.master.document)));
     }),
     button('Create separate profile from selected fields',async()=>{
      if(!linkedReview||!stable||typeof store.importProfile!=='function')
