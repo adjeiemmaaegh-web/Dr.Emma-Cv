@@ -1,9 +1,9 @@
 /** Workspace views. Each returns {node, destroy?}. They only use other workstreams' public APIs. */
 import {el,icon,download,debounceFrame} from './ui.mjs';
 import {layoutFor,drawPages,thumbnail} from './preview.mjs';
-import {listTemplates,FAMILIES,applyTemplate,getTemplate,OPTIONS,TEMPLATES} from '../../templates/registry.mjs';
+import {listTemplates,FAMILIES,applyTemplate,getTemplate,OPTIONS,TEMPLATES,resolveStyle} from '../../templates/registry.mjs';
 import {renderDocumentArtifact} from '../../export/export-service.mjs';
-import {runAtsChecks,analyzeWriting} from '../../intelligence/index.mjs';
+import {runAtsChecks,analyzeWriting,analyzeResumeReadiness} from '../../intelligence/index.mjs';
 import * as T from '../../tracker/tracker.mjs';
 import {exportCsv,exportBook} from '../../tracker/io.mjs';
 import {onboardingFeature} from '../../onboarding/onboarding-module.mjs';
@@ -11,6 +11,7 @@ import {assessStorageHealth,collectStorageSignals} from '../../pwa-ui/status.mjs
 import {SAMPLE_DOC} from './store.mjs';
 import {createWorkspaceDataPanel} from './data-panel.mjs';
 import {createWorkspaceCvImportPanel} from './cv-import-panel.mjs';
+import {designControls,sectionsControls,saveDesignControls,savedDesignGallery,quickEditOnPage,fieldAtPath,confirmDesignEditing} from './design-studio.mjs';
 const variantOf=ed=>{const s=ed.snapshot();return {id:'workspacePreview1',revision:0,name:'CV',document:s.document,appearance:s.appearance};};
 export const ACCENTS=['#0b6b72','#c85a34','#3b5ba9','#8a5a3b','#4a4a4a','#7a3e9d'];
 const fileName=(doc,ext)=>([doc.personalInfo.firstName,doc.personalInfo.lastName,'CV'].filter(Boolean).join('_')||'CV')+'.'+ext;
@@ -76,11 +77,12 @@ export function editorView(ctx){
  const root=el('div'),status=el('span',{class:'lw-chip',role:'status'});
  const undo=el('button',{type:'button',class:'lw-btn icon','aria-label':'Undo',on:{click:()=>ed.undo()}},icon('undo')),redo=el('button',{type:'button',class:'lw-btn icon','aria-label':'Redo',on:{click:()=>ed.redo()}},icon('redo'));
  const seg=(label,key,opts,fmt=x=>x)=>{const g=el('div',{class:'lw-seg',role:'group','aria-label':label});
-  for(const o of opts)g.append(el('button',{type:'button','data-v':o,'aria-pressed':'false',on:{click:()=>ed.setAppearance({[key]:o})}},fmt(o)));return g;};
+  for(const o of opts)g.append(el('button',{type:'button','data-v':o,'aria-pressed':'false',on:{click:()=>{const precise={fontSize:'bodySize',spacing:'leading',margins:'marginSize'}[key];
+   ed.setAppearance(precise?{[key]:o,[precise]:null}:{[key]:o});}}},fmt(o)));return g;};
  const paperSeg=seg('Paper size','paper',OPTIONS.paper),zoomMode={fit:true};
  const zoomSeg=el('div',{class:'lw-seg',role:'group','aria-label':'Preview zoom'},['Fit','100%'].map(z=>el('button',{type:'button','aria-pressed':String(z==='Fit'),on:{click:()=>{zoomMode.fit=z==='Fit';for(const b of zoomSeg.children)b.setAttribute('aria-pressed',String(b.textContent===z));redraw();}}},z)));
  const tabs=el('div',{class:'lw-seg lw-tabs',role:'group','aria-label':'Show'},['Edit','Preview'].map(t=>el('button',{type:'button','aria-pressed':String(t==='Edit'),on:{click:()=>{wrap.dataset.tab=t.toLowerCase();for(const b of tabs.children)b.setAttribute('aria-pressed',String(b.textContent===t));redraw();}}},t)));
- root.append(el('header',{class:'lw-page-head'},el('div',{},el('h1',{id:'page-title',tabindex:'-1'},'Edit your CV'),el('p',{},'Changes save automatically on this device. The preview is exactly what the PDF will look like.')),
+ root.append(el('header',{class:'lw-page-head'},el('div',{},el('h1',{id:'page-title',tabindex:'-1'},'Edit your CV'),el('p',{},'Changes save locally. The live preview uses the same pagination and decoration geometry as the PDF; verify the final file’s fonts before sending.')),
   el('div',{class:'lw-row'},el('button',{type:'button',class:'lw-btn',on:{click:()=>exportAs(ctx,'docx')}},icon('download'),'Word'),el('button',{type:'button',class:'lw-btn primary',on:{click:()=>exportAs(ctx,'pdf')}},icon('download'),'PDF'))));
  if(store.mode==='persistent'){
    const cv=store.selectedCV,master=cv.id===store.profile.master.id;
@@ -94,11 +96,13 @@ export function editorView(ctx){
    root.append(consent);
   }
   root.append(el('div',{class:'lw-toolbar',role:'toolbar','aria-label':'Editor tools'},undo,redo,paperSeg,zoomSeg,tabs,el('span',{class:'spacer'},status)));
- const form=el('div',{class:'lw-editor-form'}),pages=el('div',{class:'lw-pages'}),prevWrap=el('div',{class:'lw-preview-wrap',tabindex:'0',role:'region','aria-label':'CV preview'},pages);
+ const form=el('div',{class:'lw-editor-form'}),pages=el('div',{class:'lw-pages'});
+ const metrics=el('p',{class:'lw-preview-metrics',role:'status','aria-live':'polite'},'Calculating pages…');
+ const prevWrap=el('div',{class:'lw-preview-wrap',tabindex:'0',role:'region','aria-label':'CV preview'},metrics,pages);
  const wrap=el('div',{class:'lw-editor','data-tab':'edit'},el('div',{class:'lw-form-col'},form),el('div',{class:'lw-preview-col'},prevWrap));root.append(wrap);
  const field=(label,value,key,path,onInput,{area,auto}={})=>{const id='f-'+key.replace(/\W+/g,'-'),c=area?el('textarea',{id,rows:'4'}):el('input',{id,type:'text'});
   c.value=value||'';c.dataset.key=key;c.dataset.path=path;if(auto)c.setAttribute('autocomplete',auto);c.addEventListener('input',()=>onInput(c.value));return el('div',{class:'lw-field'},el('label',{for:id},label),c);};
- const open=new Set(['personal']);
+ const open=new Set(['personal','look']);
  const sec=(id,title,...kids)=>{const d=el('details',{class:'lw-sec','data-sec':id},el('summary',{},title),el('div',{class:'lw-sec-body'},...kids));if(open.has(id))d.open=true;d.addEventListener('toggle',()=>{d.open?open.add(id):open.delete(id);});return d;};
  const plain=h=>(h||'').replace(/<li[^>]*>/gi,'\n').replace(/<[^>]*>/g,'').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').trim();
  const toHtml=t=>{const ls=t.split(/\n/).map(x=>x.replace(/^[\s•*-]+/,'').trim()).filter(Boolean);return ls.length?'<ul>'+ls.map(l=>'<li>'+l.replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]))+'</li>').join('')+'</ul>':'';};
@@ -110,8 +114,8 @@ export function editorView(ctx){
    const items=snap.document[name],body=[];
    if(!items.length)body.push(el('p',{class:'lw-help',style:'margin-bottom:var(--s-3)'},'Nothing here yet.'));
    items.forEach((it,i)=>{
-    const card=el('div',{class:'lw-item',role:'group','aria-label':def.label+' '+(i+1)+': '+def.name(it)});
-    card.append(el('div',{class:'lw-item-head'},el('strong',{},def.name(it)),
+    const card=el('div',{class:'lw-item',role:'group','aria-label':def.label+' '+(i+1)+': '+def.name(it),'data-entry-section':name,'data-entry-id':it.id});
+    card.append(el('div',{class:'lw-item-head'},el('strong',{'data-entry-name':it.id},def.name(it)),
      el('button',{type:'button',class:'lw-btn sm icon','aria-label':'Move '+def.name(it)+' up',disabled:i===0||undefined,on:{click:()=>ed.moveItem(name,it.id,-1)}},icon('up',{size:16})),
      el('button',{type:'button',class:'lw-btn sm icon','aria-label':'Move '+def.name(it)+' down',disabled:i===items.length-1||undefined,on:{click:()=>ed.moveItem(name,it.id,1)}},icon('down',{size:16})),
      el('button',{type:'button',class:'lw-btn sm icon danger','aria-label':'Remove '+def.name(it)+' (you can undo)',on:{click:()=>{ed.removeItem(name,it.id);ctx.toast(def.label+' entry removed. Press Undo to bring it back.');}}},icon('trash',{size:16}))));
@@ -133,15 +137,33 @@ export function editorView(ctx){
   const ap=sec('look','Look and layout',el('p',{style:'margin-bottom:var(--s-3)'},'Template: ',el('strong',{},tpl.name),' ',el('a',{class:'lw-btn sm',href:'#/templates'},'Change')),
    el('div',{class:'lw-field'},el('span',{class:'lw-help'},'Accent colour'),sw),
    ...[['Text size','fontSize',OPTIONS.fontSize],['Spacing','spacing',OPTIONS.spacing],['Margins','margins',OPTIONS.margins]].map(([l,k,o])=>el('div',{class:'lw-field'},el('span',{class:'lw-help'},l),seg(l,k,o,x=>x[0].toUpperCase()+x.slice(1)))));
+  ap.querySelector('.lw-sec-body').append(designControls(ed,ctx),saveDesignControls(ed,ctx));
   form.append(ap);
+  form.append(sec('section-layout','Sections and order',sectionsControls(ed,ctx)));
+  const custom=snap.document.customSections||[];
+  const customKids=custom.map((it,i)=>el('div',{class:'lw-item',role:'group','aria-label':'Custom section '+(i+1)},
+    field('Section title',it.title||'',it.id+'title','customSections['+it.id+'].title',v=>ed.updateItem('customSections',it.id,{title:v})),
+    field('Section content',plain(it.content||''),it.id+'content','customSections['+it.id+'].content',v=>ed.updateItem('customSections',it.id,{content:toHtml(v)}),{area:true}),
+    el('div',{class:'lw-row'},
+     el('button',{type:'button',class:'lw-btn sm','aria-label':'Move custom section up',disabled:i===0||undefined,on:{click:()=>ed.moveItem('customSections',it.id,-1)}},'Move up'),
+     el('button',{type:'button',class:'lw-btn sm','aria-label':'Move custom section down',disabled:i===custom.length-1||undefined,on:{click:()=>ed.moveItem('customSections',it.id,1)}},'Move down'),
+     el('button',{type:'button',class:'lw-btn sm danger',on:{click:()=>ed.removeItem('customSections',it.id)}},'Remove'))));
+  if(custom.length)form.append(sec('custom','Custom sections ('+custom.length+')',...customKids));
   if(act){const n=form.querySelector('[data-key="'+act+'"]');if(n)n.focus();}
  }
- const shape=s=>JSON.stringify([s.document.experience.map(i=>i.id+(i.title||i.employer||'')),s.document.education.map(i=>i.id+(i.degree||i.school||'')),s.document.skills.map(x=>x.name),s.appearance.color,s.appearance.template,s.appearance.fontSize,s.appearance.spacing,s.appearance.margins]);
+ const shape=s=>JSON.stringify([s.document.experience.map(i=>i.id),s.document.education.map(i=>i.id),
+  s.document.skills.map(x=>x.id+':'+x.name),s.document.customSections.map(x=>x.id),s.appearance.template,
+  s.appearance.sectionOrder,s.appearance.enabledSections]);
  let last='',layout=null;
+ const quick=quickEditOnPage(prevWrap,ed,ctx);
  function redraw(){
   const snap=ed.snapshot();layout=layoutFor(snap.document,snap.appearance);
   const w=prevWrap.clientWidth-32,fit=Math.max(0.3,Math.min(1.4,w/layout.paper.width)),scale=zoomMode.fit?fit:1;
-  drawPages(pages,layout,scale||0.6);
+  drawPages(pages,layout,scale||0.6,{onEdit:(path,anchor)=>quick.open(path,anchor)});
+  const count=layout.pageCount;
+  metrics.textContent=count+(count===1?' page':' pages')+' · '+layout.style.paper+
+   ' · '+getTemplate(layout.style.template).name+
+   (layout.warnings.length?' · '+layout.warnings[0]:'');
  }
  const redrawSoon=debounceFrame(redraw);
  function sync(snap){
@@ -152,6 +174,43 @@ export function editorView(ctx){
   status.textContent=st.state==='error'?'✖ Not saved: '+(st.detail||(
     st.error==='QUOTA'?'browser storage is full':st.error==='CONFLICT'?'another tab changed this CV':st.error==='UNCONFIRMED'?'confirm master editing first':'storage unavailable'))+'. Download an unsaved draft.':st.state==='saving'?'Saving…':'✓ Saved on this device';
   if(shape(snap)!==last){last=shape(snap);build(snap);}
+  const effective=resolveStyle(snap.appearance);
+  for(const input of form.querySelectorAll('[data-appearance]')){
+   if(document.activeElement===input)continue;
+   const key=input.dataset.appearance;
+   const val=snap.appearance[key]??({bodySize:effective.size,leading:effective.lineHeight,sectionGap:effective.sectionGap,marginSize:effective.margin,headerScale:effective.headerScale,headingScale:effective.headingScale,
+    entryGap:effective.entryGap,paragraphGap:effective.paragraphGap,ruleWeight:effective.ruleWeight}[key]);
+   if(val!==undefined&&val!==null)input.value=String(val);
+   const output=form.querySelector('[data-output="'+key+'"]');
+   if(output&&typeof val==='number')output.textContent=val.toFixed(['leading','headerScale','headingScale'].includes(key)?2:1)+(['leading','headerScale','headingScale'].includes(key)?'×':' pt');
+  }
+  for(const input of form.querySelectorAll('input[data-path],textarea[data-path]')){
+   if(document.activeElement===input)continue;
+   const info=fieldAtPath(ed,input.dataset.path,snap.document);
+   if(info&&input.value!==info.value)input.value=info.value;
+  }
+  // Update role labels without tearing down focused form inputs on each keystroke.
+  for(const card of form.querySelectorAll('[data-entry-section]')){
+   const section=card.dataset.entrySection,id=card.dataset.entryId;
+   const item=snap.document[section]?.find(x=>x.id===id);
+   const text=item&&SECS[section]?.name(item);
+   if(text){
+    const strong=card.querySelector('[data-entry-name]');
+    if(strong&&strong.textContent!==text)strong.textContent=text;
+   }
+  }
+  quick.sync(snap.document);
+  for(const row of form.querySelectorAll('.lw-section-row[data-section-key^="custom:"]')){
+   const id=row.dataset.sectionKey.slice('custom:'.length);
+   const item=snap.document.customSections.find(x=>x.id===id);
+   if(!item)continue;
+   const name=item.title||item.name||'New section';
+   const span=row.querySelector('label span'),check=row.querySelector('input[type=checkbox]'),buttons=row.querySelectorAll('button');
+   if(span&&span.textContent!==name)span.textContent=name;
+   check?.setAttribute('aria-label','Show '+name);
+   buttons[0]?.setAttribute('aria-label','Move '+name+' up');
+   buttons[1]?.setAttribute('aria-label','Move '+name+' down');
+  }
   redrawSoon();
  }
  let off=ed.subscribe(sync);const offStore=store.subscribe(()=>sync(ed.snapshot()));
@@ -160,7 +219,7 @@ export function editorView(ctx){
   if((e.ctrlKey||e.metaKey)&&(e.key==='y'||(e.shiftKey&&e.key==='Z'))&&!/INPUT|TEXTAREA/.test(document.activeElement?.tagName)){e.preventDefault();ed.redo();}};
  document.addEventListener('keydown',onKey);
  sync(ed.snapshot());
- return {node:root,destroy:()=>{off();offStore();ro?.disconnect();document.removeEventListener('keydown',onKey);},focusPath(path){
+ return {node:root,destroy:()=>{quick.destroy();off();offStore();ro?.disconnect();document.removeEventListener('keydown',onKey);},focusPath(path){
   const t=form.querySelector('[data-path="'+path+'"]')||form.querySelector('[data-path^="'+path.replace(/\.[^.]+$/,'')+'"]');
   if(t){t.closest('details')&&(t.closest('details').open=true);wrap.dataset.tab='edit';t.focus();t.scrollIntoView({block:'center'});return true;}return false;}};
 }
@@ -169,12 +228,12 @@ export function templatesView(ctx){
  const {store}=ctx,root=el('div'),grid=el('div',{class:'lw-gallery'});let family='All';
  const filter=el('div',{class:'lw-seg',role:'group','aria-label':'Filter by style',style:'flex-wrap:wrap'},['All',...FAMILIES].map(f=>el('button',{type:'button','aria-pressed':String(f==='All'),on:{click:()=>{family=f;for(const b of filter.children)b.setAttribute('aria-pressed',String(b.textContent===f));draw();}}},f==='All'?f:f[0].toUpperCase()+f.slice(1))));
  root.append(el('header',{class:'lw-page-head'},el('div',{},el('h1',{id:'page-title',tabindex:'-1'},'Choose a template'),el('p',{},'Previews show your own CV. Switching never changes your words.')),filter));
- root.append(grid);
+ root.append(savedDesignGallery(ctx),grid);
  function draw(){
   const s=store.editor.snapshot(),doc=store.hasContent()?s.document:SAMPLE_DOC();grid.replaceChildren();
   for(const t of TEMPLATES.filter(x=>family==='All'||x.family===family)){
    const lay=layoutFor(doc,{...s.appearance,template:t.id,color:t.color||s.appearance.color});
-   grid.append(el('button',{type:'button',class:'lw-tpl','aria-pressed':String(s.appearance.template===t.id),on:{click:()=>{store.editor.setAppearance(applyTemplate(store.editor.snapshot().appearance,t.id));ctx.toast(t.name+' selected. Your content is unchanged.');draw();}}},thumbnail(lay),el('strong',{},t.name),el('small',{},t.family[0].toUpperCase()+t.family.slice(1)+(t.tokens.layout==='sidebar'?' · exports single column':''))));
+   grid.append(el('button',{type:'button',class:'lw-tpl','aria-pressed':String(s.appearance.template===t.id),on:{click:()=>{if(!confirmDesignEditing(ctx))return;store.editor.setAppearance(applyTemplate(store.editor.snapshot().appearance,t.id,{keepColor:false}));ctx.toast(t.name+' selected. Your content is unchanged.');draw();}}},thumbnail(lay),el('strong',{},t.name),el('small',{},t.family[0].toUpperCase()+t.family.slice(1)+(t.tokens.layout==='sidebar'?' · exports single column':''))));
   }
  }
  draw();return {node:root};
@@ -183,19 +242,52 @@ export function templatesView(ctx){
 const SEV={error:['✖','Error','err'],warning:['▲','Warning','warn'],info:['ℹ','Tip','info']};
 export function checkView(ctx){
  const {store}=ctx,root=el('div'),s=store.editor.snapshot();
- root.append(el('header',{class:'lw-page-head'},el('div',{},el('h1',{id:'page-title',tabindex:'-1'},'Check your CV'),el('p',{},'Local checks on the exact file you would send. They are suggestions, not a score, and cannot predict any employer’s system.'))));
+ root.append(el('header',{class:'lw-page-head'},el('div',{},el('h1',{id:'page-title',tabindex:'-1'},'Check your CV'),el('p',{},'Local checks on your CV text and generated layout preview. Review the exported PDF/DOCX separately; no ATS or hiring prediction is produced.'))));
  if(!store.hasContent()){root.append(el('div',{class:'lw-empty'},el('h3',{},'Nothing to check yet'),el('p',{},'Create or import a CV first.'),el('a',{class:'lw-btn primary',href:'#/home'},'Get started')));return {node:root};}
  const lay=layoutFor(s.document,s.appearance);
  const art={text:lay.text,pageCount:lay.pageCount,warnings:lay.warnings};
- const r=runAtsChecks({document:s.document,appearance:s.appearance,artifact:art});
+ const expanded=analyzeResumeReadiness({document:s.document,appearance:s.appearance,artifact:art});
+ const r=expanded.baseline;
  root.append(el('div',{class:'lw-stats',style:'margin-bottom:var(--s-5)'},[['Errors',r.counts.error,'err'],['Warnings',r.counts.warning,'warn'],['Tips',r.counts.info,'info'],['Pages',lay.pageCount,'']].map(([l,n,c])=>el('div',{class:'lw-card lw-stat'},el('span',{class:'lw-help'},l),el('strong',{},String(n))))));
- if(!r.findings.length)root.append(el('div',{class:'lw-card'},el('h2',{},'✓ No problems found'),el('p',{class:'lw-help'},'Nice work. Re-run after big edits.')));
+ if(!expanded.prioritizedCorrections.length)root.append(el('div',{class:'lw-card'},el('h2',{},'No local concerns detected'),el('p',{class:'lw-help'},'This does not establish ATS compatibility or writing accuracy. Review your exported file and re-check after edits.')));
  const ul=el('ul',{class:'lw-findings','aria-label':'Findings'});
  for(const f of r.findings){const [ic,label,cls]=SEV[f.severity];
   ul.append(el('li',{class:'lw-finding '+f.severity},el('span',{class:'ic','aria-hidden':'true'},ic),
    el('div',{},el('p',{},el('span',{class:'lw-visually-hidden'},label+': '),f.message),el('p',{class:'why'},f.explanation)),
    f.path?el('button',{type:'button',class:'lw-btn sm',on:{click:()=>ctx.goField(f.path)}},'Go to field'):null));}
- root.append(ul);
+ const technicalFindings=el('details',{class:'lw-card'},el('summary',{},'Technical findings ('+r.findings.length+')'),ul);
+ root.append(el('section',{class:'lw-card','aria-labelledby':'h-priority'},
+  el('h2',{id:'h-priority'},'Priority corrections and recruiter review'),
+  el('p',{class:'lw-help'},'High-priority corrections first. This is not a score or a hiring prediction. The checks are local heuristics requiring review.')));
+ const top=expanded.prioritizedCorrections.slice(0,12);
+ if(top.length)root.append(el('ol',{class:'lw-findings','aria-label':'Prioritized corrections'},top.map(f=>
+  el('li',{class:'lw-finding '+(f.priority==='critical'?'error':f.priority==='high'?'warning':'info')},
+   el('div',{},el('strong',{},f.priority.toUpperCase()+': '+f.message),
+    el('p',{class:'why'},f.explanation),
+    el('p',{class:'lw-help'},'Next step: '+f.correction)),
+   f.path&&/^(personalInfo|experience|education|skills|summary)/.test(f.path)?
+    el('button',{type:'button',class:'lw-btn sm',on:{click:()=>ctx.goField(f.path)}},'Go to field'):null
+  ))));
+ else root.append(el('p',{class:'lw-help'},'No additional issues detected by the local heuristics.'));
+ root.append(technicalFindings);
+ if(expanded.opportunities.length)root.append(el('section',{class:'lw-card'},
+   el('h2',{},'Potential career-story opportunities'),
+   el('ul',{class:'lw-findings'},expanded.opportunities.map(f=>
+    el('li',{class:'lw-finding info'},el('strong',{},f.message),
+     el('p',{class:'lw-help'},f.explanation+' '+f.correction))))));
+ root.append(el('details',{class:'lw-card'},
+  el('summary',{},'27 published categories/checks — what we can and cannot assess'),
+  el('p',{class:'lw-help'},'Scope reference from Enhancv’s published checklist. A local check is NOT an external ATS result, and no job-match score is generated.'),
+  expanded.byCategory.map(g=>el('section',{},
+   el('h3',{style:'margin:var(--s-4) 0 var(--s-2)'},g.name),
+   el('ul',{class:'lw-findings','aria-label':g.name+' checks'},g.checks.map(c=>
+    el('li',{class:'lw-finding '+(c.observed==='review-suggested'?'warning':'info')},
+     el('div',{},
+      el('strong',{},c.label+' — '+(c.observed==='review-suggested'?'Review suggested':
+       c.observed==='no-local-flag'?'No local flag':c.observed==='opportunity'?'Possible opportunity':
+       c.status==='needs-input'?'Input needed':'Not verified')),
+      el('p',{class:'lw-help'},c.reason),
+      c.preview?el('p',{class:'lw-help'},'Example finding: '+c.preview):null))))))));
  const tips=analyzeWriting(s.document).slice(0,8);
  if(tips.length){root.append(el('h2',{style:'margin:var(--s-6) 0 var(--s-3)'},'Writing tips'));
   root.append(el('ul',{class:'lw-findings'},tips.map(t=>el('li',{class:'lw-finding info'},el('span',{class:'ic','aria-hidden':'true'},'✎'),el('div',{},el('p',{},t.message),el('p',{class:'why'},'“'+t.before+'”'+(t.after?' → suggested: “'+t.after+'” (check it still reads correctly)':'')))))));}

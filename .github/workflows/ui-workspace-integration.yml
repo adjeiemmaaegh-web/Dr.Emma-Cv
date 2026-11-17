@@ -63,6 +63,8 @@ jobs:
         run: node tests/experience/audit-selftest.mjs
       - name: Polished workspace all routes/widths/themes and interactions
         run: node tests/experience/workspace-browser.mjs
+      - name: Visual CV editor direct-edit and design-library browser acceptance
+        run: node tests/experience/design-studio-browser.mjs
       - name: Existing A-D actual IndexedDB and editor browser regression
         run: |
           python tests/platform/platform_browser.py

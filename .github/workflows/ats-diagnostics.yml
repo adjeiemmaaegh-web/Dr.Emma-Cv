@@ -1,0 +1,53 @@
+name: ATS diagnostics and job-matching regressions
+
+on:
+  push:
+    branches:
+      - 'feat/ats-27-job-matching-diagnostics-2026-11-17'
+    paths:
+      - 'src/features/ats/**'
+      - 'src/features/intelligence/**'
+      - 'src/features/job-match/**'
+      - 'src/features/writing/**'
+      - 'src/features/experience/workspace/**'
+      - 'src/features/onboarding/**'
+      - 'tests/intelligence/**'
+      - '.github/workflows/ats-diagnostics.yml'
+  pull_request:
+    paths:
+      - 'src/features/ats/**'
+      - 'src/features/intelligence/**'
+      - 'src/features/job-match/**'
+      - 'src/features/writing/**'
+      - 'src/features/experience/workspace/**'
+      - 'src/features/onboarding/**'
+      - 'tests/intelligence/**'
+      - '.github/workflows/ats-diagnostics.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  offline-regressions:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - name: Select Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check changed module syntax
+        run: |
+          node --check src/features/job-match/skill-evidence.mjs
+          node --check src/features/intelligence/expanded-review.mjs
+          node --check src/features/job-match/compare.mjs
+          node --check src/features/experience/workspace/views.mjs
+          node --check src/features/experience/workspace/career-journey-view.mjs
+          node --check src/features/onboarding/journeys.mjs
+      - name: Run intelligence and career regressions
+        run: |
+          node --test tests/intelligence/*.test.mjs
+          node --test tests/career/*.test.mjs
+          node --test tests/experience/journeys.test.mjs

@@ -7,7 +7,7 @@
 import {contractError} from '../../contracts/platform.mjs';
 import {validLegacyDocument} from '../../domain/storage/legacy-shape.mjs';
 import {parseResumeText,createImportReview,approveImportReview} from '../import/text-import.mjs';
-import {runAtsChecks,parseJobText,compareToDocument,buildTailoringSuggestions} from '../intelligence/index.mjs';
+import {runAtsChecks,parseJobText,compareToDocument,buildTailoringSuggestions,analyzeResumeReadiness} from '../intelligence/index.mjs';
 export const JOURNEY_SCHEMA=1;
 const s=v=>typeof v==='string'?v.trim():'';
 const esc=t=>t.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -142,13 +142,13 @@ export function getView(state,ctx={}){
   if(!ctx.document)throw contractError('UNAVAILABLE','Your CV is not available');
   if(state.kind==='improve'){
    const r=runAtsChecks({document:ctx.document,appearance:ctx.appearance||{},now:ctx.now});
-   const rows=r.findings.filter(f=>f.severity!=='info').concat(r.findings.filter(f=>f.severity==='info')).slice(0,12).map(f=>({severity:f.severity,text:f.message,why:f.explanation}));
+   const rows=analyzeResumeReadiness({document:ctx.document,appearance:ctx.appearance||{},now:ctx.now}).prioritizedCorrections.slice(0,12).map(f=>({severity:f.priority==='critical'?'error':f.priority==='high'?'warning':'info',text:f.message,why:f.explanation+' Next: '+f.correction}));
    return {...base,rows,empty:rows.length?'':'No problems found. Well done.',disclaimer:r.disclaimer};
   }
   const {job}=parseJobText(state.answers.job.jobText,{role:s(state.answers.job.jobRole)||undefined,employer:s(state.answers.job.jobEmployer)||undefined});
   const c=compareToDocument(job,ctx.document);
   const rows=c.results.map(r=>({status:r.status,priority:r.priority,text:r.requirement,why:r.note||(r.citations[0]?'Found in your CV: "'+r.citations[0].excerpt+'"':'')}));
-  return {...base,rows,summary:c.summary,disclaimer:c.disclaimer,empty:rows.length?'':'We could not find requirement lines. Go back and paste the requirements, one per line.'};
+  return {...base,rows,skillEvidence:c.skillEvidence,summary:c.summary,disclaimer:c.disclaimer,empty:rows.length?'':'We could not find requirement lines. Go back and paste the requirements, one per line.'};
  }
  return base;
 }

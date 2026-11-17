@@ -60,7 +60,9 @@ test('vacancy parser bounds input and warns when nothing is recognised',()=>{
 test('every comparison finding cites the requirement and real CV text, or states missing evidence',()=>{
  const {job}=parseJobText(JOB);const c=compareToDocument(job,CLEAN());
  const byText=t=>c.results.find(r=>r.requirement.includes(t));
- const stock=byText('stock control');assert.equal(stock.status,'evidenced');assert(stock.citations.some(x=>/Stock control|stock counts/i.test(x.excerpt)));
+ // Matching a stock-count example and a skills-list mention does not prove the full inventory requirement.
+ const stock=byText('stock control');assert.equal(stock.status,'partial');assert(stock.citations.some(x=>/Stock control|stock counts/i.test(x.excerpt)));
+ assert(stock.missingTerms.includes('inventory'),'unmatched requirement must remain visible');
  const team=byText('managing a team');assert.notEqual(team.status,'no-evidence');assert(team.citations.length);
  const k8s=byText('Kubernetes');assert.equal(k8s.status,'partial'.length?k8s.status:'');assert(['no-evidence','partial'].includes(k8s.status));
  assert(c.results.filter(r=>r.status==='no-evidence').every(r=>/does not mean you lack it/.test(r.note)&&r.citations.length===0));
