@@ -7,7 +7,7 @@ import {normalizeAppearance} from './registry.mjs';
 export const DESIGN_KEY='ledger_workspace_cv_designs_v1';
 const MAX_DESIGNS=20;
 const KEYS=['template','color','font','fontSize','spacing','margins','paper','headerStyle','columns','photo',
- 'sectionOrder','enabledSections','bodySize','leading','sectionGap','marginSize','headerScale','ruleStyle'];
+ 'sectionOrder','enabledSections','bodySize','leading','sectionGap','marginSize','headerScale','ruleStyle','headingScale','entryGap','paragraphGap','ruleWeight','pageAccent'];
 const clone=o=>JSON.parse(JSON.stringify(o));
 export function designAppearance(input){
  if(!input||typeof input!=='object'||Array.isArray(input))throw Error('Invalid design');
