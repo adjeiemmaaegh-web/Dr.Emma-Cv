@@ -7,7 +7,7 @@ import {el,download} from './ui.mjs';
 import {createIndexedDBCareerJourneyStore,createMemoryCareerJourneyStore,emptyCareerJourney} from '../../../domain/storage/career-journey-store.mjs';
 import {parseJobText,compareToDocument,buildTailoringSuggestions} from '../../intelligence/index.mjs';
 import {createLetterDraft,reviseLetter,checkLetterFacts,exportLetter} from '../../cover-letter/letter.mjs';
-import {buildQuestions,emptySession,addStory,exportPreparationPack} from '../../interview/interview.mjs';
+import {renderInterviewCoach} from './interview-coach-view.mjs';
 import {fromPastedText,coachLinkedIn} from '../../linkedin-coach/linkedin.mjs';
 import {REGIONS,regionChecks} from '../../career-region/regions.mjs';
 import {addApplication,linkDocuments} from '../../tracker/tracker.mjs';
@@ -136,23 +136,10 @@ export function careerJourneyView(ctx){
      ctx.go('#/jobs');
     },true)));
    const session=state.session?.jobTargetId===job.id?state.session:null;
-   const q=buildQuestions({job,document:cv().document});
-   const story={title:textInput(''),context:area('',2,3000),task:area('',2,3000),actions:area('',2,3000),results:area('',2,3000)};
-   content.append(section('5. Interview preparation',
-    el('p',{class:'lw-help'},'Question sources are labelled. The story is yours to write; no generated scenario is claimed as your own experience.'),
-    items(q.slice(0,12),x=>el('li',{class:'lw-finding info'},el('strong',{},x.source+': '),x.text)),
-    field('Story title',story.title),field('Situation',story.context),field('Task',story.task),field('Your actions',story.actions),field('Results (only true facts)',story.results),
-    button('Save STAR story',async()=>{
-     const current=session||emptySession({jobTargetId:job.id});
-     const next=addStory(current,{title:story.title.value,context:story.context.value,task:story.task.value,
-      actions:story.actions.value,results:story.results.value,expectedRevision:current.revision});
-     await commit({...state,session:next},'Interview story');
-    }),
-    ...(session?[el('p',{class:'lw-help'},session.stories.length+' saved stories.'),
-     button('Download interview preparation PDF',async()=>{
-      const file=exportPreparationPack({session,questions:q,candidateName:[cv().document.personalInfo.firstName,cv().document.personalInfo.lastName].filter(Boolean).join(' '),role:job.role},'pdf');
-      download(file.bytes,'interview-preparation.pdf',file.mime);
-     })]:[])));
+   content.append(renderInterviewCoach({job,cv:v,session,
+    saveSession:async(next,label)=>commit({...state,session:next},label),
+    button,notice,section}));
+
   }
   const linkIn=area('',5);
   const linkResults=el('div');
