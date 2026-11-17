@@ -13,7 +13,7 @@ export const TEMPLATES=Object.freeze([
  T('modern-coral','Modern Coral','modern',{header:'left'},'#C85A34'),
  T('professional','Professional','classic',{header:'band',rules:'double'}),
  T('professional-slate','Professional Slate','classic',{header:'band'},'#4A4A4A'),
- T('executive','Executive','executive',{header:'centered',caps:true,font:'serif',rules:'double'}),
+ T('executive','Executive','executive',{header:'centered',caps:true,font:'serif',rules:'bar'}),
  T('minimal','Minimal','graduate',{rules:'none'}),
  T('minimal-ink','Minimal Ink','graduate',{rules:'none'},'#111111'),
  T('creative','Creative','creative',{layout:'sidebar',header:'left',rules:'left-bar'}),
