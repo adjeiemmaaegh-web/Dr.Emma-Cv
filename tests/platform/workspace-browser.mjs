@@ -79,6 +79,36 @@ try{
  });
  assert.equal(final.ids.length,2,'import makes a separate record');
  assert(!final.keys.some(k=>k==='ledger_workspace_preview_v1'),'persistent editor never writes the old preview data key');
+ // A different historic preview key is never imported without explicit review,
+ // prior exact download and two separate current backups.
+ await p.getByRole('link',{name:'Home'}).click();
+ await p.evaluate(async()=>{
+  const {SYNTH_DOC}=await import('/tests/documents/fixtures.mjs');
+  const doc=SYNTH_DOC();doc.personalInfo.firstName='PreviewOnly';
+  localStorage.setItem('ledger_workspace_preview_v1',JSON.stringify({
+   document:doc,appearance:{},applications:{schema:'ledger-applications-v1',revision:0,applications:[]},theme:'light'
+  }));
+ });
+ const oldPreview=await p.evaluate(()=>localStorage.getItem('ledger_workspace_preview_v1'));
+ const [previewDownload]=await Promise.all([p.waitForEvent('download'),p.getByRole('button',{name:'Download old preview workspace backup'}).click()]);
+ assert.equal(fs.readFileSync(await previewDownload.path(),'utf8'),oldPreview);
+ await p.getByRole('button',{name:'Review old preview CV'}).click();
+ await p.getByText(/Reviewed "My career profile"/).waitFor();
+ for(const name of ['Download saved CV backup','Download application backup']){
+  const [d]=await Promise.all([p.waitForEvent('download'),p.getByRole('button',{name}).click()]);
+  assert(d.suggestedFilename().endsWith('.json'));
+ }
+ await p.getByRole('button',{name:'Approve reviewed import'}).click();
+ await p.getByLabel('First name').waitFor();
+ await p.waitForFunction(()=>document.querySelector('[data-path="personalInfo.firstName"]')?.value==='PreviewOnly');
+ assert.equal(await p.evaluate(()=>localStorage.getItem('ledger_workspace_preview_v1')),oldPreview);
+ const importedCount=await p.evaluate(async()=>{
+  const db=await new Promise((resolve,reject)=>{const r=indexedDB.open('ledger_cv_workspace_v1');r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error)});
+  const ids=await new Promise((resolve,reject)=>{const t=db.transaction('career_profiles'),r=t.objectStore('career_profiles').getAllKeys();r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error)});
+  db.close();return ids.length;
+ });
+ assert.equal(importedCount,3,'preview import creates a third isolated profile');
+ assert.equal(await p.evaluate(()=>localStorage.getItem('ledger_cv_state_v2')),original);
  assert.deepEqual(errors,[],'no browser page exceptions');
  console.log('PASS Group A workspace true-origin: master consent, IndexedDB reload, two-tab conflict, draft export, review-first migration, legacy untouched');
  await ctx.close();
