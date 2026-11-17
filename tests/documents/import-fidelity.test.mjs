@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {zipStore,utf8,unzipEntries} from '../../src/features/documents/zip.mjs';
 import {docxToImportText} from '../../src/features/import/html-import.mjs';
 import {parseResumeText,createImportReview,approveImportReview} from '../../src/features/import/text-import.mjs';
-import {pdfToImportText,createPdfImportReview} from '../../src/features/import/pdf-import.mjs';
+import {pdfToImportText,createPdfImportReview,reviewPdfManualTranscription} from '../../src/features/import/pdf-import.mjs';
 import {createLocalFileImportReview,loadBundledPdfEngine} from '../../src/features/import/local-file.mjs';
 const ID=()=> 'testId123456789';
 const xml=t=>'<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>'+t+'</w:body></w:document>';
@@ -114,4 +114,22 @@ test('bundled PDF engine loader uses only explicitly supplied local entry and wo
   getDocument,GlobalWorkerOptions:{set workerSrc(v){got.push(v);}}};}});
  assert.equal(get,getDocument);
  assert.deepEqual(got,['/pdf-engine/pdf.mjs','/pdf-engine/pdf.worker.mjs']);
+});
+
+test('scanned PDF cannot produce partial CV; manual reconstruction requires complete explicit page consent',async()=>{
+ const pending=await createPdfImportReview(pdfBytes,{getDocument:fakePdf,idFactory:ID,
+  now:'2026-11-17T10:00:00Z',sourceName:'scan.pdf'});
+ assert.equal(pending.status,'blocked');
+ assert.throws(()=>reviewPdfManualTranscription(pending,{transcriptions:{2:'Skills\nScheduling'}}),e=>e.code==='UNCONFIRMED');
+ assert.throws(()=>reviewPdfManualTranscription(pending,{confirmed:true,transcriptions:{}}),e=>e.code==='INVALID');
+ const recovered=reviewPdfManualTranscription(pending,{
+  confirmed:true,transcriptions:{2:'Skills\nScheduling'},idFactory:ID,
+  now:'2026-11-17T10:00:00Z'
+ });
+ assert.equal(recovered.status,'review-required');
+ assert.equal(recovered.pages[1].method,'user-transcribed');
+ assert(recovered.sourceText.includes('Scheduling'));
+ assert(recovered.warnings.some(x=>/NOT OCR-verified/.test(x)));
+ assert.equal(recovered.requiresUserConfirmation,true);
+ assert.equal(pending.status,'blocked','the original incomplete review must remain blocked');
 });
