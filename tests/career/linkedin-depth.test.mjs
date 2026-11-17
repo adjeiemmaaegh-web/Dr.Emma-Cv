@@ -84,7 +84,7 @@ test('LinkedIn conversion is a review, never a master CV overwrite',()=>{
 });
 
 test('missing LinkedIn export categories never imply an empty skills, education or positions profile',()=>{
- const li=fromOfficialExport({profileCsv:'Headline,Summary\\nRetail Manager,About\\n'});
+ const li=fromOfficialExport({profileCsv:'Headline,Summary\nRetail Manager,About\n'});
  const cv=doc();
  const result=coachLinkedIn(li,cv);
  assert(!result.findings.some(x=>/^(cv-only|skill-cv-only|education-cv-only|certification-cv-only)$/.test(x.kind)));
