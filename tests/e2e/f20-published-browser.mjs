@@ -27,7 +27,7 @@ const server=http.createServer((req,res)=>{
   'Cache-Control':'no-cache'}).end(fs.readFileSync(absolute));
 }).listen(0);
 const origin='http://localhost:'+server.address().port;
-const browser=await type.launch(),issues=[],checks=[],metrics={},t0=performance.now();
+const browser=await type.launch(),issues=[],checks=[],blockedChecks=[],metrics={},t0=performance.now();
 const PASS=name=>{checks.push(name);console.log('PASS F20 '+engine+' '+name)};
 let failed=false;
 try{
@@ -121,26 +121,33 @@ try{
  assert(cache.some(x=>x.startsWith('ledger-workspace-')),'Service worker did not version static shell');
  await page.reload();
  await page.waitForFunction(()=>!!navigator.serviceWorker.controller);
- // WebKit's Playwright transport currently reports an internal browser error on
- // context.setOffline(true) + page.reload(), even after an active controller is
- // independently established. Exercise a hard network fault through the route
- // layer there; do not mislabel it as physical Safari airplane-mode QA.
- let blockedRequests=0;
+ // WebKit's Playwright inspector raises an internal error or explicitly blocks
+ // an offline document navigation despite a registered controlling worker.
+ // Preserve and report this gap rather than passing or hiding the release gate.
  if(engine==='webkit'){
-  await context.route('**/*',route=>{blockedRequests++;return route.abort('internetdisconnected');});
- }else await context.setOffline(true);
- try{
-  await page.reload({waitUntil:'domcontentloaded'});
-  await page.getByRole('link',{name:'Career tools'}).waitFor();
-  await page.getByRole('link',{name:'Career tools'}).click();
-  await page.waitForFunction(()=>document.querySelector('.lw-career')?.textContent.includes('Example Stores'));
-  PASS(engine==='webkit'?'cached PWA hard reload with network fault injection (NOT physical offline Safari acceptance)':
-   'offline PWA navigation and retained job draft');
- }finally{
-  if(engine==='webkit')await context.unroute('**/*');
-  else await context.setOffline(false);
+  await context.setOffline(true);
+  try{
+   const fetched=await page.evaluate(async()=>{
+    try{const r=await fetch('/src/features/experience/workspace/workspace.mjs');
+     return {ok:r.ok,status:r.status};}catch(e){return {ok:false,error:String(e)}}
+   });
+   metrics.webkitOfflineCachedFetch=fetched;
+   if(fetched.ok)PASS('WebKit cached public module fetch while network is offline (reload NOT assessed)');
+   else console.warn('F20 WebKit offline cached fetch inconclusive: '+JSON.stringify(fetched));
+  }finally{await context.setOffline(false);}
+  blockedChecks.push({id:'F20-012',gate:'WebKit offline PWA document reload',
+   reason:'Playwright WebKit inspector rejects both context.setOffline(true) hard reload and route-injected hard navigation. Reproduce on physical Safari without Inspector.'});
+  console.warn('BLOCKED F20 WebKit: offline hard reload remains UNVERIFIED. Online and content checks continue.');
+ }else{
+  await context.setOffline(true);
+  try{
+   await page.reload({waitUntil:'domcontentloaded'});
+   await page.getByRole('link',{name:'Career tools'}).waitFor();
+   await page.getByRole('link',{name:'Career tools'}).click();
+   await page.waitForFunction(()=>document.querySelector('.lw-career')?.textContent.includes('Example Stores'));
+   PASS('offline PWA navigation and retained job draft');
+  }finally{await context.setOffline(false)}
  }
- metrics.networkAbortCount=blockedRequests;
  for(const size of [{width:320,height:720},{width:820,height:1100},{width:1440,height:900}]){
   await page.setViewportSize(size);
   await page.getByRole('link',{name:'Home',exact:true}).click();
@@ -159,7 +166,7 @@ try{
 }catch(error){failed=true;issues.push(String(error?.stack||error));console.error(error)}
 finally{await browser.close();server.close()}
 const report={kind:'ledger-stage-f20-emitted-site-browser',engine,platform:process.platform,
- status:failed?'FAIL':'PASS',checks,issueCount:issues.length,issues,
+ status:failed?'FAIL':blockedChecks.length?'INCOMPLETE':'PASS',checks,issueCount:issues.length,issues,blockedChecks,
  metrics:{...metrics,totalWallMs:Math.round(performance.now()-t0)},
  notes:['Synthetic fixtures only','Not manual screen-reader testing','Not physical mobile device','Not Enhancv account comparison']};
 if(process.env.F20_REPORT){
@@ -167,4 +174,4 @@ if(process.env.F20_REPORT){
  fs.writeFileSync(process.env.F20_REPORT,JSON.stringify(report,null,2)+'\n');
 }
 console.log(JSON.stringify({engine,status:report.status,checks:checks.length,metrics:report.metrics},null,2));
-if(failed)process.exitCode=1;
+if(failed||blockedChecks.length)process.exitCode=1; // incomplete release gates fail closed
