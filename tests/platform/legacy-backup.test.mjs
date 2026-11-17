@@ -45,3 +45,19 @@ test('denied read and unsupported key types never return partial backup',async()
  await assert.rejects(createLegacyRawBackup(key=>key===LEGACY_KEYS.cv?{invalid:true}:null),
   e=>e.code==='INVALID');
 });
+
+test('detects a mid-snapshot legacy change and exports nothing',async()=>{
+ let primaryReads=0;
+ await assert.rejects(createLegacyRawBackup(key=>{
+  if(key===LEGACY_KEYS.cv)return ++primaryReads===1?'synthetic-before':'synthetic-after';
+  return null;
+ }),e=>e.code==='CONFLICT');
+ assert.equal(primaryReads,2);
+});
+test('second-pass storage denial blocks inconsistent legacy exports',async()=>{
+ let reads=0;
+ await assert.rejects(createLegacyRawBackup(key=>{
+  if(key===LEGACY_KEYS.cv&&++reads===2)throw Error('synthetic permission revoked');
+  return null;
+ }),e=>e.code==='UNAVAILABLE');
+});

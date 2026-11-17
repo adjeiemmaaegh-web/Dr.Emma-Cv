@@ -44,6 +44,15 @@ export async function createLegacyRawBackup(read,{now=new Date().toISOString()}=
   catch{throw contractError('UNAVAILABLE','Legacy storage access denied; no partial backup created')}
  }
  validateEntries(entries);
+ // A second read catches some cross-tab changes during the snapshot window.
+ // This is best-effort detection only; localStorage offers no atomic multi-key read.
+ for(const key of KEYS){
+  let latest;
+  try{latest=read(key)}
+  catch{throw contractError('UNAVAILABLE','Legacy storage became unavailable while backing up')}
+  if(latest!==entries[key])
+   throw contractError('CONFLICT','Legacy data changed during backup; no mixed snapshot was exported');
+ }
  const payload=JSON.stringify({schemaVersion:1,entries});
  if(bytes(payload)>MAX_TOTAL+4096)throw contractError('INVALID','Snapshot payload exceeds limit');
  return JSON.stringify({format:FORMAT,schemaVersion:1,createdAt:now,
