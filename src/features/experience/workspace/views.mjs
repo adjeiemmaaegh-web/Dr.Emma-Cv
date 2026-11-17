@@ -10,6 +10,7 @@ import {onboardingFeature} from '../../onboarding/onboarding-module.mjs';
 import {assessStorageHealth,collectStorageSignals} from '../../pwa-ui/status.mjs';
 import {SAMPLE_DOC} from './store.mjs';
 import {createWorkspaceDataPanel} from './data-panel.mjs';
+import {designControls,sectionsControls,saveDesignControls,savedDesignGallery,quickEditOnPage,fieldAtPath} from './design-studio.mjs';
 const variantOf=ed=>{const s=ed.snapshot();return {id:'workspacePreview1',revision:0,name:'CV',document:s.document,appearance:s.appearance};};
 export const ACCENTS=['#0b6b72','#c85a34','#3b5ba9','#8a5a3b','#4a4a4a','#7a3e9d'];
 const fileName=(doc,ext)=>([doc.personalInfo.firstName,doc.personalInfo.lastName,'CV'].filter(Boolean).join('_')||'CV')+'.'+ext;
@@ -96,7 +97,7 @@ export function editorView(ctx){
  const wrap=el('div',{class:'lw-editor','data-tab':'edit'},el('div',{class:'lw-form-col'},form),el('div',{class:'lw-preview-col'},prevWrap));root.append(wrap);
  const field=(label,value,key,path,onInput,{area,auto}={})=>{const id='f-'+key.replace(/\W+/g,'-'),c=area?el('textarea',{id,rows:'4'}):el('input',{id,type:'text'});
   c.value=value||'';c.dataset.key=key;c.dataset.path=path;if(auto)c.setAttribute('autocomplete',auto);c.addEventListener('input',()=>onInput(c.value));return el('div',{class:'lw-field'},el('label',{for:id},label),c);};
- const open=new Set(['personal']);
+ const open=new Set(['personal','look']);
  const sec=(id,title,...kids)=>{const d=el('details',{class:'lw-sec','data-sec':id},el('summary',{},title),el('div',{class:'lw-sec-body'},...kids));if(open.has(id))d.open=true;d.addEventListener('toggle',()=>{d.open?open.add(id):open.delete(id);});return d;};
  const plain=h=>(h||'').replace(/<li[^>]*>/gi,'\n').replace(/<[^>]*>/g,'').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').trim();
  const toHtml=t=>{const ls=t.split(/\n/).map(x=>x.replace(/^[\s•*-]+/,'').trim()).filter(Boolean);return ls.length?'<ul>'+ls.map(l=>'<li>'+l.replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]))+'</li>').join('')+'</ul>':'';};
@@ -131,15 +132,27 @@ export function editorView(ctx){
   const ap=sec('look','Look and layout',el('p',{style:'margin-bottom:var(--s-3)'},'Template: ',el('strong',{},tpl.name),' ',el('a',{class:'lw-btn sm',href:'#/templates'},'Change')),
    el('div',{class:'lw-field'},el('span',{class:'lw-help'},'Accent colour'),sw),
    ...[['Text size','fontSize',OPTIONS.fontSize],['Spacing','spacing',OPTIONS.spacing],['Margins','margins',OPTIONS.margins]].map(([l,k,o])=>el('div',{class:'lw-field'},el('span',{class:'lw-help'},l),seg(l,k,o,x=>x[0].toUpperCase()+x.slice(1)))));
+  ap.querySelector('.lw-sec-body').append(designControls(ed,ctx),saveDesignControls(ed,ctx));
   form.append(ap);
+  form.append(sec('section-layout','Sections and order',sectionsControls(ed,ctx)));
+  const custom=snap.document.customSections||[];
+  const customKids=custom.map((it,i)=>el('div',{class:'lw-item',role:'group','aria-label':'Custom section '+(i+1)},
+    field('Section title',it.title||'',it.id+'title','customSections['+it.id+'].title',v=>ed.updateItem('customSections',it.id,{title:v})),
+    field('Section content',plain(it.content||''),it.id+'content','customSections['+it.id+'].content',v=>ed.updateItem('customSections',it.id,{content:toHtml(v)}),{area:true}),
+    el('div',{class:'lw-row'},
+     el('button',{type:'button',class:'lw-btn sm','aria-label':'Move custom section up',disabled:i===0||undefined,on:{click:()=>ed.moveItem('customSections',it.id,-1)}},'Move up'),
+     el('button',{type:'button',class:'lw-btn sm','aria-label':'Move custom section down',disabled:i===custom.length-1||undefined,on:{click:()=>ed.moveItem('customSections',it.id,1)}},'Move down'),
+     el('button',{type:'button',class:'lw-btn sm danger',on:{click:()=>ed.removeItem('customSections',it.id)}},'Remove'))));
+  if(custom.length)form.append(sec('custom','Custom sections ('+custom.length+')',...customKids));
   if(act){const n=form.querySelector('[data-key="'+act+'"]');if(n)n.focus();}
  }
- const shape=s=>JSON.stringify([s.document.experience.map(i=>i.id+(i.title||i.employer||'')),s.document.education.map(i=>i.id+(i.degree||i.school||'')),s.document.skills.map(x=>x.name),s.appearance.color,s.appearance.template,s.appearance.fontSize,s.appearance.spacing,s.appearance.margins]);
+ const shape=s=>JSON.stringify([s.document.experience.map(i=>i.id+(i.title||i.employer||'')),s.document.education.map(i=>i.id+(i.degree||i.school||'')),s.document.skills.map(x=>x.name),s.document.customSections.map(x=>x.id),s.appearance.template,s.appearance.sectionOrder,s.appearance.enabledSections]);
  let last='',layout=null;
+ const quick=quickEditOnPage(prevWrap,ed,ctx);
  function redraw(){
   const snap=ed.snapshot();layout=layoutFor(snap.document,snap.appearance);
   const w=prevWrap.clientWidth-32,fit=Math.max(0.3,Math.min(1.4,w/layout.paper.width)),scale=zoomMode.fit?fit:1;
-  drawPages(pages,layout,scale||0.6);
+  drawPages(pages,layout,scale||0.6,{onEdit:(path,anchor)=>quick.open(path,anchor)});
  }
  const redrawSoon=debounceFrame(redraw);
  function sync(snap){
@@ -150,6 +163,20 @@ export function editorView(ctx){
   status.textContent=st.state==='error'?'✖ Not saved: '+(st.detail||(
     st.error==='QUOTA'?'browser storage is full':st.error==='CONFLICT'?'another tab changed this CV':st.error==='UNCONFIRMED'?'confirm master editing first':'storage unavailable'))+'. Download an unsaved draft.':st.state==='saving'?'Saving…':'✓ Saved on this device';
   if(shape(snap)!==last){last=shape(snap);build(snap);}
+  const effective=layoutFor(snap.document,snap.appearance).style;
+  for(const input of form.querySelectorAll('[data-appearance]')){
+   if(document.activeElement===input)continue;
+   const key=input.dataset.appearance;
+   const val=snap.appearance[key]??({bodySize:effective.size,leading:effective.lineHeight,sectionGap:effective.sectionGap,marginSize:effective.margin,headerScale:effective.headerScale}[key]);
+   if(val!==undefined&&val!==null)input.value=String(val);
+   const output=form.querySelector('[data-output="'+key+'"]');
+   if(output&&typeof val==='number')output.textContent=val.toFixed(key==='leading'||key==='headerScale'?2:1)+(key==='leading'||key==='headerScale'?'×':' pt');
+  }
+  for(const input of form.querySelectorAll('input[data-path],textarea[data-path]')){
+   if(document.activeElement===input)continue;
+   const info=fieldAtPath(ed,input.dataset.path);
+   if(info&&input.value!==info.value)input.value=info.value;
+  }
   redrawSoon();
  }
  let off=ed.subscribe(sync);const offStore=store.subscribe(()=>sync(ed.snapshot()));
@@ -158,7 +185,7 @@ export function editorView(ctx){
   if((e.ctrlKey||e.metaKey)&&(e.key==='y'||(e.shiftKey&&e.key==='Z'))&&!/INPUT|TEXTAREA/.test(document.activeElement?.tagName)){e.preventDefault();ed.redo();}};
  document.addEventListener('keydown',onKey);
  sync(ed.snapshot());
- return {node:root,destroy:()=>{off();offStore();ro?.disconnect();document.removeEventListener('keydown',onKey);},focusPath(path){
+ return {node:root,destroy:()=>{quick.destroy();off();offStore();ro?.disconnect();document.removeEventListener('keydown',onKey);},focusPath(path){
   const t=form.querySelector('[data-path="'+path+'"]')||form.querySelector('[data-path^="'+path.replace(/\.[^.]+$/,'')+'"]');
   if(t){t.closest('details')&&(t.closest('details').open=true);wrap.dataset.tab='edit';t.focus();t.scrollIntoView({block:'center'});return true;}return false;}};
 }
@@ -167,12 +194,12 @@ export function templatesView(ctx){
  const {store}=ctx,root=el('div'),grid=el('div',{class:'lw-gallery'});let family='All';
  const filter=el('div',{class:'lw-seg',role:'group','aria-label':'Filter by style',style:'flex-wrap:wrap'},['All',...FAMILIES].map(f=>el('button',{type:'button','aria-pressed':String(f==='All'),on:{click:()=>{family=f;for(const b of filter.children)b.setAttribute('aria-pressed',String(b.textContent===f));draw();}}},f==='All'?f:f[0].toUpperCase()+f.slice(1))));
  root.append(el('header',{class:'lw-page-head'},el('div',{},el('h1',{id:'page-title',tabindex:'-1'},'Choose a template'),el('p',{},'Previews show your own CV. Switching never changes your words.')),filter));
- root.append(grid);
+ root.append(savedDesignGallery(ctx),grid);
  function draw(){
   const s=store.editor.snapshot(),doc=store.hasContent()?s.document:SAMPLE_DOC();grid.replaceChildren();
   for(const t of TEMPLATES.filter(x=>family==='All'||x.family===family)){
    const lay=layoutFor(doc,{...s.appearance,template:t.id,color:t.color||s.appearance.color});
-   grid.append(el('button',{type:'button',class:'lw-tpl','aria-pressed':String(s.appearance.template===t.id),on:{click:()=>{store.editor.setAppearance(applyTemplate(store.editor.snapshot().appearance,t.id));ctx.toast(t.name+' selected. Your content is unchanged.');draw();}}},thumbnail(lay),el('strong',{},t.name),el('small',{},t.family[0].toUpperCase()+t.family.slice(1)+(t.tokens.layout==='sidebar'?' · exports single column':''))));
+   grid.append(el('button',{type:'button',class:'lw-tpl','aria-pressed':String(s.appearance.template===t.id),on:{click:()=>{store.editor.setAppearance(applyTemplate(store.editor.snapshot().appearance,t.id,{keepColor:false}));ctx.toast(t.name+' selected. Your content is unchanged.');draw();}}},thumbnail(lay),el('strong',{},t.name),el('small',{},t.family[0].toUpperCase()+t.family.slice(1)+(t.tokens.layout==='sidebar'?' · exports single column':''))));
   }
  }
  draw();return {node:root};
