@@ -4,7 +4,6 @@
  */
 import {PAPER_SIZES,resolveStyle} from '../templates/registry.mjs';
 export const DEFAULT_SECTION_ORDER=Object.freeze(['summary','experience','education','skills','certifications','languages','projects','accomplishments','hobbies','references']);
-const OPTIONAL=new Set(['certifications','languages','projects','accomplishments','hobbies','references']);
 const TITLES={summary:'Summary',experience:'Experience',education:'Education',skills:'Skills',certifications:'Certifications',
  languages:'Languages',projects:'Projects',accomplishments:'Accomplishments',hobbies:'Interests',references:'References'};
 const ENT={amp:'&',lt:'<',gt:'>',quot:'"',apos:"'",nbsp:' ','#39':"'"};
@@ -39,7 +38,7 @@ function sectionBlocks(key,doc){
  if(!Array.isArray(list)||!list.length)return [];
  if(key==='skills'){
   const names=list.map(s=>str(s.name)).filter(Boolean);
-  if(!names.length)return [];head();push({kind:'line',text:names.join(', ')});return out;
+  if(!names.length)return [];head();push({kind:'line',text:names.join(', '),sourcePath:'skills'});return out;
  }
  head();
  for(const e of list){
@@ -75,18 +74,22 @@ export function buildBlocks(doc,appearance={}){
  for(const k of ['email','phone']) if(str(p[k])){contact.push(str(p[k]));if(k==='email'){const u=toUrl(p.email);if(u)links.push({text:str(p.email),url:u});}}
  const place=[p.city,p.postcode].map(str).filter(Boolean).join(' ');if(place)contact.push(place);
  for(const k of ['linkedin','website']) if(str(p[k])){contact.push(str(p[k]));const u=toUrl(p[k]);if(u)links.push({text:str(p[k]),url:u});}
- if(contact.length)blocks.push({kind:'contact',text:contact.join(' | '),links,keepWithNext:false});
- const order=(style.sectionOrder&&style.sectionOrder.length?style.sectionOrder:DEFAULT_SECTION_ORDER).filter(k=>TITLES[k]);
- const seen=new Set(order);for(const k of DEFAULT_SECTION_ORDER)if(!seen.has(k))order.push(k);
+ if(contact.length)blocks.push({kind:'contact',text:contact.join(' | '),links,keepWithNext:false,sourcePath:'personalInfo.contact'});
+ // Custom sections are first-class section-order and visibility participants.
+ // Unknown/stale IDs in a saved appearance never delete document content.
+ const custom=new Map((Array.isArray(doc.customSections)?doc.customSections:[])
+  .filter(c=>typeof c.id==='string'&&c.id).map(c=>['custom:'+c.id,c]));
+ const allowed=new Set([...DEFAULT_SECTION_ORDER,...custom.keys()]);
+ const order=(style.sectionOrder||[]).filter(k=>allowed.has(k));
+ for(const k of allowed)if(!order.includes(k))order.push(k);
  for(const key of order){
-  if(style.enabledSections&&style.enabledSections[key]===false)continue;
-  blocks.push(...sectionBlocks(key,doc));
- }
- for(const c of Array.isArray(doc.customSections)?doc.customSections:[]){
-  const t=str(c.title||c.name);if(!t)continue;
-  blocks.push({kind:'section-title',text:t,keepWithNext:true,links:[],sourcePath:'customSections['+c.id+'].title'});
-  const ls=htmlToLines(c.content||c.description);
-  if(!ls.length)blocks.pop();else ls.forEach(l=>blocks.push({kind:l.bullet?'bullet':'line',text:l.text,links:[],sourcePath:'customSections['+c.id+'].content'}));
+  if(style.enabledSections?.[key]===false)continue;
+  const c=custom.get(key);
+  if(!c){blocks.push(...sectionBlocks(key,doc));continue}
+  const title=str(c.title||c.name),ls=htmlToLines(c.content||c.description);
+  if(!title||!ls.length)continue;
+  blocks.push({kind:'section-title',text:title,keepWithNext:true,links:[],sourcePath:'customSections['+c.id+'].title'});
+  for(const l of ls)blocks.push({kind:l.bullet?'bullet':'line',text:l.text,links:[],sourcePath:'customSections['+c.id+'].content'});
  }
  if(style.columns==='sidebar')warnings.push('Sidebar template is exported as a single column to keep reading order ATS-safe.');
  return {blocks,style,warnings};
@@ -126,9 +129,9 @@ export function wrapText(text,maxWidth,size,font,bold){
 const BLOCK_STYLE=(k,s)=>({
  name:{size:s.size*s.headerScale,bold:true,before:0,after:2},title:{size:s.size*1.2,bold:false,before:0,after:3},
  contact:{size:s.size*0.95,bold:false,before:0,after:8},
- 'section-title':{size:s.size*1.15,bold:true,before:s.sectionGap,after:3},
- 'entry-head':{size:s.size,bold:true,before:5,after:1},line:{size:s.size,bold:false,before:0,after:1},
- bullet:{size:s.size,bold:false,before:0,after:1,indent:12}
+ 'section-title':{size:s.size*s.headingScale,bold:true,before:s.sectionGap,after:3},
+ 'entry-head':{size:s.size,bold:true,before:s.entryGap,after:1},line:{size:s.size,bold:false,before:0,after:s.paragraphGap},
+ bullet:{size:s.size,bold:false,before:0,after:s.paragraphGap,indent:12}
 }[k]);
 /** Paginate to pages of positioned lines. Keep-with-next groups are never split when they fit a page. */
 export function paginate(blocks,style){
@@ -140,7 +143,7 @@ export function paginate(blocks,style){
   const indent=st.indent||0;
   const text=style.caps&&(b.kind==='section-title'||b.kind==='name')?b.text.toUpperCase():b.text;
   const rightW=b.right?textWidth(b.right,st.size,style.font,false)+12:0;
-  const lines=wrapText(text,width-indent-rightW,st.size,style.font,st.bold);
+  const lines=wrapText(text,Math.max(36,width-indent-rightW),st.size,style.font,st.bold);
   const centered=style.header==='centered'&&(b.kind==='name'||b.kind==='title'||b.kind==='contact');
   const lh=st.size*style.lineHeight;
   const entry={block:b,st,indent,centered,lh,lines:lines.map((t,i)=>({text:t,first:i===0}))};
@@ -192,10 +195,10 @@ export function decorationGeometry(line,style){
  if(line.kind!=='section-title')return [];
  switch(style.rules){
   case 'none':return [];
-  case 'double':return [{kind:'line',x,y:y+3,width:w,height:0.65,color:style.color},{kind:'line',x,y:y+5.5,width:w,height:0.65,color:style.color}];
-  case 'bar':return [{kind:'rect',x,y:y+3,width:w,height:2.3,color:style.color}];
-  case 'left-bar':return [{kind:'rect',x:x-7,y:y-line.size*0.82,width:3,height:line.size*1.15,color:style.color}];
-  case 'timeline':return [{kind:'rect',x:x-8,y:y-line.size*0.82,width:2,height:line.size*1.25,color:style.color}];
-  default:return [{kind:'line',x,y:y+3,width:w,height:0.6,color:style.color}];
+  case 'double':return [{kind:'line',x,y:y+3,width:w,height:style.ruleWeight,color:style.color},{kind:'line',x,y:y+5.5,width:w,height:style.ruleWeight,color:style.color}];
+  case 'bar':return [{kind:'rect',x,y:y+3,width:w,height:style.ruleWeight*3.8,color:style.color}];
+  case 'left-bar':return [{kind:'rect',x:x-7,y:y-line.size*0.82,width:style.ruleWeight*5,height:line.size*1.15,color:style.color}];
+  case 'timeline':return [{kind:'rect',x:x-8,y:y-line.size*0.82,width:style.ruleWeight*3.3,height:line.size*1.25,color:style.color}];
+  default:return [{kind:'line',x,y:y+3,width:w,height:style.ruleWeight,color:style.color}];
  }
 }
