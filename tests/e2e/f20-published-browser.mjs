@@ -121,14 +121,26 @@ try{
  assert(cache.some(x=>x.startsWith('ledger-workspace-')),'Service worker did not version static shell');
  await page.reload();
  await page.waitForFunction(()=>!!navigator.serviceWorker.controller);
- await context.setOffline(true);
- // Offline hard reload of the already-open app origin; a hash change is not a network test.
- await page.reload({waitUntil:'domcontentloaded'});
- await page.getByRole('link',{name:'Career tools'}).waitFor();
- await page.getByRole('link',{name:'Career tools'}).click();
- await page.waitForFunction(()=>document.querySelector('.lw-career')?.textContent.includes('Example Stores'));
- PASS('offline PWA navigation and retained job draft');
- await context.setOffline(false);
+ // WebKit's Playwright transport currently reports an internal browser error on
+ // context.setOffline(true) + page.reload(), even after an active controller is
+ // independently established. Exercise a hard network fault through the route
+ // layer there; do not mislabel it as physical Safari airplane-mode QA.
+ let blockedRequests=0;
+ if(engine==='webkit'){
+  await context.route('**/*',route=>{blockedRequests++;return route.abort('internetdisconnected');});
+ }else await context.setOffline(true);
+ try{
+  await page.reload({waitUntil:'domcontentloaded'});
+  await page.getByRole('link',{name:'Career tools'}).waitFor();
+  await page.getByRole('link',{name:'Career tools'}).click();
+  await page.waitForFunction(()=>document.querySelector('.lw-career')?.textContent.includes('Example Stores'));
+  PASS(engine==='webkit'?'cached PWA hard reload with network fault injection (NOT physical offline Safari acceptance)':
+   'offline PWA navigation and retained job draft');
+ }finally{
+  if(engine==='webkit')await context.unroute('**/*');
+  else await context.setOffline(false);
+ }
+ metrics.networkAbortCount=blockedRequests;
  for(const size of [{width:320,height:720},{width:820,height:1100},{width:1440,height:900}]){
   await page.setViewportSize(size);
   await page.getByRole('link',{name:'Home',exact:true}).click();
