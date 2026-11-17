@@ -17,7 +17,7 @@ export function drawPages(container,layout,scale,{onEdit}={}){
  const {pages,paper,style}=layout;
  pages.forEach((page,i)=>{
   const slot=el('div',{class:'lw-pageslot',style:`width:${paper.width*scale}px;height:${paper.height*scale}px`});
-  const pg=el('div',{class:'lw-page',role:'group','aria-label':'Page '+(i+1)+' of '+pages.length,style:`width:${paper.width}px;height:${paper.height}px;transform:scale(${scale});font-family:${FONT[style.font]||FONT.sans}`});
+  const pg=el('div',{class:'lw-page',role:'group','aria-label':'Page '+(i+1)+' of '+pages.length,style:`width:${paper.width}px;height:${paper.height}px;transform:scale(${scale});font-family:${FONT[style.font]||FONT.sans};--lw-edit-target:${Math.ceil(26/Math.max(scale,0.05))}px`});
   for(const l of page){
    for(const d of decorationGeometry(l,style)){
     const base=`left:${d.x}px;top:${d.y}px;width:${d.width}px;`;
