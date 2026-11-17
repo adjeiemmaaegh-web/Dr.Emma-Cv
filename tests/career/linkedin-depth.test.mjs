@@ -2,6 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {zipStore,utf8} from '../../src/features/documents/zip.mjs';
 import {fromOfficialExport,fromOfficialZip,compareLinkedInDetails,linkedinActionPlan,coachLinkedIn} from '../../src/features/linkedin-coach/linkedin.mjs';
+import {linkedinToCvReview} from '../../src/features/linkedin-coach/to-cv.mjs';
+import {approveImportReview} from '../../src/features/import/text-import.mjs';
 const doc=()=>({
  personalInfo:{title:'Retail Manager'},
  summary:'Retail operations manager who coached sales teams.',
@@ -63,4 +65,20 @@ test('coaching creates source-cited changes only and leaves source CV untouched'
  assert(result.suggestions.every(s=>s.status==='proposed'&&s.citations.length&&s.unsupportedFact===false));
  assert(result.findings.some(f=>f.kind==='education-degree-differs'));
  assert(/Nothing was fetched/.test(result.notice));
+});
+
+test('LinkedIn conversion is a review, never a master CV overwrite',()=>{
+ const li=fromOfficialExport(rows),cv=doc(),before=JSON.stringify(cv);
+ const next=(()=>{let n=0;return()=> 'reviewIdABC'+(++n);})();
+ const review=linkedinToCvReview(li,{idFactory:next,now:'2026-11-17T10:00:00Z'});
+ assert.equal(review.format,'linkedin');
+ assert.equal(review.requiresUserConfirmation,true);
+ assert(review.items.some(i=>i.path==='experience[0]'&&i.sourceRef.includes('Positions.csv')));
+ assert.throws(()=>approveImportReview(review,{accepted:review.items.map(i=>i.path)}),e=>e.code==='UNCONFIRMED');
+ const imported=approveImportReview(review,{accepted:review.items.map(i=>i.path),confirmed:true,
+  idFactory:next,now:'2026-11-17T10:00:00Z'});
+ assert.equal(imported.master.document.experience.length,2);
+ assert.equal(imported.master.document.personalInfo.firstName,'Ada');
+ assert(imported.evidence.some(e=>e.sourceRef.includes('Positions.csv')));
+ assert.equal(JSON.stringify(cv),before);
 });
