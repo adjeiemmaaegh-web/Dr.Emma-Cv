@@ -182,3 +182,16 @@ test('PDF page with only selectable page numbers is not misclassified as a compl
  assert.equal(review.pages[0].method,'sparse-text');
  assert(review.warnings.some(x=>/sparse text/.test(x)));
 });
+
+test('other professional CV sections survive as editable custom sections, not discarded',()=>{
+ const raw='Ada Example\nada@example.test\nSummary\nCareer overview\n'+
+  'Publications\nArticle about systems engineering\n'+
+  'Volunteering\nMentored young engineers\nSkills\nTesting';
+ const review=createImportReview(parseResumeText(raw),{idFactory:ID});
+ assert.equal(review.status,'review-required');
+ assert.deepEqual(review.proposed.master.document.customSections.map(s=>s.title),['Publications','Volunteering']);
+ assert(review.proposed.master.document.customSections[0].content.includes('Article about systems'));
+ assert(review.items.some(i=>i.path==='customSections'));
+ const approved=approveImportReview(review,{accepted:['customSections'],confirmed:true,idFactory:ID});
+ assert.equal(approved.master.document.customSections.length,2);
+});
