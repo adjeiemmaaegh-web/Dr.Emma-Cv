@@ -105,6 +105,7 @@ function meaningfulExample(unit){
 /** Skill results stay per requirement; duplicate requested skills can have different priorities. */
 export function analyzeJobSkills(job,document){
  const requirements=Array.isArray(job?.requirements)?job.requirements:[];
+ if(requirements.length>180)throw Object.assign(new Error('Too many requirements for local skill analysis (limit 180).'),{code:'INVALID'});
  const units=documentUnits(document||{}),requested=[];
  for(const [i,req] of requirements.entries()){
   if(typeof req?.text!=='string')continue;
