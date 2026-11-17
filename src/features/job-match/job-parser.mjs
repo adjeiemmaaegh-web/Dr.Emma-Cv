@@ -8,7 +8,7 @@ const OTHER_HEAD=/^(benefits|what we offer|about us|the company|how to apply|sal
 const BULLET=/^\s*(?:[•●▪◦*\-–]|\d+[.)])\s+/;
 const INLINE_LABEL=/^(requirements?|required|essential|must[- ]haves?|minimum qualifications?|preferred|desirable|nice[- ]to[- ]have|optional|qualifications?)\s*:\s*(.+)$/i;
 const SENIORITY=[['executive',/\b(chief|director|vp|vice president|head of)\b/i],['senior',/\b(senior|lead|principal|staff)\b/i],['mid',/\b(mid[- ]level|intermediate)\b/i],['junior',/\b(junior|graduate|entry[- ]level|trainee|apprentice|intern)\b/i]];
-export const JOB_LIMITS=Object.freeze({maxChars:60000});
+export const JOB_LIMITS=Object.freeze({maxChars:60000,maxRequirements:180,maxDuties:180,maxRequirementChars:1200});
 const clean=l=>l.replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g,'').trim();
 export function parseJobText(raw,{id,role,employer,sourceUrl,idFactory}={}){
  if(typeof raw!=='string'||!raw.trim())throw contractError('INVALID','Job text required');
@@ -16,13 +16,19 @@ export function parseJobText(raw,{id,role,employer,sourceUrl,idFactory}={}){
  if(text.length>JOB_LIMITS.maxChars){text=text.slice(0,JOB_LIMITS.maxChars);warnings.push('Job text was truncated; the remainder was NOT analysed.');}
  const lines=text.split(/\r?\n/).map(clean).filter(Boolean);
  const mk=idFactory||(()=> 'req'+Math.random().toString(36).slice(2,10)+'x');
- let mode='unknown';const requirements=[],duties=[];
+ let mode='unknown';const requirements=[],duties=[];let omittedRequirements=0,omittedDuties=0;
+ const addRequirement=r=>{
+  if(requirements.length>=JOB_LIMITS.maxRequirements){omittedRequirements++;return;}
+  const text=r.text.slice(0,JOB_LIMITS.maxRequirementChars);
+  if(text.length!==r.text.length)warnings.push('A requirement was truncated to '+JOB_LIMITS.maxRequirementChars+' characters.');
+  requirements.push({...r,text});
+ };
  for(const l of lines){
   const inline=l.match(INLINE_LABEL);
   if(inline&&!BULLET.test(l)){
    const priority=/^(?:preferred|desirable|nice[- ]to[- ]have|optional)$/i.test(inline[1])?'preferred':'required';
    const text=inline[2].trim();
-   if(text.length>=4)requirements.push({id:mk(),text,priority});
+   if(text.length>=4)addRequirement({id:mk(),text,priority});
    mode=priority;
    continue;
   }
@@ -35,12 +41,14 @@ export function parseJobText(raw,{id,role,employer,sourceUrl,idFactory}={}){
   }
   if(mode==='other')continue;
   const body=l.replace(BULLET,'').trim();if(body.length<4)continue;
-  if(mode==='duty'){duties.push(body);continue;}
+  if(mode==='duty'){if(duties.length<JOB_LIMITS.maxDuties)duties.push(body.slice(0,JOB_LIMITS.maxRequirementChars));else omittedDuties++;continue;}
   if(!BULLET.test(l)&&mode==='unknown')continue; // prose before any heading is context, not a requirement
   const inlinePref=/\b(preferred|desirable|nice to have|optional|a plus|bonus|advantageous)\b/i.test(body);
   const inlineRequired=/\b(required|essential|mandatory|must have)\b/i.test(body);
-  requirements.push({id:mk(),text:body,priority:inlineRequired?'required':inlinePref?'preferred':mode==='required'?'required':mode==='preferred'?'preferred':'unknown'});
+  addRequirement({id:mk(),text:body,priority:inlineRequired?'required':inlinePref?'preferred':mode==='required'?'required':mode==='preferred'?'preferred':'unknown'});
  }
+ if(omittedRequirements)warnings.push(omittedRequirements+' requirements were NOT analysed because the local limit is '+JOB_LIMITS.maxRequirements+'.');
+ if(omittedDuties)warnings.push(omittedDuties+' duties were NOT retained because the local limit is '+JOB_LIMITS.maxDuties+'.');
  if(!requirements.length)warnings.push('No requirement bullets were recognised; paste the requirements section with one requirement per line.');
  const first=lines[0]||'';
  const seniority=(SENIORITY.find(([,rx])=>rx.test(role||first))||[])[0]||null;
