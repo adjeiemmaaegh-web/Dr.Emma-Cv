@@ -19,7 +19,7 @@ export function createWorkspaceDataPanel(ctx){
  const status=el('p',{role:'status','aria-live':'polite',class:'lw-help'},'You can export your saved work or review an import.');
  const control=el('div',{class:'lw-row',style:'margin:var(--s-3) 0'});
  const review=el('div',{class:'lw-help','aria-live':'polite'});
- let pending=null,sourceRaw=null,sourceKind=null,backedProfile=false,backedApps=false,legacyBacked=false,previewBacked=false;
+ let pending=null,sourceRaw=null,sourceKind=null,backedProfile=null,backedApps=null,legacyBacked=false,previewBacked=false;
  const message=t=>{status.textContent=t};
  const run=fn=>async()=>{try{await fn()}catch(e){message('Not completed: '+(e.message||e.code||'unknown error'))}};
  const btn=(label,fn)=>el('button',{type:'button',class:'lw-btn sm',on:{click:run(fn)}},label);
@@ -53,10 +53,10 @@ export function createWorkspaceDataPanel(ctx){
  control.append(
   btn('Download saved CV backup',async()=>{await store.saveNow();
    toDownload(await createCareerProfileBackup(await store.getSavedProfile()),'ledger-career-profile-backup.json');
-   backedProfile=true;message('Profile backup downloaded. Keep it somewhere safe.')}),
+   backedProfile={id:store.profile.id,revision:store.profile.revision};message('Profile backup downloaded. Keep it somewhere safe.')}),
   btn('Download application backup',async()=>{await store.saveNow();
    toDownload(exportBook(store.applications),'ledger-applications-backup.json');
-   backedApps=true;message('Application backup downloaded. This is separate from the profile backup.')}),
+   backedApps=store.applications.revision;message('Application backup downloaded. This is separate from the profile backup.')}),
   btn('Download unsaved draft',async()=>{toDownload(store.exportDraft(),'ledger-unsaved-draft.json');
    message('Draft downloaded; it is not a verified/restorable profile backup.')}),
   btn('Reopen saved versions',async()=>{if(!confirm('Discard all unsaved CV and application changes and reopen the last committed versions? Export a draft first if necessary.'))return;
@@ -126,7 +126,21 @@ export function createWorkspaceDataPanel(ctx){
    setPending(reviewBookImport(exportBook(book),store.applications),'applications-preview',raw);
   })
  );
+ legacyControls.append(btn('Review this browser’s legacy applications',async()=>{
+  const raw=localStorage.getItem('ledger_cv_stage6_applications_v1');
+  if(!raw)throw Error('No old application records were found in this browser origin');
+  setPending(reviewBookImport(raw,store.applications),'legacy-app-local',raw);
+ }));
  const file=el('input',{type:'file',accept:'.json,application/json','aria-label':'Select a local backup to review'});
+ const reviewRawApplications=btn('Review jobs in selected raw backup',async()=>{
+  const f=file.files?.[0];if(!f)throw Error('Choose a raw legacy backup file first');
+  if(f.size>MAX_FILE)throw Error('File exceeds the supported review size');
+  const raw=await f.text(),r=await previewLegacyRawBackup(raw);
+  if(r.status!=='review-required')throw Error('Raw legacy backup was rejected by its checksum or schema validation');
+  const applications=r.proposed.entries.ledger_cv_stage6_applications_v1;
+  if(!applications)throw Error('Raw legacy backup has no old application data');
+  setPending(reviewBookImport(applications,store.applications),'legacy-app-file',raw);
+ });
  const reviewButton=btn('Review selected file',async()=>{
   const f=file.files?.[0];if(!f)throw Error('Choose a backup file first');
   if(f.size>MAX_FILE)throw Error('File exceeds the supported review size');
@@ -167,16 +181,22 @@ export function createWorkspaceDataPanel(ctx){
  }
  const approve=btn('Approve reviewed import',async()=>{
   if(pending?.status!=='review-required')throw Error('Review a valid source first');
-  if(!backedProfile||!backedApps)throw Error('Download both current profile and application backups first');
+  if(!backedProfile||backedApps===null)throw Error('Download both current profile and application backups first');
+  if(backedProfile.id!==store.profile.id||backedProfile.revision!==store.profile.revision||
+     backedApps!==store.applications.revision)
+   throw Error('Saved data changed after backup: download both backups again before importing');
   if(sourceKind==='legacy-local'&&localStorage.getItem('ledger_cv_state_v2')!==sourceRaw)
    throw Error('Legacy CV changed since review; review it again');
+  if(sourceKind==='legacy-app-local'&&localStorage.getItem('ledger_cv_stage6_applications_v1')!==sourceRaw)
+   throw Error('Legacy application data changed since review; review it again');
   if(['preview-local','applications-preview'].includes(sourceKind)&&localStorage.getItem('ledger_workspace_preview_v1')!==sourceRaw)
    throw Error('Old preview data changed since review; review it again');
-  if(sourceKind==='applications'||sourceKind==='applications-preview'){
-   if(sourceKind==='applications'){
+  if(['applications','applications-preview','legacy-app-local','legacy-app-file'].includes(sourceKind)){
+   if(['applications','legacy-app-file'].includes(sourceKind)){
     const f=file.files?.[0];if(!f||(await f.text())!==sourceRaw)throw Error('File changed; review again');
    }
    if(sourceKind==='applications-preview'&&!previewBacked)throw Error('Download an exact old preview backup first');
+   if(sourceKind==='legacy-app-local'&&!legacyBacked)throw Error('Download a complete raw legacy backup first');
    if(!confirm('Import these reviewed applications? Existing record IDs will be kept unchanged.'))return;
    const next=approveBookImport(store.applications,pending,{confirmed:true,expectedRevision:store.applications.revision,conflictPolicy:'keep-existing'});
    store.setApplications(next);await store.saveNow();message('Application entries saved with revision protection.');review.replaceChildren();pending=null;return;
@@ -194,6 +214,6 @@ export function createWorkspaceDataPanel(ctx){
   location.hash='#/editor';location.reload();
  });
  root.append(el('h3',{},'Review an existing CV or backup'),el('p',{class:'lw-help'},'Moving from a different browser, file path or website requires a downloaded JSON backup. No cross-origin storage access is possible. Legacy raw backups do not automatically restore other keys.'),legacyControls,
-  el('div',{class:'lw-row'},el('label',{},'Backup file ',file),reviewButton,approve),review,status);
+  el('div',{class:'lw-row'},el('label',{},'Backup file ',file),reviewButton,reviewRawApplications,approve),review,status);
  return {node:root,destroy(){}};
 }
