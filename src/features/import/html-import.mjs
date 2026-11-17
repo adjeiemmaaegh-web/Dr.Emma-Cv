@@ -41,7 +41,8 @@ function xmlToText(xml,warnings,label,hiddenStyleIds=new Set()){
   for(const match of chunk.matchAll(/<w:p(?:\s[^>]*)?>([\s\S]*?)<\/w:p>/g)){
    const p=match[1];
    const pStyle=p.match(/<w:pStyle\b[^>]*w:val="([^"]+)"/)?.[1];
-   if(pStyle&&hiddenStyleIds.has(pStyle)){omittedParagraphs++;continue;}
+   const pPr=p.match(/<w:pPr(?:\s[^>]*)?>[\s\S]*?<\/w:pPr>/)?.[0]||'';
+   if((pStyle&&hiddenStyleIds.has(pStyle))||vanish.test(pPr)){omittedParagraphs++;continue;}
    const isList=/<w:numPr\b/.test(p);
    let t='';
    for(const run of p.matchAll(/<w:r(?:\s[^>]*)?>([\s\S]*?)<\/w:r>/g)){
