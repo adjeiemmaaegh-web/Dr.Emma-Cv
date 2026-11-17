@@ -71,6 +71,13 @@ export function careerJourneyView(ctx){
     recommendations=buildTailoringSuggestions({document:base,job,comparison});
    const list=items(comparison.results,(r)=>el('li',{class:'lw-finding '+(r.status==='no-evidence'?'warning':'info')},
     el('div',{},el('strong',{},r.requirement),el('p',{class:'lw-help'},'Assessment: '+r.status+'. '+(r.citations?.length?'Evidence: '+r.citations.map(c=>c.excerpt).join('; '):(r.note||'No CV evidence found.'))))));
+   const skillEvidence=comparison.skillEvidence;
+   if(skillEvidence.items.length)content.append(section('Vacancy skills: phrase evidence, not a percentage',
+    el('p',{class:'lw-help'},'These are local, English phrase matches. “Described” refers to CV wording only; it is not independent verification of ability.'),
+    items(skillEvidence.items,x=>el('li',{class:'lw-finding '+(x.status==='not-found'?'warning':'info')},
+     el('strong',{},x.skill+' ('+x.kind+'; '+x.priority+') — '+x.status),
+     el('p',{class:'lw-help'},x.correction),
+     x.evidence.length?el('p',{class:'lw-help'},'CV: '+x.evidence[0].excerpt):null))));
    const chosen=[];
    const proposals=el('div');
    for(const sg of recommendations.suggestions){
