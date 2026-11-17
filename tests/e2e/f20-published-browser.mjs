@@ -33,6 +33,9 @@ let failed=false;
 try{
  const context=await browser.newContext({viewport:{width:390,height:844},acceptDownloads:true});
  const page=await context.newPage(),errors=[],remote=[],missing=[];
+ // Test-only affirmative user consent: Playwright dismisses JS confirm dialogs by default.
+ // The test invokes explicit UI confirmation buttons before accepting their prompts.
+ page.on('dialog',dialog=>dialog.type()==='confirm'?dialog.accept():dialog.dismiss());
  page.on('pageerror',e=>errors.push(String(e)));
  page.on('request',r=>{if(!r.url().startsWith(origin))remote.push(r.url())});
  page.on('response',r=>{if(r.status()>=400)missing.push(r.url()+' '+r.status())});
