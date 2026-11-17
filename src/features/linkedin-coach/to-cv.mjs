@@ -39,7 +39,7 @@ export function linkedinToCvReview(linkedin,{sourceName='user-provided LinkedIn 
  for(const [i,p] of (linkedin.positions||[]).entries()){
   if(!s(p.title)&&!s(p.company))continue;
   const e={title:s(p.title),employer:s(p.company),start:s(p.start),end:s(p.end),location:s(p.location),
-   current:/^(present|current|now)$/i.test(s(p.end)),description:description(p.description)};
+   current:p.current===true||/^(present|current|now)$/i.test(s(p.end)),description:description(p.description)};
   doc.experience.push(e);
   add('experience['+(doc.experience.length-1)+']',e,
    src('Positions.csv','entry '+(i+1)),
