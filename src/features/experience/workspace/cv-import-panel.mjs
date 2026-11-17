@@ -20,6 +20,32 @@ const textField=(label,value,change,{multiline=false}={})=>{
  input.addEventListener('input',()=>change(input.value));
  return el('label',{class:'lw-field'},el('span',{},label),input);
 };
+/**
+ * Field-level collection editing must NEVER flatten metadata (issuer, date, URL,
+ * original description or user-supplied skill level) while changing a single name.
+ * The source list remains the baseline until the reviewer explicitly excludes
+ * an entry. Other entries retain their original object identity and properties.
+ */
+export function createCollectionReviewModel(doc,path){
+ const allowed=new Set(['skills','languages','certifications','projects','accomplishments']);
+ if(!allowed.has(path)||!Array.isArray(doc?.[path]))throw new TypeError('Unsupported CV collection');
+ const rows=doc[path].map(value=>({value,include:true}));
+ const sync=()=>{doc[path]=rows.filter(r=>r.include).map(r=>r.value);};
+ return {
+  rows,
+  set(row,key,value){
+   if(!rows.includes(row)||typeof key!=='string'||!key||typeof value!=='string')
+    throw new TypeError('Invalid review edit');
+   row.value[key]=value;
+   sync();
+  },
+  include(row,yes){
+   if(!rows.includes(row)||typeof yes!=='boolean')throw new TypeError('Invalid review selection');
+   row.include=yes;sync();
+  }
+ };
+}
+
 export function reviewFieldEditors(item,doc){
  const path=item.path,parts=[];
  if(path==='personalInfo.name'){
@@ -39,11 +65,33 @@ export function reviewFieldEditors(item,doc){
    }
    parts.push(textField('Description / evidence — edit only if source is wrong',fromHtml(itemDoc.description),v=>{itemDoc.description=toParagraphs(v);},{multiline:true}));
   }else if(['skills','languages','certifications','projects','accomplishments'].includes(path)){
-   const values=doc[path]||[];
-   parts.push(textField(path+' — one item per line',values.map(v=>v.name||v.title||'').join('\n'),v=>{
-    const names=v.split('\n').map(s=>s.trim()).filter(Boolean).slice(0,250);
-    doc[path]=names.map(name=>path==='skills'?{name,level:3}:{name,title:name,description:''});
-   },{multiline:true}));
+   const model=createCollectionReviewModel(doc,path);
+   const fieldNames={
+    skills:['name'],languages:['name','proficiency'],
+    certifications:['name','issuer','date','url'],
+    projects:['name','title','url','description'],
+    accomplishments:['name','title','description']
+   }[path];
+   for(const [index,row] of model.rows.entries()){
+    const enabled=el('input',{type:'checkbox','aria-label':'Include '+path+' item '+(index+1)});
+    enabled.checked=true;
+    enabled.addEventListener('change',()=>model.include(row,enabled.checked));
+    const entry=el('fieldset',{class:'lw-field'},el('legend',{},path+' entry '+(index+1)),
+     el('label',{},enabled,' Include this entry'));
+    for(const key of fieldNames){
+     if(!(key in row.value)&&key!=='name')continue;
+     const original=row.value[key];
+     const value=key==='description'?fromHtml(original):original;
+     entry.append(textField(key,value,v=>model.set(row,key,key==='description'?toParagraphs(v):v),
+      {multiline:key==='description'}));
+    }
+    // Explicitly show all additional metadata, including unrecognized export
+    // fields; these are retained unchanged if the reviewer edits another field.
+    const extra=Object.keys(row.value).filter(k=>!fieldNames.includes(k));
+    if(extra.length)entry.append(el('p',{class:'lw-help'},
+     'Preserved other fields: '+extra.join(', ')+'. Editing this entry will not erase them.'));
+    parts.push(entry);
+   }
   }
  }
  return parts;
