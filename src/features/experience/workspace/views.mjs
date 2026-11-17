@@ -10,6 +10,7 @@ import {onboardingFeature} from '../../onboarding/onboarding-module.mjs';
 import {assessStorageHealth,collectStorageSignals} from '../../pwa-ui/status.mjs';
 import {SAMPLE_DOC} from './store.mjs';
 import {createWorkspaceDataPanel} from './data-panel.mjs';
+import {createWorkspaceCvImportPanel} from './cv-import-panel.mjs';
 const variantOf=ed=>{const s=ed.snapshot();return {id:'workspacePreview1',revision:0,name:'CV',document:s.document,appearance:s.appearance};};
 export const ACCENTS=['#0b6b72','#c85a34','#3b5ba9','#8a5a3b','#4a4a4a','#7a3e9d'];
 const fileName=(doc,ext)=>([doc.personalInfo.firstName,doc.personalInfo.lastName,'CV'].filter(Boolean).join('_')||'CV')+'.'+ext;
@@ -47,6 +48,7 @@ export function homeView(ctx){
  root.append(grid);
  if(store.mode==='persistent'){
   const panel=createWorkspaceDataPanel(ctx);root.append(panel.node);cleanups.push(()=>panel.destroy?.());
+  const cvImport=createWorkspaceCvImportPanel(ctx);root.append(cvImport.node);cleanups.push(()=>cvImport.destroy?.());
  }
  const hostBox=el('div');root.append(el('section',{'aria-label':'Guided start'},hostBox));
  let cleanup=null;
