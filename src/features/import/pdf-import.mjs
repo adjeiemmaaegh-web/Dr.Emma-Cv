@@ -74,7 +74,9 @@ export async function pdfToImportText(bytes,{getDocument,ocrPage,allowOcr=false,
   }
   const sourceText=pages.map(p=>p.text).join('\n').trim();
   if(!sourceText)warnings.push('No PDF text was recoverable. Nothing can be imported without a local OCR review.');
-  return {text:sourceText,pages,warnings,requiresUserConfirmation:true};
+  const missingPages=pages.filter(p=>!p.text.trim()).map(p=>p.page);
+  if(missingPages.length)warnings.push('Import blocked: PDF page(s) '+missingPages.join(', ')+' had no recoverable text; importing the partial CV would lose information.');
+  return {text:sourceText,pages,warnings,missingPages,complete:missingPages.length===0,requiresUserConfirmation:true};
  }finally{
   await pdf?.destroy?.();
   if(!pdf)await task?.destroy?.();
@@ -86,5 +88,6 @@ export async function createPdfImportReview(bytes,{getDocument,ocrPage,allowOcr=
  const parsed=parseResumeText(extracted.text);
  parsed.warnings.unshift(...extracted.warnings);
  const review=createImportReview(parsed,{sourceName,idFactory,now});
- return {...review,pages:extracted.pages,format:'pdf',userReviewed:false};
+ return {...review,status:extracted.complete?review.status:'blocked',
+  warnings:review.warnings,missingPages:extracted.missingPages,pages:extracted.pages,format:'pdf',userReviewed:false};
 }
