@@ -11,6 +11,7 @@ on:
       - 'tests/documents/**'
       - 'tests/career/**'
       - 'tests/hosting/cv-import-cross-browser.mjs'
+      - 'tests/hosting/scanned-pdf-ocr-browser.mjs'
       - '.github/workflows/cv-import-cross-browser.yml'
   workflow_dispatch:
 permissions:
@@ -45,6 +46,9 @@ jobs:
         run: npx playwright install --with-deps ${{ matrix.browser }}
       - name: Exercise no-upload, human-consented import in the real browser
         run: node tests/hosting/cv-import-cross-browser.mjs ${{ matrix.browser }}
+      - name: Verify genuine bundled offline English OCR on a scanned PDF (Chromium)
+        if: matrix.browser == 'chromium'
+        run: node tests/hosting/scanned-pdf-ocr-browser.mjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:
