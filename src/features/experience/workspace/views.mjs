@@ -10,7 +10,7 @@ import {onboardingFeature} from '../../onboarding/onboarding-module.mjs';
 import {assessStorageHealth,collectStorageSignals} from '../../pwa-ui/status.mjs';
 import {SAMPLE_DOC} from './store.mjs';
 import {createWorkspaceDataPanel} from './data-panel.mjs';
-import {designControls,sectionsControls,saveDesignControls,savedDesignGallery,quickEditOnPage,fieldAtPath} from './design-studio.mjs';
+import {designControls,sectionsControls,saveDesignControls,savedDesignGallery,quickEditOnPage,fieldAtPath,confirmDesignEditing} from './design-studio.mjs';
 const variantOf=ed=>{const s=ed.snapshot();return {id:'workspacePreview1',revision:0,name:'CV',document:s.document,appearance:s.appearance};};
 export const ACCENTS=['#0b6b72','#c85a34','#3b5ba9','#8a5a3b','#4a4a4a','#7a3e9d'];
 const fileName=(doc,ext)=>([doc.personalInfo.firstName,doc.personalInfo.lastName,'CV'].filter(Boolean).join('_')||'CV')+'.'+ext;
@@ -231,7 +231,7 @@ export function templatesView(ctx){
   const s=store.editor.snapshot(),doc=store.hasContent()?s.document:SAMPLE_DOC();grid.replaceChildren();
   for(const t of TEMPLATES.filter(x=>family==='All'||x.family===family)){
    const lay=layoutFor(doc,{...s.appearance,template:t.id,color:t.color||s.appearance.color});
-   grid.append(el('button',{type:'button',class:'lw-tpl','aria-pressed':String(s.appearance.template===t.id),on:{click:()=>{store.editor.setAppearance(applyTemplate(store.editor.snapshot().appearance,t.id,{keepColor:false}));ctx.toast(t.name+' selected. Your content is unchanged.');draw();}}},thumbnail(lay),el('strong',{},t.name),el('small',{},t.family[0].toUpperCase()+t.family.slice(1)+(t.tokens.layout==='sidebar'?' · exports single column':''))));
+   grid.append(el('button',{type:'button',class:'lw-tpl','aria-pressed':String(s.appearance.template===t.id),on:{click:()=>{if(!confirmDesignEditing(ctx))return;store.editor.setAppearance(applyTemplate(store.editor.snapshot().appearance,t.id,{keepColor:false}));ctx.toast(t.name+' selected. Your content is unchanged.');draw();}}},thumbnail(lay),el('strong',{},t.name),el('small',{},t.family[0].toUpperCase()+t.family.slice(1)+(t.tokens.layout==='sidebar'?' · exports single column':''))));
   }
  }
  draw();return {node:root};
