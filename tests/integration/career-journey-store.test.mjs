@@ -32,7 +32,7 @@ test('job, letter and interview session round trip with exact CV/job linkage',as
  const snap={profileId:id,job:target,letter:changed,session};
  await repo.save(id,snap,null);
  const read=await repo.load(id);
- assert.deepEqual(read.value,snap);
+ assert.deepEqual(read.value,JSON.parse(JSON.stringify(snap)),'JSON persistence omits undefined optional properties');
  assert.equal(read.value.letter.cvRevisionAtDraft,3);
  assert.equal(read.value.session.jobTargetId,target.id);
 });
