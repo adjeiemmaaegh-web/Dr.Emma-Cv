@@ -12,7 +12,7 @@ const audit=async(page,label)=>{
  const bad=r.findings.filter(f=>f.severity!=='info');assert.equal(bad.length,0,'a11y at '+label+':\n'+fmt(bad.slice(0,10)));
  const t=await tabReachability(page,'#app');assert.deepEqual([t.unreached,t.noFocusIndicator],[[],[]],'keyboard at '+label+' '+JSON.stringify(t));
 };
-const VIEWS=['home','editor','templates','check','jobs'];
+const VIEWS=['home','editor','templates','check','jobs','career'];
 try{
  for(const [vp,name] of [[{width:390,height:844},'phone'],[{width:820,height:1100},'tablet'],[{width:1440,height:900},'desktop']])
   for(const scheme of ['light','dark']){

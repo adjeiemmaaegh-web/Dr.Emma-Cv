@@ -11,6 +11,7 @@ import {createIndexedDBRevisionStore} from '../domain/storage/revision-store.mjs
 import {createIndexedDBApplicationStore} from '../domain/storage/application-revision-store.mjs';
 import {createCareerProfile,createCVVariant,updateCVVariant,replaceMasterDocument,restoreCVRevision,validateCareerProfile} from '../domain/profile/career-profile.mjs';
 import {emptyBook} from '../features/tracker/tracker.mjs';
+import {applyApprovedSuggestions} from '../features/tailoring/tailor.mjs';
 import {cloneData,contractError} from '../contracts/platform.mjs';
 const ACTIVE='ledger_workspace_active_profile_v1',ACTIVE_CV='ledger_workspace_active_cv_v1',THEME='ledger_workspace_theme_v1';
 const err=(code,message)=>contractError(code,message);
@@ -139,6 +140,23 @@ export async function createPersistentWorkspaceStore({
   profile=saved.value;cvId=profile.variants[profile.variants.length-1].id;confirmMaster=false;
   localSet(ACTIVE_CV,cvId);installEditor();return cvId;
  }
+ /**
+  * Create a job-specific variant and apply explicit evidence-checked approvals
+  * in one atomic Group A profile write; the master CV remains untouched.
+  */
+ async function applyJobTailoring({job,suggestions,decisions,name='Tailored CV'}={}){
+  await settle();
+  if(!Object.values(decisions||{}).some(v=>v==='approved'||v?.status==='approved'))
+   throw err('UNCONFIRMED','Choose at least one suggestion to approve.');
+  const before=profile;
+  const outcome=applyApprovedSuggestions(before,{job,suggestions,decisions,
+   expectedRevision:before.revision,name});
+  if(!outcome.applied.length)throw err('INVALID','None of the selected suggestions passed the factual and stale-content checks.');
+  const saved=await profileRepository.save(before.id,outcome.profile,before.revision);
+  profile=saved.value;cvId=outcome.variantId;confirmMaster=false;
+  localSet(ACTIVE_CV,cvId);installEditor();
+  return {variantId:cvId,applied:[...outcome.applied],skipped:[...outcome.skipped]};
+ }
  async function restoreRevision(revision,{confirmed=false}={}){
   if(confirmed!==true)throw err('UNCONFIRMED','Restoration requires explicit confirmation');
   await settle();
@@ -179,7 +197,7 @@ export async function createPersistentWorkspaceStore({
   setApplications,saveNow:settle,flushEditor,
   hasUnsavedWork(){return editor.snapshot().dirty||status.state!=='saved'||appStatus.state!=='saved'||!!blocked||!!appBlocked||timer!==null},
   confirmMasterEditing(confirmed){if(confirmed===true){confirmMaster=true;if(blocked==='UNCONFIRMED'){blocked=null;setStatus('saving');void flushEditor().catch(()=>{})}notify();return true}return false},
-  switchCV,createVariant,restoreRevision,importProfile,replaceDocument,
+  switchCV,createVariant,applyJobTailoring,restoreRevision,importProfile,replaceDocument,
   async reopenSaved({confirmed=false}={}){
    if(confirmed!==true)throw err('UNCONFIRMED','Reopening discards the unsaved draft and needs confirmation');
    if(timer!==null){clearTimeout(timer);timer=null}

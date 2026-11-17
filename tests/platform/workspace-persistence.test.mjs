@@ -133,3 +133,27 @@ test('checksum backup import is review-only and an existing identity is never ov
  assert.equal(a.storage.getItem('ledger_cv_state_v2'),'SENSITIVE_UNCHANGED');
  s.close();
 });
+
+test('approved job-specific tailoring commits once and never changes the master CV',async()=>{
+ const a=setup(),s=await a.open();
+ s.confirmMasterEditing(true);
+ s.editor.setPersonal('title','Retail manager');
+ s.editor.setText('summary','My current summary');
+ s.editor.addItem('skills',{name:'Stock control'});
+ await s.saveNow();
+ const first=s.profile,source=first.master.document;
+ const job={id:'jobJourney001',role:'Retail manager',originalText:'Stock control',requirements:[]};
+ const suggestion={id:'summaryApproved01',path:'summary',before:source.summary,
+  after:'Retail manager with skills in Stock control.',explanation:'From existing CV facts.',
+  evidenceIds:[],unsupportedFact:false,status:'proposed',
+  operation:{type:'set-summary',text:'Retail manager with skills in Stock control.'}};
+ await assert.rejects(s.applyJobTailoring({job,suggestions:[suggestion],decisions:{}}),e=>e.code==='UNCONFIRMED');
+ const result=await s.applyJobTailoring({job,suggestions:[suggestion],decisions:{summaryApproved01:'approved'}});
+ assert.equal(result.applied.length,1);
+ assert.equal(s.profile.revision,first.revision+1,'one CAS increment');
+ assert.equal(s.profile.master.document.summary,'My current summary','master unchanged');
+ assert.equal(s.selectedCV.targetJobId,job.id);
+ assert.match(s.selectedCV.document.summary,/Stock control/);
+ assert.equal((await a.profileRepository.load(s.profile.id)).revision,s.profile.revision);
+ s.close();
+});

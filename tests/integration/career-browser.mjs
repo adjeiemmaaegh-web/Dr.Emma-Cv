@@ -1,0 +1,47 @@
+// Human-led A-D journey in the actual persisted workspace, not a synthetic one-click script.
+import assert from 'node:assert/strict';
+import {chromium,serve} from '../experience/harness.mjs';
+const {port,close}=serve({});
+const browser=await chromium.launch();let failed=false;
+try{
+ const ctx=await browser.newContext({viewport:{width:390,height:844},acceptDownloads:true});
+ const page=await ctx.newPage(),errors=[],external=[];
+ page.on('pageerror',e=>errors.push(String(e)));
+ page.on('request',r=>{if(!r.url().startsWith('http://localhost:'+port))external.push(r.url());});
+ await page.goto('http://localhost:'+port+'/src/features/experience/workspace/index.html');
+ await page.getByRole('link',{name:'Career tools'}).click();
+ await page.getByLabel('Job title').fill('Retail manager');
+ await page.getByLabel('Employer').fill('Example Stores');
+ await page.getByLabel('Job advert text').fill('Retail manager\nRequirements\n- Store operations\n- Stock control');
+ await page.getByRole('button',{name:'Analyse and save vacancy'}).click();
+ await page.waitForFunction(()=>document.body.textContent.includes('Vacancy analysed.'));
+ assert.match(await page.locator('.lw-career').innerText(),/Store operations/);
+ await page.reload();await page.getByRole('link',{name:'Career tools'}).click();
+ await page.waitForFunction(()=>document.querySelector('.lw-career')?.textContent?.includes('Example Stores'));
+ assert.equal(await page.getByLabel('Employer').inputValue(),'Example Stores','job persisted after reload');
+ await page.getByRole('button',{name:'Start cover letter draft'}).click();
+ await page.waitForFunction(()=>document.body.textContent.includes('Cover letter draft created.'));
+ await page.getByLabel(/Letter body paragraphs/).fill('I am applying for this retail manager role.');
+ await page.getByRole('button',{name:'Save letter edits'}).click();
+ await page.waitForFunction(()=>document.body.textContent.includes('Letter edits'));
+ await page.getByLabel('Story title').fill('Handled a customer queue');
+ await page.getByLabel('Situation').fill('The shop was busy');
+ await page.getByLabel('Task',{exact:true}).fill('Serve the customers');
+ await page.getByLabel('Your actions').fill('I organised the tills');
+ await page.getByLabel('Results (only true facts)').fill('Wait times improved');
+ await page.getByRole('button',{name:'Save STAR story'}).click();
+ await page.waitForFunction(()=>document.body.textContent.includes('1 saved stories'));
+ await page.reload();await page.getByRole('link',{name:'Career tools'}).click();
+ await page.waitForFunction(()=>document.body.textContent.includes('1 saved stories'));
+ assert.match(await page.locator('.lw-career').innerText(),/I am applying for this retail manager role/);
+ await page.getByLabel('Your pasted LinkedIn profile text').fill('Retail manager\nAbout\nI lead customer service.');
+ await page.getByRole('button',{name:'Check LinkedIn against my CV'}).click();
+ await page.waitForFunction(()=>document.body.textContent.includes('LinkedIn analysis completed locally'));
+ await page.getByRole('button',{name:'Save application and link CV'}).click();
+ await page.waitForFunction(()=>location.hash==='#/jobs');
+ assert.match(await page.locator('.lw-board').innerText(),/Example Stores/);
+ assert.deepEqual(errors,[]);assert.deepEqual(external,[],'no external requests');
+ console.log('PASS real persisted A-D career journey vacancy, letter, interview, LinkedIn and application linking');
+ await ctx.close();
+}catch(e){failed=true;console.error(e);}finally{await browser.close();close();}
+process.exit(failed?1:0);
