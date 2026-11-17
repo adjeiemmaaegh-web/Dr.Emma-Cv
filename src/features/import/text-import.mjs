@@ -25,10 +25,10 @@ const CTRL=new RegExp('['+[[0,8],[11,12],[14,31],[0x200b,0x200f],[0x2028,0x2029]
 const cleanLine=l=>l.replace(CTRL,'').replace(/\t+/g,'  ').trimEnd();
 export function parseResumeText(raw){
  if(typeof raw!=='string')throw contractError('INVALID','Text required');
- const warnings=[];let text=raw;
- if(text.length>IMPORT_LIMITS.maxChars){text=text.slice(0,IMPORT_LIMITS.maxChars);warnings.push('Input was longer than '+IMPORT_LIMITS.maxChars+' characters; the remainder was NOT imported.');}
+ const warnings=[];let text=raw,truncated=false;
+ if(text.length>IMPORT_LIMITS.maxChars){truncated=true;text=text.slice(0,IMPORT_LIMITS.maxChars);warnings.push('Input was longer than '+IMPORT_LIMITS.maxChars+' characters; the remainder was NOT imported.');}
  let lines=text.split(/\r?\n/).map(cleanLine);
- if(lines.length>IMPORT_LIMITS.maxLines){lines=lines.slice(0,IMPORT_LIMITS.maxLines);warnings.push('Too many lines; the remainder was NOT imported.');}
+ if(lines.length>IMPORT_LIMITS.maxLines){truncated=true;lines=lines.slice(0,IMPORT_LIMITS.maxLines);warnings.push('Too many lines; the remainder was NOT imported.');}
  const doc=blankCareerDocument(),items=[],uncertain=[];
  const add=(path,value,line,isUncertain)=>{items.push({path,value,sourceLine:line,uncertain:!!isUncertain});};
  let i=0;while(i<lines.length&&!lines[i].trim())i++;
@@ -106,15 +106,15 @@ export function parseResumeText(raw){
  }
  if(!doc.experience.length&&!doc.education.length&&!doc.skills.length)warnings.push('No experience, education or skills sections were recognised; review the source text manually.');
  for(const u of uncertain)warnings.push(u);
- return {document:doc,items,warnings,sourceText:text,unmappedSourceLines};
+ return {document:doc,items,warnings,sourceText:text,unmappedSourceLines,truncated};
 }
 /** Build the contract-level ImportReview. proposed is NOT saved and carries no verified claims. */
 export function createImportReview(parsed,{idFactory,now=new Date().toISOString(),sourceName}={}){
  if(!parsed||!parsed.document)throw contractError('INVALID','Parsed content required');
- const hasContent=parsed.items.length>0;
+ const hasContent=parsed.items.length>0&&!parsed.truncated;
  const mk=idFactory?{idFactory}:{};
  const proposed=hasContent?createCareerProfile({displayName:'Imported CV',document:parsed.document,now,...mk}):null;
- return {status:hasContent?'review-required':'blocked',warnings:[...parsed.warnings],proposed,requiresUserConfirmation:true,
+ return {status:hasContent?'review-required':'blocked',warnings:[...parsed.warnings,...(parsed.truncated?['Import blocked: source text was truncated. Use a smaller complete document; partial CV facts were NOT approved.']:[])],proposed,requiresUserConfirmation:true,
   items:parsed.items.map(x=>({...x,decision:'pending'})),sourceName,sourceText:parsed.sourceText,
   unmappedSourceLines:parsed.unmappedSourceLines||[]};
 }
