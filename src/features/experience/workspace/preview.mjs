@@ -4,7 +4,7 @@
  */
 import {renderPreview} from '../../export/export-service.mjs';
 import {resolveStyle} from '../../templates/registry.mjs';
-import {textWidth,decorationGeometry} from '../../documents/layout.mjs';
+import {textWidth,decorationGeometry,pageDecorations} from '../../documents/layout.mjs';
 import {el} from './ui.mjs';
 const FONT={sans:'Helvetica,Arial,"Liberation Sans",sans-serif',serif:'"Times New Roman",Times,"Liberation Serif",serif'};
 export function layoutFor(document,appearance){
@@ -18,6 +18,11 @@ export function drawPages(container,layout,scale,{onEdit}={}){
  pages.forEach((page,i)=>{
   const slot=el('div',{class:'lw-pageslot',style:`width:${paper.width*scale}px;height:${paper.height*scale}px`});
   const pg=el('div',{class:'lw-page',role:'group','aria-label':'Page '+(i+1)+' of '+pages.length,style:`width:${paper.width}px;height:${paper.height}px;transform:scale(${scale});font-family:${FONT[style.font]||FONT.sans};--lw-edit-target:${Math.ceil(26/Math.max(scale,0.05))}px`});
+  for(const d of pageDecorations(style,paper)){
+   pg.append(el('i',{'aria-hidden':'true',style:`left:${d.x}px;top:${d.y}px;width:${d.width}px;`+
+    (d.kind==='rect'?`height:${d.height}px;border:0;background:${d.color}`:
+      `height:0;border-top:${d.height}px solid ${d.color}`)}));
+  }
   for(const l of page){
    for(const d of decorationGeometry(l,style)){
     const base=`left:${d.x}px;top:${d.y}px;width:${d.width}px;`;
@@ -47,6 +52,9 @@ export function drawPages(container,layout,scale,{onEdit}={}){
 /** First-page thumbnail with the same family accent geometry as PDF. */
 export function thumbnail(layout){
  const {pages,paper,style}=layout,t=el('div',{class:'lw-thumb','aria-hidden':'true'});
+ for(const d of pageDecorations(style,paper)){
+  t.append(el('b',{style:`left:${d.x/paper.width*100}%;top:${d.y/paper.height*100}%;width:${d.width/paper.width*100}%;height:${Math.max(d.height,0.9)/paper.height*100}%;background:${d.color}`}));
+ }
  for(const l of pages[0]||[]){
   for(const d of decorationGeometry(l,style)){
    t.append(el('b',{style:`left:${d.x/paper.width*100}%;top:${d.y/paper.height*100}%;width:${d.width/paper.width*100}%;height:${Math.max(d.height,0.9)/paper.height*100}%;background:${d.color}`}));
