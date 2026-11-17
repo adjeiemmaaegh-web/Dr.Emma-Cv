@@ -95,7 +95,9 @@ test('tailor journey compares with the pasted advert and prepares suggestions wi
  assert.equal(J.submit(s,{jobText:''}).errors[0].field,'jobText');
  s=J.submit(s,{jobText:'Supervisor\nRequirements\n- Stock control experience\n- Kubernetes administration\n',jobRole:'Supervisor',jobEmployer:'Globex'}).state;
  const v=J.getView(s,{document:doc});assert.equal(v.rows.length,2);
- assert(v.rows.some(r=>r.status==='evidenced')&&v.rows.some(r=>r.status==='no-evidence'&&/does not mean you lack/.test(r.why)));
+ assert(v.rows.some(r=>r.status==='partial')&&v.rows.some(r=>r.status==='no-evidence'&&/does not mean you lack/.test(r.why)));
+ assert(v.skillEvidence.items.some(x=>x.skill==='Inventory management'&&x.status==='mentioned'),
+  'A skills-list mention without a work example must not be promoted to evidenced experience');
  s=J.submit(s,{}).state;const out=J.finish(s,{document:doc});
  assert(Array.isArray(out.suggestions)&&out.prompts.some(p=>/Kubernetes/.test(p.requirement)));assert.equal(JSON.stringify(doc),before);
  assert.throws(()=>J.finish({...s,step:'job'}),e=>e.code==='INVALID');
