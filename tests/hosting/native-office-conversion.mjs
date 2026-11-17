@@ -34,7 +34,8 @@ try{
  if(run.error||run.status!==0||!fs.existsSync(pdf))
   throw Error('Real LibreOffice DOCX conversion failed: '+(run.error?.message||run.stderr||run.stdout));
  const data=new Uint8Array(fs.readFileSync(pdf));
- assert(data.byteLength>1000,'Native converted PDF is unexpectedly empty');
+ const convertedBytes=data.byteLength;
+ assert(convertedBytes>1000,'Native converted PDF is unexpectedly empty');
  const {getDocument}=await import('pdfjs-dist/legacy/build/pdf.mjs');
  const task=getDocument({data,disableAutoFetch:true,disableStream:true});
  const pages=await task.promise,parts=[];
@@ -49,7 +50,7 @@ try{
  for(const term of ['Ada Example','Acme Retail','Bolt Stores','Publications'])
   assert(flattened.includes(term),'LibreOffice PDF lost text '+term);
  console.log('PASS native LibreOffice DOCX opening and PDF text fidelity',{
-  convertedBytes:data.byteLength,pages:parts.length,sourceDocxBytes:artifact.bytes.length,
+  convertedBytes,pages:parts.length,sourceDocxBytes:artifact.bytes.length,
   note:'Synthetic nonpersonal fixture; Microsoft Word visual acceptance still open'
  });
 }finally{fs.rmSync(tmp,{recursive:true,force:true})}
