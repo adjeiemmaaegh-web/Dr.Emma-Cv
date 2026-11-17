@@ -120,7 +120,7 @@ export function parseResumeText(raw){
  }
  if(buckets.skills?.length){
   const names=buckets.skills.flatMap(([l])=>l.replace(BULLET,'').split(/[,;|•]/)).map(s=>s.trim()).filter(s=>s&&s.length<60);
-  doc.skills=[...new Set(names)].map(name=>({name,level:3}));add('skills',doc.skills,buckets.skills[0][1]);
+  doc.skills=[...new Set(names)].map(name=>({name}));add('skills',doc.skills,buckets.skills[0][1]);
  }
  for(const k of ['certifications','languages','projects','accomplishments']){
   if(buckets[k]?.length){doc[k]=buckets[k].map(([l])=>({name:l.replace(BULLET,''),title:l.replace(BULLET,''),description:''}));add(k,doc[k],buckets[k][0][1]);}
