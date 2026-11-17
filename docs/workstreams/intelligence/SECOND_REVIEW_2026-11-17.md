@@ -26,9 +26,11 @@ The initial feature mapping did not prove that any commercial ATS would parse a 
 
 ## Verification strategy
 
-The branch adds tests/intelligence/precision-regressions.test.mjs (14 focused cases) on top of the 16 previous expanded-review tests and 51 inherited intelligence tests. The ATS GitHub Actions job runs all intelligence, career, guided journey and syntax tests. Existing E0/E20 and hosted QA workflows are triggered by pull requests. Treat outcomes as **pending** until the specific head commit's run is completed and examined.
+The branch includes tests/intelligence/precision-regressions.test.mjs plus expanded-review regression cases for evidence sources, negation, requirement alternatives, distinctive technical IDs, numerical context, future dates, cautious promotion inference and limited grammar patterns. Run counts may change as review findings are addressed; use the exact head's CI output for authoritative totals. The ATS GitHub Actions job runs all intelligence, career, guided journey and syntax tests. Existing E0/E20 and hosted QA workflows are triggered by pull requests. Treat outcomes as **pending** until the specific head commit's run is completed and examined.
 
 Test fixture data is synthetic and does not establish precision, recall, fair treatment, independent ATS parser compatibility, grammar completeness or job-fit calibration.
+
+**Follow-on fixes:** The first browser integration runs exposed a hidden-first-item navigation issue and an omitted explicit “not a score” notice; both were corrected without weakening the accessibility test. A test expecting the inventory requirement to count as fully evidenced from a skills-list plus stock-count mention was changed to expect partial evidence. The subsequent tests detected a missing date-label helper in the new future-period check; that error was fixed on the branch. The branch now also distinguishes direct `A or B` alternatives (without assuming a complete logical reading of complex job prose) and separates definite future dates from uncertain year-only dates.
 
 ## Scope and still-open limitations
 
