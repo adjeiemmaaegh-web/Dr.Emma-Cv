@@ -19,6 +19,7 @@ export function designControls(ed,ctx){
  select('Font family','font',OPTIONS.font.map(x=>[x,x==='template'?'Template default':x==='sans'?'Clean sans-serif':'Editorial serif']));
  select('Header treatment','headerStyle',OPTIONS.headerStyle.map(x=>[x,x==='template'?'Template default':x]));
  select('Section dividers','ruleStyle',OPTIONS.ruleStyle.map(x=>[x,x==='template'?'Template default':x.replace(/-/g,' ')]));
+ select('Page accent','pageAccent',OPTIONS.pageAccent.map(x=>[x,x==='template'?'Template default':x.replace(/-/g,' ')]));
  select('Column treatment','columns',OPTIONS.columns.map(x=>[x,x==='sidebar'?'Sidebar-inspired (single-column output)':x]));
  const defaults={bodySize:style.size,leading:style.lineHeight,sectionGap:style.sectionGap,marginSize:style.margin,headerScale:style.headerScale,
  headingScale:style.headingScale,entryGap:style.entryGap,paragraphGap:style.paragraphGap,ruleWeight:style.ruleWeight};
