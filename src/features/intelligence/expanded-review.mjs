@@ -6,7 +6,6 @@
  */
 import {runAtsChecks} from '../ats/engine.mjs';
 import {descriptionLines,parseDate} from './text.mjs';
-import {analyzeWriting} from '../writing/checks.mjs';
 import {analyzeJobSkills} from '../job-match/skill-evidence.mjs';
 
 const CATEGORIES=['ATS essentials','Resume sections','Content','Job tailoring','Recruiter red flags','Bias & discrimination','Seniority & impact'];
@@ -52,7 +51,6 @@ const asMonth=d=>d.y*12+(d.m?d.m-1:0);
 const firstMonth=d=>asMonth(d);
 const lastMonth=d=>d.y*12+(d.m?d.m-1:11);
 const safeDate=v=>{const d=parseDate(tidy(v));return d&&d!=='present'?d:null;};
-const dateLabel=d=>d?String(d.y)+(d.m?'-'+String(d.m).padStart(2,'0'):''):'unknown';
 
 function investigateChronology(document,now){
  const items=(document.experience||[]).map((e,i)=>{
@@ -69,7 +67,7 @@ function investigateChronology(document,now){
  // Merge overlapping employment intervals before looking for gaps; don't confuse overlapping roles with gaps.
  const ordered=items.filter(x=>x.from!==null&&x.to!==null&&x.from<=x.to)
   .sort((a,b)=>a.from-b.from||a.to-b.to);
- let end=null,previous=null;
+ let end=null;
  for(const current of ordered){
   if(end!==null){
    const possibleGap=current.from-end-1;
@@ -80,7 +78,7 @@ function investigateChronology(document,now){
      pathOf(current.e,current.i)+'.start'));
    }
   }
-  if(end===null||current.to>end){end=current.to;previous=current;}
+  if(end===null||current.to>end){end=current.to;}
  }
  // Surface same-employer advancement as a positive opportunity, not a penalty for unconventional career paths.
  const byEmployer=new Map();
@@ -88,10 +86,10 @@ function investigateChronology(document,now){
   const org=tidy(x.e.employer).toLowerCase();
   if(org)(byEmployer.get(org)||byEmployer.set(org,[]).get(org)).push(x);
  }
- const levels=[[/\b(intern|trainee|apprentice)\b/i,0],[/\b(junior|assistant|graduate)\b/i,1],
-  [/\b(coordinator|specialist|analyst|associate)\b/i,2],[/\b(senior|supervisor|lead)\b/i,3],
-  [/\b(manager|head of|principal)\b/i,4],[/\b(director|vice president|vp)\b/i,5],
-  [/\b(chief|ceo|coo|cfo|cto)\b/i,6]];
+ const levels=[[/\b(chief|ceo|coo|cfo|cto)\b/i,6],[/\b(director|vice president|vp)\b/i,5],
+  [/\b(manager|head of|principal)\b/i,4],[/\b(senior|supervisor|lead)\b/i,3],
+  [/\b(coordinator|specialist|analyst|associate)\b/i,2],[/\b(junior|assistant|graduate)\b/i,1],
+  [/\b(intern|trainee|apprentice)\b/i,0]];
  const rank=t=>{for(const [rx,n] of levels)if(rx.test(t))return n;return null;};
  let advancement=0;
  for(const history of byEmployer.values()){
@@ -112,7 +110,6 @@ function investigateText(doc){
   lines.push({path:pathOf(e,i)+'.description['+j+']',text:l.text,bullet:l.bullet})));
  if(tidy(doc.summary))lines.push({path:'summary',text:doc.summary,bullet:false});
  const typos=[
-  [/\b(?:the|and|to|of|in|for|with|a|an)\s+\1\b/gi,'A word is repeated.'],
   [/\bresponsible of\b/gi,'Use “responsible for” when that is the intended meaning.'],
   [/\btheir is\b/gi,'Check whether “there is” was intended.'],
   [/\b(?:very\s+){2,}/gi,'Repeated intensifier weakens clarity.']
@@ -121,7 +118,7 @@ function investigateText(doc){
   const repeated=/\b([a-z]{2,})\s+\1\b/gi;
   if(repeated.test(text))out.push(finding('grammar-repeat','medium','Repeated word in “'+text.slice(0,90)+'”.',
    'Repeated adjacent words are usually a proofreading error.','Remove the accidental repetition after checking the sentence.',path));
-  for(const [rx,message] of typos.slice(1))if(rx.test(text))
+  for(const [rx,message] of typos)if(rx.test(text))
    out.push(finding('grammar-pattern','medium',message,'A limited English pattern check, not a full grammar or spell checker.',
     'Proofread the entire sentence and correct only if this pattern is unintended.',path));
   if(/[!?]{2,}|,,/.test(text))out.push(finding('punctuation','low','Repeated punctuation in a CV line.',
@@ -144,7 +141,7 @@ function investigateLeadership(doc,jobSkills){
  const examples=(doc.experience||[]).flatMap((e,i)=>descriptionLines(e.description).map((l,j)=>({
   text:l.text,path:pathOf(e,i)+'.description['+j+']'
  })));
- const leaders=examples.filter(x=>/\b(?:led|managed|supervised|mentored|coached|directed|trained)\b.{0,75}\b(?:team|staff|people|colleagues|employees)\b/i.test(x.text));
+ const leaders=examples.filter(x=>/\b(?:led|managed|supervised|mentored|coached|directed|trained)\b.{0,75}\b(?:team|staff|people|colleagues|employees)\b/i.test(x.text)&&!/\b(?:never|not|no)\s+(?:led|managed|supervised|trained|mentored|coached|directed)\b/i.test(x.text));
  const leadRole=jobSkills?.items?.some(x=>x.id==='leadership'&&x.priority==='required')||false;
  const issues=[];
  if(leadRole&&!leaders.length)issues.push(finding('leadership-evidence','high','The vacancy requests leadership, but no specific team example was located.',
@@ -226,6 +223,27 @@ function publishedStatus(check,{artifact,fileName,job,linkedinProfile}){
   reason:check.mode==='local'?'Rule-based inspection only; employer ATS behavior has not been tested.':
    'Heuristic or incomplete evidence. Human review is needed.'};
 }
+const EXTRA_FOR_CHECK=Object.freeze({
+ 'file-format':['file-size','file-type'],'file-name':['file-name'],
+ 'email':['email-tone'],'grammar':['grammar-repeat','grammar-pattern','punctuation'],
+ 'bullets':['bullet-style'],'hard-skills':['skill-'],'soft-skills':['skill-'],
+ 'job-title':['target-title'],'credibility':['credibility','invalid-period'],
+ 'interview-risk':['invalid-period','employment-gap','leadership-evidence'],
+ 'age-bias':['age-bias'],'gaps':['employment-gap'],
+ 'progression':['progression'],'skills-evidence':['skill-'],
+ 'leadership':['leadership-evidence','leadership-scope']
+});
+function checkRelatedFindings(check,findings,skills){
+ const ids=EXTRA_FOR_CHECK[check.id]||[];
+ return findings.filter(f=>{
+  if(check.legacyRuleIds.some(r=>f.id.startsWith('legacy-'+r+'-')))return true;
+  if((check.id==='hard-skills'||check.id==='soft-skills')&&f.id.startsWith('skill-')){
+   return skills?.items.some(x=>x.kind===(check.id==='hard-skills'?'hard':'soft')&&f.id==='skill-'+x.id);
+  }
+  return ids.some(id=>id==='skill-'?f.id.startsWith(id):f.id===id);
+ });
+}
+
 /** Pure. Returns both actual findings and a 27-row scope/limitations register. */
 export function analyzeResumeReadiness(ctx){
  if(!ctx||!ctx.document)throw Object.assign(new Error('document required'),{code:'INVALID'});
@@ -246,10 +264,15 @@ export function analyzeResumeReadiness(ctx){
  const findings=[...legacyRecommendations(baseline),...extras].sort((a,b)=>PRIORITY[a.priority]-PRIORITY[b.priority]||
   a.id.localeCompare(b.id));
  const coverage=ENHANCV_27_COVERAGE.map(c=>{
-  const result=publishedStatus(c,ctx);
-  return {...c,...result,relatedFindings:findings.filter(f=>c.legacyRuleIds.some(r=>f.id.startsWith('legacy-'+r+'-'))).length};
+  const result=publishedStatus(c,ctx),linked=checkRelatedFindings(c,findings,skills);
+  const observed=result.status==='needs-input'||result.status==='not-verified'?'not-assessed':
+   linked.some(f=>f.id==='progression')&&!linked.some(f=>f.id!=='progression')?'opportunity':
+   linked.length?'review-suggested':'no-local-flag';
+  return {...c,...result,observed,relatedFindings:linked.length,
+   findingIds:linked.slice(0,5).map(f=>f.id),
+   preview:linked[0]?.message||null};
  });
- return {findings,prioritizedCorrections:findings,coverage,byCategory:CATEGORIES.map(c=>({
+ return {findings,prioritizedCorrections:findings.filter(f=>f.id!=='progression'),opportunities:findings.filter(f=>f.id==='progression'),coverage,byCategory:CATEGORIES.map(c=>({
   name:c,checks:coverage.filter(x=>x.category===c)})),
   baseline,skills,signals:{careerProgression:chronology.advancement,leadershipExamples:leadership.examples,
    chronologyPrecision:chronology.precision},score:null,scoreValidated:false,
