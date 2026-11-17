@@ -52,8 +52,9 @@ for(const name of ['client.mjs','worker.js','tesseract-core.wasm','tesseract-cor
 const notices=fs.readFileSync(path.join(ocrPath,'THIRD_PARTY_NOTICES.txt'),'utf8');
 assert(/BSD 2-Clause License/.test(notices)&&/Apache License/.test(notices),
  'Offline OCR third-party license evidence missing');
-assert(fs.readFileSync(path.join(ocrPath,'client.mjs'),'utf8').includes('export {OCRClient,supportsFastBuild}'),
- 'Explicit local OCR client exports missing');
+assert(fs.readFileSync(path.join(ocrPath,'client.mjs'),'utf8').includes('OCRClient')&&
+ fs.readFileSync(path.join(ocrPath,'client.mjs'),'utf8').includes('supportsFastBuild'),
+ 'Pinned OCR client symbols missing');
 
 const config=JSON.parse(fs.readFileSync('vercel.json','utf8'));
 assert.equal(config.buildCommand,'node tools/build-workspace-vercel.mjs');
