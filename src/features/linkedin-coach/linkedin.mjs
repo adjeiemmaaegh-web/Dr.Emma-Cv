@@ -176,7 +176,8 @@ export function suggestProfileText(linkedin,document){
   const bullets=[...String(e.description||'').matchAll(/<li[^>]*>([\s\S]*?)<\/li>/gi)].map(m=>m[1].replace(/<[^>]*>/g,'').trim()).filter(Boolean);
   if(bullets.length){
    const after=bullets.map(b=>'• '+b).join('\n');
-   sugg.push(mk('position:'+p.company+':'+p.title,'',after,
+   const repeats=(linkedin.positions||[]).filter(x=>norm(x.company)===norm(p.company)).length;
+   sugg.push(mk('position:'+p.company+(repeats>1?':'+p.title:''),'',after,
     'Only existing CV bullets for this matched role; verify wording before copying.',['experience['+(e.id??index)+'].description']));
   }
  }
@@ -324,10 +325,10 @@ export function linkedinActionPlan(linkedin,document){
 }
 
 export function lengthChecks(linkedin){
- const out=[];
- if(linkedin.headline.length>LINKEDIN_LIMITS.headline)out.push({kind:'headline-length',severity:'warning',message:'Headline is '+linkedin.headline.length+' characters (limit '+LINKEDIN_LIMITS.headline+').'});
- if(linkedin.about.length>LINKEDIN_LIMITS.about)out.push({kind:'about-length',severity:'warning',message:'About is '+linkedin.about.length+' characters (limit '+LINKEDIN_LIMITS.about+').'});
- if(!s(linkedin.headline))out.push({kind:'no-headline',severity:'info',message:'No headline found.'});
+ const out=[],headline=s(linkedin?.headline),about=s(linkedin?.about);
+ if(headline.length>LINKEDIN_LIMITS.headline)out.push({kind:'headline-length',severity:'warning',message:'Headline is '+headline.length+' characters (limit '+LINKEDIN_LIMITS.headline+').'});
+ if(about.length>LINKEDIN_LIMITS.about)out.push({kind:'about-length',severity:'warning',message:'About is '+about.length+' characters (limit '+LINKEDIN_LIMITS.about+').'});
+ if(!headline)out.push({kind:'no-headline',severity:'info',message:'No headline found.'});
  return out;
 }
 export function coachLinkedIn(linkedin,document){
