@@ -75,11 +75,12 @@ export function editorView(ctx){
  const root=el('div'),status=el('span',{class:'lw-chip',role:'status'});
  const undo=el('button',{type:'button',class:'lw-btn icon','aria-label':'Undo',on:{click:()=>ed.undo()}},icon('undo')),redo=el('button',{type:'button',class:'lw-btn icon','aria-label':'Redo',on:{click:()=>ed.redo()}},icon('redo'));
  const seg=(label,key,opts,fmt=x=>x)=>{const g=el('div',{class:'lw-seg',role:'group','aria-label':label});
-  for(const o of opts)g.append(el('button',{type:'button','data-v':o,'aria-pressed':'false',on:{click:()=>ed.setAppearance({[key]:o})}},fmt(o)));return g;};
+  for(const o of opts)g.append(el('button',{type:'button','data-v':o,'aria-pressed':'false',on:{click:()=>{const precise={fontSize:'bodySize',spacing:'leading',margins:'marginSize'}[key];
+   ed.setAppearance(precise?{[key]:o,[precise]:null}:{[key]:o});}}},fmt(o)));return g;};
  const paperSeg=seg('Paper size','paper',OPTIONS.paper),zoomMode={fit:true};
  const zoomSeg=el('div',{class:'lw-seg',role:'group','aria-label':'Preview zoom'},['Fit','100%'].map(z=>el('button',{type:'button','aria-pressed':String(z==='Fit'),on:{click:()=>{zoomMode.fit=z==='Fit';for(const b of zoomSeg.children)b.setAttribute('aria-pressed',String(b.textContent===z));redraw();}}},z)));
  const tabs=el('div',{class:'lw-seg lw-tabs',role:'group','aria-label':'Show'},['Edit','Preview'].map(t=>el('button',{type:'button','aria-pressed':String(t==='Edit'),on:{click:()=>{wrap.dataset.tab=t.toLowerCase();for(const b of tabs.children)b.setAttribute('aria-pressed',String(b.textContent===t));redraw();}}},t)));
- root.append(el('header',{class:'lw-page-head'},el('div',{},el('h1',{id:'page-title',tabindex:'-1'},'Edit your CV'),el('p',{},'Changes save automatically on this device. The preview is exactly what the PDF will look like.')),
+ root.append(el('header',{class:'lw-page-head'},el('div',{},el('h1',{id:'page-title',tabindex:'-1'},'Edit your CV'),el('p',{},'Changes save locally. The live preview uses the same pagination and decoration geometry as the PDF; verify the final file’s fonts before sending.')),
   el('div',{class:'lw-row'},el('button',{type:'button',class:'lw-btn',on:{click:()=>exportAs(ctx,'docx')}},icon('download'),'Word'),el('button',{type:'button',class:'lw-btn primary',on:{click:()=>exportAs(ctx,'pdf')}},icon('download'),'PDF'))));
  if(store.mode==='persistent'){
    const cv=store.selectedCV,master=cv.id===store.profile.master.id;
