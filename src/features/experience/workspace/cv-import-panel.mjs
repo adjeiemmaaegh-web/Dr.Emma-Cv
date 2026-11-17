@@ -27,7 +27,7 @@ const textField=(label,value,change,{multiline=false}={})=>{
  * an entry. Other entries retain their original object identity and properties.
  */
 export function createCollectionReviewModel(doc,path){
- const allowed=new Set(['skills','languages','certifications','projects','accomplishments']);
+ const allowed=new Set(['skills','languages','certifications','projects','accomplishments','customSections']);
  if(!allowed.has(path)||!Array.isArray(doc?.[path]))throw new TypeError('Unsupported CV collection');
  const rows=doc[path].map(value=>({value,include:true}));
  const sync=()=>{doc[path]=rows.filter(r=>r.include).map(r=>r.value);};
@@ -64,13 +64,14 @@ export function reviewFieldEditors(item,doc){
     parts.push(textField(key,itemDoc[key],v=>{itemDoc[key]=v;if(key==='end'&&m[1]==='experience')itemDoc.current=!v.trim()&&!!String(itemDoc.start||'').trim();}));
    }
    parts.push(textField('Description / evidence — edit only if source is wrong',fromHtml(itemDoc.description),v=>{itemDoc.description=toParagraphs(v);},{multiline:true}));
-  }else if(['skills','languages','certifications','projects','accomplishments'].includes(path)){
+  }else if(['skills','languages','certifications','projects','accomplishments','customSections'].includes(path)){
    const model=createCollectionReviewModel(doc,path);
    const fieldNames={
     skills:['name'],languages:['name','proficiency'],
     certifications:['name','issuer','date','url'],
     projects:['name','title','url','description'],
-    accomplishments:['name','title','description']
+    accomplishments:['name','title','description'],
+    customSections:['title','content']
    }[path];
    for(const [index,row] of model.rows.entries()){
     const enabled=el('input',{type:'checkbox','aria-label':'Include '+path+' item '+(index+1)});
@@ -81,9 +82,9 @@ export function reviewFieldEditors(item,doc){
     for(const key of fieldNames){
      if(!(key in row.value)&&key!=='name')continue;
      const original=row.value[key];
-     const value=key==='description'?fromHtml(original):original;
-     entry.append(textField(key,value,v=>model.set(row,key,key==='description'?toParagraphs(v):v),
-      {multiline:key==='description'}));
+     const value=key==='description'||key==='content'?fromHtml(original):original;
+     entry.append(textField(key,value,v=>model.set(row,key,key==='description'||key==='content'?toParagraphs(v):v),
+      {multiline:key==='description'||key==='content'}));
     }
     // Explicitly show all additional metadata, including unrecognized export
     // fields; these are retained unchanged if the reviewer edits another field.
