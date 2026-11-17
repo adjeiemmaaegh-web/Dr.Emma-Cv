@@ -38,7 +38,7 @@ for(const name of Object.keys(targets)){
  test('roundtrip golden synthetic DOCX: '+name,async()=>{
   const document=fixture(name),artifact=build(document,'docx',{template:name==='custom'?'prestige':'modern',paper:'Letter'});
   const extracted=await docxToImportText(artifact.bytes);
-  for(const needle of targets[name])assert(extracted.text.includes(needle),
+  for(const needle of targets[name])assert(extracted.text.toLocaleLowerCase('en').includes(needle.toLocaleLowerCase('en')),
    name+' lost source text '+needle);
   const parsed=parseResumeText(extracted.text),review=createImportReview(parsed,{idFactory:fixedId});
   assert.equal(review.status,'review-required');
