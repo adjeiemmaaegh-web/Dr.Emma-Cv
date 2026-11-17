@@ -30,11 +30,11 @@ function hiddenStyles(xml){
 }
 const vanish=/<w:(?:vanish|webHidden|specVanish)\b(?![^>]*w:val="(?:0|false)")/;
 function xmlToText(xml,warnings,label,hiddenStyleIds=new Set()){
- let omittedRuns=0,omittedParagraphs=0;
+ let omittedRuns=0,omittedParagraphs=0,deletedRuns=0;
  const original=xml;
  // Rejected changes and removed text are not candidate facts.
  xml=xml.replace(/<w:(del|moveFrom)\b[^>]*>[\s\S]*?<\/w:\1>/g,()=>{
-  omittedRuns++;return '';
+  deletedRuns++;return '';
  });
  const paragraphs=chunk=>{
   const lines=[];
@@ -63,7 +63,9 @@ function xmlToText(xml,warnings,label,hiddenStyleIds=new Set()){
   const part=paragraphs(chunk);if(!part)continue;
   text+=text&&!/[\n\t]$/.test(text)?'\n'+part:part;
  }
- if(omittedRuns||omittedParagraphs)warnings.push((omittedRuns+omittedParagraphs)+' hidden/deleted run(s) or paragraph(s) in '+label+' were omitted.');
+ if(omittedRuns)warnings.push(omittedRuns+' hidden text run(s) in '+label+' were omitted.');
+ if(omittedParagraphs)warnings.push(omittedParagraphs+' hidden paragraph(s) in '+label+' were omitted.');
+ if(deletedRuns)warnings.push(deletedRuns+' deleted tracked-change block(s) in '+label+' were omitted.');
  if(/<w:hyperlink\b/.test(original))warnings.push('Links in '+label+' were imported as visible labels. Check their destinations in the original Word file.');
  return text.replace(/\n{3,}/g,'\n\n').trim();
 }
