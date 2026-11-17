@@ -4,6 +4,7 @@ import {zipStore,utf8,unzipEntries} from '../../src/features/documents/zip.mjs';
 import {docxToImportText} from '../../src/features/import/html-import.mjs';
 import {parseResumeText,createImportReview,approveImportReview} from '../../src/features/import/text-import.mjs';
 import {pdfToImportText,createPdfImportReview} from '../../src/features/import/pdf-import.mjs';
+import {createLocalFileImportReview,loadBundledPdfEngine} from '../../src/features/import/local-file.mjs';
 const ID=()=> 'testId123456789';
 const xml=t=>'<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>'+t+'</w:body></w:document>';
 const para=t=>'<w:p><w:r><w:t>'+t+'</w:t></w:r></w:p>';
@@ -68,4 +69,49 @@ test('PDF adapter rejects invalid files, missing local engine and excessive page
  await assert.rejects(()=>pdfToImportText(utf8('not pdf'),{getDocument:fakePdf}),e=>e.code==='INVALID');
  await assert.rejects(()=>pdfToImportText(pdfBytes),e=>e.code==='UNAVAILABLE');
  await assert.rejects(()=>pdfToImportText(pdfBytes,{getDocument:()=>({promise:Promise.resolve({numPages:41})})}),e=>e.code==='INVALID');
+});
+
+
+const local=(name,data)=>{const bytes=typeof data==='string'?utf8(data):data;return {name,size:bytes.length,
+ arrayBuffer:async()=>bytes.slice().buffer};};
+test('file import is offline, non-persisting and retains complete source for review',async()=>{
+ const text='Ada Example\nada@example.test\n\nExperience\nManager at Atlas Shop\nJan 2020 - Present\n• Served customers';
+ const review=await createLocalFileImportReview(local('existing.txt',text),{idFactory:ID});
+ assert.equal(review.status,'review-required');
+ assert.equal(review.proposed.master.document.experience[0].employer,'Atlas Shop');
+ assert.equal(review.sourceText,text);
+ assert.equal(review.requiresUserConfirmation,true);
+ assert.throws(()=>approveImportReview(review,{accepted:['experience[0]']}),e=>e.code==='UNCONFIRMED');
+ const before=JSON.stringify(review.proposed.master.document);
+ const reviewed=approveImportReview(review,{accepted:['experience[0]'],confirmed:true,idFactory:ID});
+ assert.equal(review.proposed.master.document.experience.length,1);
+ assert.equal(JSON.stringify(review.proposed.master.document),before,'review is not mutated by approval');
+ assert.equal(reviewed.master.document.experience[0].title,'Manager');
+});
+test('local DOCX import preserves source text and asks for explicit approval',async()=>{
+ const archive=zipStore([{name:'word/document.xml',data:utf8(xml(
+   para('Ada Example')+para('ada@example.test')+para('Experience')+
+   para('Retail Manager at Bright Stores')+para('Jan 2022 - Present')+para('• Led staff')
+ ))}]);
+ const review=await createLocalFileImportReview(local('sample.docx',archive),{idFactory:ID});
+ assert.equal(review.format,'docx');assert.equal(review.status,'review-required');
+ assert(review.sourceText.includes('Retail Manager'));
+ assert.equal(review.proposed.master.document.experience[0].employer,'Bright Stores');
+});
+test('truncation and missing PDF pages never result in an approvable partial resume',async()=>{
+ const truncated=parseResumeText('Ada Example\nada@example.test\nExperience\n'+('• evidence\n'.repeat(25000)));
+ const review=createImportReview(truncated,{idFactory:ID});
+ assert.equal(truncated.truncated,true);assert.equal(review.status,'blocked');
+ assert.throws(()=>approveImportReview(review,{confirmed:true,accepted:['personalInfo.name']}),e=>e.code==='INVALID');
+ const pdf=await createPdfImportReview(pdfBytes,{getDocument:fakePdf,idFactory:ID});
+ assert.equal(pdf.status,'blocked');assert.deepEqual(pdf.missingPages,[2]);
+ assert.throws(()=>approveImportReview(pdf,{confirmed:true,accepted:['personalInfo.name']}),e=>e.code==='INVALID');
+});
+test('bundled PDF engine loader uses only explicitly supplied local entry and worker',async()=>{
+ const got=[];
+ const getDocument=()=>({promise:Promise.resolve({})});
+ const get=await loadBundledPdfEngine({importModule:async u=>{got.push(u);return {
+  getDocument,GlobalWorkerOptions:{set workerSrc(v){got.push(v);}}};}});
+ assert.equal(get,getDocument);
+ assert.deepEqual(got,['/pdf-engine/pdf.mjs','/pdf-engine/pdf.worker.mjs']);
 });
