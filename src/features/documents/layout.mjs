@@ -44,12 +44,12 @@ function sectionBlocks(key,doc){
  for(const e of list){
   if(key==='experience'){
    const t=join(e.title,e.employer);if(!t&&!dates(e))continue;
-   push({kind:'entry-head',text:t||'Role',right:dates(e),keepWithNext:true,sourcePath:'experience['+e.id+'].title'});
+   push({kind:'entry-head',text:t||'Role',right:dates(e),keepWithNext:true,sourcePath:'experience['+e.id+'].meta'});
    if(str(e.location))push({kind:'line',text:str(e.location),keepWithNext:true,muted:true,sourcePath:'experience['+e.id+'].location'});
    const ls=htmlToLines(e.description);ls.forEach(l=>push({kind:l.bullet?'bullet':'line',text:l.text,sourcePath:'experience['+e.id+'].description'}));
   }else if(key==='education'){
    const t=join(e.degree||e.title,e.school||e.institution);if(!t)continue;
-   push({kind:'entry-head',text:t,right:dates(e),keepWithNext:true,sourcePath:'education['+e.id+'].degree'});
+   push({kind:'entry-head',text:t,right:dates(e),keepWithNext:true,sourcePath:'education['+e.id+'].meta'});
    htmlToLines(e.description).forEach(l=>push({kind:l.bullet?'bullet':'line',text:l.text,sourcePath:'education['+e.id+'].description'}));
   }else if(key==='languages'){
    const t=join(e.name||e.language,e.level);if(t)push({kind:'line',text:t});
@@ -67,7 +67,7 @@ function sectionBlocks(key,doc){
 export function buildBlocks(doc,appearance={}){
  const style=resolveStyle(appearance),p=doc.personalInfo||{},blocks=[],warnings=[];
  const name=[p.firstName,p.lastName].map(str).filter(Boolean).join(' ');
- if(name)blocks.push({kind:'name',text:name,links:[],sourcePath:'personalInfo.firstName'});
+ if(name)blocks.push({kind:'name',text:name,links:[],sourcePath:'personalInfo.name'});
  if(str(p.title))blocks.push({kind:'title',text:str(p.title),links:[],sourcePath:'personalInfo.title'});
  const links=[];
  const contact=[];
