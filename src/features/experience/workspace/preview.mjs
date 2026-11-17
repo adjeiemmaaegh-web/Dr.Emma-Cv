@@ -13,7 +13,7 @@ export function layoutFor(document,appearance){
 }
 /** Render positioned pages; an optional callback enables keyboard-accessible on-document editing. */
 export function drawPages(container,layout,scale,{onEdit}={}){
- container.replaceChildren();
+ const fragment=document.createDocumentFragment(),keyboardPaths=new Set();
  const {pages,paper,style}=layout;
  pages.forEach((page,i)=>{
   const slot=el('div',{class:'lw-pageslot',style:`width:${paper.width*scale}px;height:${paper.height*scale}px`});
@@ -38,7 +38,9 @@ export function drawPages(container,layout,scale,{onEdit}={}){
    const editable=Boolean(onEdit&&l.sourcePath);
    const attrs={style:`left:${left}px;top:${top}px;font-size:${l.size}px;font-weight:${l.bold?700:400};color:${color}`};
    if(editable){
-    Object.assign(attrs,{class:'lw-page-edit',role:'button',tabindex:'0','data-path':l.sourcePath,
+    const first= !keyboardPaths.has(l.sourcePath);
+    keyboardPaths.add(l.sourcePath);
+    Object.assign(attrs,{class:'lw-page-edit',role:'button',tabindex:first?'0':'-1','data-path':l.sourcePath,
      'aria-label':'Edit '+label.slice(0,90),title:'Edit this text on the page',
      on:{click:e=>onEdit(l.sourcePath,e.currentTarget),
       keydown:e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();onEdit(l.sourcePath,e.currentTarget);}}}});
@@ -46,8 +48,9 @@ export function drawPages(container,layout,scale,{onEdit}={}){
    pg.append(el('span',attrs,label));
    if(l.right)pg.append(el('span',{style:`left:${l.x+l.textWidth-textWidth(l.right,l.size,style.font,false)}px;top:${top}px;font-size:${l.size}px;color:#111`},l.right));
   }
-  slot.append(pg);container.append(el('div',{},slot,el('p',{class:'lw-pagelabel'},'Page '+(i+1)+' of '+pages.length)));
+  slot.append(pg);fragment.append(el('div',{},slot,el('p',{class:'lw-pagelabel'},'Page '+(i+1)+' of '+pages.length)));
  });
+ container.replaceChildren(fragment);
 }
 /** First-page thumbnail with the same family accent geometry as PDF. */
 export function thumbnail(layout){
