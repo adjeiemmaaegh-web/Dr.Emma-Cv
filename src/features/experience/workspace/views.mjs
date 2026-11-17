@@ -197,7 +197,7 @@ export function checkView(ctx){
  const technicalFindings=el('details',{class:'lw-card'},el('summary',{},'Technical findings ('+r.findings.length+')'),ul);
  root.append(el('section',{class:'lw-card','aria-labelledby':'h-priority'},
   el('h2',{id:'h-priority'},'Priority corrections and recruiter review'),
-  el('p',{class:'lw-help'},'High-priority corrections first. These are heuristics to review, not hiring predictions. No score is shown.')));
+  el('p',{class:'lw-help'},'High-priority corrections first. This is not a score or a hiring prediction. The checks are local heuristics requiring review.')));
  const top=expanded.prioritizedCorrections.slice(0,12);
  if(top.length)root.append(el('ol',{class:'lw-findings','aria-label':'Prioritized corrections'},top.map(f=>
   el('li',{class:'lw-finding '+(f.priority==='critical'?'error':f.priority==='high'?'warning':'info')},
