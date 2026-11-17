@@ -12,6 +12,10 @@ try{
  await page.goto(base);
  await page.getByRole('link',{name:'Edit',exact:true}).click();
  await page.locator('.lw-page-edit[data-path="summary"]').first().waitFor();
+ const repeated=page.locator('.lw-page-edit[data-path="experience[e1].description"]');
+ assert.ok(await repeated.count()>1,'Sample experience description has multiple editable text lines');
+ assert.equal(await repeated.evaluateAll(nodes=>nodes.filter(el=>el.tabIndex===0).length),1,
+  'Long descriptions receive one keyboard stop rather than one per wrapped line');
  // Visual, on-paper editing works independently of the form column.
  await page.locator('.lw-page-edit[data-path="summary"]').first().click();
  const direct=page.locator('.lw-inline-editor textarea');
