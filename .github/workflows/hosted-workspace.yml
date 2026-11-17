@@ -1,7 +1,7 @@
 name: Ledger A-E hosted workspace release candidate QA (NO AUTO DEPLOY)
 on:
   push:
-    branches: [release/hosted-a-e-workspace-2026-11-17]
+    branches: [release/hosted-a-e-workspace-2026-11-17, feat/advanced-interview-coaching-2026-11-17]
   pull_request:
     branches: [main]
     paths:
@@ -12,7 +12,11 @@ on:
       - 'tools/audit-platform.mjs'
       - 'tools/audit-e31-e30-preservation.mjs'
       - 'hosting/sw.workspace.template.js'
+      - 'src/features/interview/**'
+      - 'src/features/experience/workspace/**'
+      - 'tests/career/**'
       - 'tests/hosting/**'
+      - 'docs/workstreams/career/**'
       - 'package.json'
       - 'vercel.json'
       - '.github/workflows/hosted-workspace.yml'
@@ -39,6 +43,12 @@ jobs:
         run: npm run build
       - name: Verify emitted static site structure and integrity
         run: npm run audit:hosted
+      - name: Validate interview modules and all career unit tests before browser installation
+        run: |
+          node --check src/features/interview/advanced-coach.mjs
+          node --check src/features/experience/workspace/interview-coach-view.mjs
+          node --check src/features/experience/workspace/career-journey-view.mjs
+          node --test tests/career/*.test.mjs
       - name: Install test-only Chromium
         run: |
           npm install --no-save --ignore-scripts --no-audit --no-fund playwright@1.57.0
