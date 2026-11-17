@@ -1,7 +1,7 @@
 {
   "version": 2,
   "framework": null,
-  "buildCommand": "node tools/build-e31-unified-ux.mjs",
+  "buildCommand": "node tools/build-workspace-vercel.mjs",
   "outputDirectory": "site",
   "headers": [
     {
