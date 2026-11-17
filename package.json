@@ -1,6 +1,6 @@
 {
   "name": "ledger-cv-studio",
-  "version": "0.8.0-e0",
+  "version": "0.31.0-e31-candidate",
   "private": true,
   "type": "module",
   "scripts": {
@@ -9,7 +9,11 @@
     "verify:e0": "npm run build:legacy && npm run audit:baseline && npm run audit:storage && npm run test:unit",
     "test:unit": "node --test tests/unit/*.test.mjs",
     "audit:storage": "node tools/audit-storage.mjs",
-    "build": "node tools/build-e30-ui.mjs"
+    "build": "node tools/build-e31-unified-ux.mjs",
+    "build:e30-frozen": "node tools/build-e30-ui.mjs",
+    "audit:e31": "node tools/audit-e31-e30-preservation.mjs && node tools/audit-e31-candidate.mjs",
+    "test:platform": "node --test tests/platform/*.test.mjs",
+    "verify:platform": "node tools/audit-platform.mjs && npm run test:platform"
   },
   "devDependencies": {
     "pdfjs-dist": "6.5.438",

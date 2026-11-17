@@ -1,0 +1,14 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Ledger Group A isolated browser fixture</title>
+<link rel="stylesheet" href="../../../src/ui/system/tokens.css"></head>
+<body><main id="platform-root" class="ledger-platform-root"><section class="ledger-panel">
+<h1>Group A frontend platform acceptance fixture</h1><p>Only synthetic browser data is used. Nothing is saved to legacy CV keys.</p>
+</section></main>
+<script type="module">
+import {createCareerProfile,createCVVariant} from '../../../src/domain/profile/career-profile.mjs';
+import {createIndexedDBRevisionStore} from '../../../src/domain/storage/revision-store.mjs';
+import {createCareerProfileBackup,previewCareerProfileBackup} from '../../../src/domain/storage/profile-backup.mjs';
+import {createFeatureRegistry} from '../../../src/core/feature-registry.mjs';
+window.ledgerPlatformFixture={createCareerProfile,createCVVariant,createIndexedDBRevisionStore,
+createCareerProfileBackup,previewCareerProfileBackup,createFeatureRegistry};
+</script></body></html>

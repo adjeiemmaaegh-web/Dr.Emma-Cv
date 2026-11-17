@@ -13,6 +13,11 @@ assert.equal(manifest.hostedHtmlSha256,digest);
 assert.equal(manifest.hostedHtmlBytes,html.length);
 assert(html.includes('id="ledger-e31-accessibility"'));
 assert(html.includes('id="ledger-e31-keyboard"'));
+if(manifest.sourceE31Sha256){
+ assert.match(manifest.version,/Unified UX/);
+ assert(html.includes('id="ledger-e31-unified-ux"'));
+ assert.match(manifest.unifiedCssSha256,/^[a-f0-9]{64}$/);
+}
 assert(sw.includes('ledger-e31-'+digest.slice(0,14)));
 assert(!/<script\b[^>]+\bsrc\s*=/i.test(html.toString('utf8')));
 console.log(JSON.stringify({status:'PASS',htmlSha256:digest,htmlBytes:html.length,sourceE30Sha256:manifest.sourceE30Sha256},null,2));
