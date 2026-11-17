@@ -77,12 +77,14 @@ export function createWorkspaceDataPanel(ctx){
     updateSlot.replaceChildren(el('p',{},state.status==='available'||state.status==='deferred'?
       'An offline update is waiting. It will only activate when you approve it.':
       state.status==='applying'?'Applying your approved update…':'No offline update is waiting.'));
-    if(state.status==='available'||state.status==='deferred'){
+    if(state.status==='available'){
      updateSlot.append(btn('Update now',()=>{
       const outcome=updateManager.apply();
       if(!outcome.ok)message(outcome.reason==='unsaved'?'Save all changes before activating an update.':'Update is not available.');
      }));
-    }
+    }else if(state.status==='deferred')updateSlot.append(btn('Check for update again',async()=>{
+     await updateManager.recheck();
+    }));
    }
   }).catch(()=>{updateSlot.replaceChildren(el('p',{},'Update status could not be read. No update was triggered.'))});
  }else updateSlot.replaceChildren(el('p',{},'Service-worker updates are not supported in this browser context.'));

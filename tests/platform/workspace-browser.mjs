@@ -13,6 +13,11 @@ try{
  p.on('pageerror',e=>errors.push(String(e)));
  await p.goto(base);await p.waitForSelector('#page-title');
  assert.match(await p.locator('#main').innerText(),/Data, versions and recovery/);
+ const audit=await p.evaluate(async()=>{
+  const {auditAccessibility}=await import('/src/features/accessibility/a11y-audit.mjs');
+  return auditAccessibility(document.getElementById('app')).findings.filter(x=>x.severity!=='info');
+ });
+ assert.deepEqual(audit,[],'persistent mobile homepage and data recovery controls must pass automated a11y audit');
  const before=await p.evaluate(async()=>{
   const dbs=await indexedDB.databases();
   return {dbs:dbs.map(d=>d.name),keys:Object.keys(localStorage)};
