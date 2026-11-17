@@ -1,0 +1,73 @@
+name: Ledger Group A workspace persistence and recovery QA (NO DEPLOY)
+on:
+  push:
+    branches:
+      - feat/group-a-workspace-persistence-2026-11-17
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/core/**'
+      - 'src/domain/storage/**'
+      - 'src/features/experience/workspace/**'
+      - 'hosting/sw.template.js'
+      - 'tests/platform/**'
+      - '.github/workflows/group-a-workspace.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  platform-node:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check all new source and test syntax
+        run: |
+          node --check src/domain/storage/application-revision-store.mjs
+          node --check src/core/workspace-persistence.mjs
+          node --check src/features/experience/workspace/data-panel.mjs
+          node --check src/features/experience/workspace/views.mjs
+          node --check src/features/experience/workspace/workspace.mjs
+          node --check tests/platform/workspace-persistence.test.mjs
+          node --check tests/platform/workspace-browser.mjs
+      - name: Check platform boundaries and production release guard
+        run: |
+          node tools/audit-platform.mjs
+          node tools/audit-e31-e30-preservation.mjs
+          node -e "const c=require('./vercel.json');if(c.git?.deploymentEnabled?.main!==false)process.exit(1)"
+      - name: All A-E and cross-module regression tests
+        run: node --test tests/platform/*.test.mjs tests/documents/*.test.mjs tests/intelligence/*.test.mjs tests/career/*.test.mjs tests/integration/*.test.mjs tests/experience/*.test.mjs
+  platform-browser:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install test-only Chromium tooling
+        run: |
+          npm install --no-save --ignore-scripts --no-audit --no-fund playwright@1.57.0
+          python -m pip install playwright==1.57.0
+          python -m playwright install chromium
+      - name: Native IndexedDB and restored CV workbench
+        run: python tests/platform/platform_browser.py
+      - name: New persistent workspace origin two-tab and migration test
+        run: node tests/platform/workspace-browser.mjs
+      - name: Group E responsive five-view UI and accessibility
+        run: node tests/experience/workspace-browser.mjs
+      - name: Group E onboarding and PWA accessibility
+        run: |
+          node tests/experience/onboarding-browser.mjs
+          node tests/experience/pwa-browser.mjs
+          STRICT=1 node tests/experience/editor-a11y.mjs
+      - name: Complete A-D real-browser synthetic regression
+        run: |
+          node tests/documents/editor-browser.mjs
+          node tests/integration/ad-browser.mjs
