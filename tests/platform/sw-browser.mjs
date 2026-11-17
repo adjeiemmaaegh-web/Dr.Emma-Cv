@@ -66,6 +66,10 @@ try{
  assert.equal(await p.evaluate(async()=>!!(await navigator.serviceWorker.getRegistration()).waiting),true);
  assert.deepEqual(await p.evaluate(()=>{window.dirty=false;return window.updateManager.apply()}),{ok:true});
  await p.waitForFunction(()=>window.changed>=1&&window.reloads>=1);
+ await p.waitForFunction(async()=>{
+  const r=await navigator.serviceWorker.getRegistration();
+  return r.active?.state==='activated'&&!r.waiting;
+ });
  const switched=await p.evaluate(async()=>{
   const r=await navigator.serviceWorker.getRegistration();
   return {waiting:!!r.waiting,active:r.active?.state,changes:window.changed};
