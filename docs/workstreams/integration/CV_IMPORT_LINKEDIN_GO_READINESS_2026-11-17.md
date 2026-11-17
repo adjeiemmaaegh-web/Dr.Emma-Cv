@@ -16,7 +16,7 @@
 | DOCX text fidelity | Synthetic multilingual/repeated-employer/custom-section corpus, round-trip from generated Word files; hidden/deleted text exclusion, ZIP CRC and bounded inflate tests. | Automated; re-check on final HEAD |
 | Native office conversion | `cv-native-office.yml`: LibreOffice Writer opens a real generated DOCX, converts it, then actual PDF.js checks retained visible words. | Added; check workflow outcome |
 | Sensitive content | No LinkedIn credentials/scraping/URL fetch, no unrelated archive categories, no unapproved master overwrite; source-file bytes remain local. | Static + browser checks; independent security review open |
-| Scanned PDFs | Empty/sparse page must block; manual transcriptions require deliberate complete-page consent and a second review. Automatic trained OCR not shipped in this hosted workflow. | Guard implemented; automatic OCR open |
+| Scanned PDFs | Empty/sparse page blocks unapproved partial imports. Opt-in English OCR uses local pinned worker/WASM/model with 5-page/pixel limits and explicit source review; real Chromium test physically disables network. Manual full-page transcription remains available. | Implemented and synthetic offline-browser tested; real noisy scans/other languages OPEN |
 | Visual/accessibility | Keyboard traversal, screen reader, native Microsoft Word/PDF viewers, high contrast, 200% zoom and touch on physical devices. | **OPEN — owner / independent acceptance** |
 | Real-source fidelity | De-identified real Word CVs, two-column/complex PDFs, protected styles, rich links, actual member-export CSV variants, noisy scans, varied dates and non-English names. | **OPEN — corpus needed** |
 | Licensing/operations | Confirm bundled PDF.js license, OSS notices, content security, staged rollback and support; no customer PII or secrets shipped. | Build license audit; independent legal/security review open |
@@ -31,7 +31,7 @@ Suggested GO thresholds, subject to the owner agreeing before scoring:
 - **Zero silently omitted critical fields or invented credentials** among reviewed contact names, experience titles/employers/dates, education, certifications and LinkedIn categories. Review must surface ambiguities and source provenance.
 - **All** tested files either create an accurate, explicitly approved new profile or fail closed with an actionable warning; no blank overwrite, cross-profile data leak, lost draft or unapproved automatic edit.
 - At least **98% correct critical-field extraction before reviewer correction** for supported selectable-text DOCX/PDF fixtures, separately scored by format and layout. If shortfalls occur, do not average them away; fix root causes and rerun.
-- For scanned PDFs, evaluate recognition separately only once a trained, rights-reviewed offline OCR adapter is actually integrated; current explicit manual transcription is not OCR accuracy.
+- For scanned PDFs, the trained offline English OCR adapter is integrated, but its synthetic Chromium proof does not determine field-level accuracy on noisy, blurred, rotated or mixed-language real scans. Score a separate, de-identified OCR reference corpus, never combine OCR results with selectable-text PDF accuracy, and preserve human acceptance.
 - Re-test source-persistence and backup/recovery on real Windows Chrome/Edge, Mac Safari, iPhone Safari and Android Chrome (or record an explicit owner-approved, limited-platform pilot scope).
 - Run actual keyboard and screen-reader walkthroughs; automated source lint and simulated-browser tests cannot establish WCAG 2.2 AA.
 
