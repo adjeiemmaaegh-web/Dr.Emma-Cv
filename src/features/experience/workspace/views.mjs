@@ -181,7 +181,7 @@ export function templatesView(ctx){
 const SEV={error:['✖','Error','err'],warning:['▲','Warning','warn'],info:['ℹ','Tip','info']};
 export function checkView(ctx){
  const {store}=ctx,root=el('div'),s=store.editor.snapshot();
- root.append(el('header',{class:'lw-page-head'},el('div',{},el('h1',{id:'page-title',tabindex:'-1'},'Check your CV'),el('p',{},'Local checks on the exact file you would send. They are suggestions, not a score, and cannot predict any employer’s system.'))));
+ root.append(el('header',{class:'lw-page-head'},el('div',{},el('h1',{id:'page-title',tabindex:'-1'},'Check your CV'),el('p',{},'Local checks on your CV text and generated layout preview. Review the exported PDF/DOCX separately; no ATS or hiring prediction is produced.'))));
  if(!store.hasContent()){root.append(el('div',{class:'lw-empty'},el('h3',{},'Nothing to check yet'),el('p',{},'Create or import a CV first.'),el('a',{class:'lw-btn primary',href:'#/home'},'Get started')));return {node:root};}
  const lay=layoutFor(s.document,s.appearance);
  const art={text:lay.text,pageCount:lay.pageCount,warnings:lay.warnings};
@@ -193,7 +193,7 @@ export function checkView(ctx){
   ul.append(el('li',{class:'lw-finding '+f.severity},el('span',{class:'ic','aria-hidden':'true'},ic),
    el('div',{},el('p',{},el('span',{class:'lw-visually-hidden'},label+': '),f.message),el('p',{class:'why'},f.explanation)),
    f.path?el('button',{type:'button',class:'lw-btn sm',on:{click:()=>ctx.goField(f.path)}},'Go to field'):null));}
- root.append(ul);
+ root.append(el('details',{class:'lw-card'},el('summary',{},'Technical findings ('+r.findings.length+')'),ul));
  const expanded=analyzeResumeReadiness({document:s.document,appearance:s.appearance,artifact:art});
  root.append(el('section',{class:'lw-card','aria-labelledby':'h-priority'},
   el('h2',{id:'h-priority'},'Priority corrections and recruiter review'),
