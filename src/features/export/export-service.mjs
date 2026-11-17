@@ -23,3 +23,25 @@ export function renderDocumentArtifact(variant,format){
   pageCount:format==='pdf'?out.pageCount:l.pages.length,text:pagesToText(l.pages),
   warnings:[...l.warnings,...out.warnings],rendererVersion:RENDERER_VERSION};
 }
+
+/** Adapter for Group A's asynchronous DocumentRenderer contract. */
+export function createDocumentRenderer(){
+ return Object.freeze({async render(request,signal){
+  if(signal?.aborted)throw Object.assign(new Error('Export cancelled'),{name:'AbortError'});
+  if(!request||!Number.isSafeInteger(request.sourceRevision)||typeof request.sourceVariantId!=='string')
+   throw Object.assign(new Error('Invalid document render request'),{code:'INVALID'});
+  const variant={id:request.sourceVariantId,revision:request.sourceRevision,
+   document:request.document,appearance:request.appearance||{}};
+  if(request.format==='html'){
+   if(!validLegacyDocument(variant.document))throw Object.assign(new Error('Invalid CV document'),{code:'INVALID'});
+   const preview=renderPreview(variant.document,variant.appearance);
+   const esc=text=>String(text).replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+   const html='<!doctype html><html lang="en"><meta charset="utf-8"><title>CV</title><body><main><pre>'+esc(preview.text)+'</pre></main></body></html>';
+   return {format:'html',mime:'text/html',bytes:new TextEncoder().encode(html),
+    sourceVariantId:variant.id,sourceRevision:variant.revision};
+  }
+  const artifact=renderDocumentArtifact(variant,request.format);
+  if(signal?.aborted)throw Object.assign(new Error('Export cancelled'),{name:'AbortError'});
+  return artifact;
+ }});
+}

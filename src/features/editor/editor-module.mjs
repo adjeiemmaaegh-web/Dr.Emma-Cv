@@ -15,16 +15,29 @@ const SECTION_FIELDS={experience:[['title','Job title'],['employer','Employer'],
 export const editorFeature=Object.freeze({
  id:'cv-editor',dependencies:[],
  async mount({host,services}){
-  const root=host.element;if(!root||typeof root.append!=='function')throw new TypeError('host.element is required');
+  const root=host;if(!root||typeof root.append!=='function')throw new TypeError('DOM host is required');
   const source=services.documentSource;if(!source)throw new TypeError('services.documentSource is required');
   const initial=await source.load();
   const editor=createEditor(initial);
   const status=el('p',{role:'status','aria-live':'polite'}),preview=el('div',{class:'cv-preview',role:'document','aria-label':'Live CV preview',tabindex:'0'});
   const form=el('div',{class:'cv-editor-form'});
   const undo=el('button',{type:'button',on:{click:()=>editor.undo()}},'Undo'),redo=el('button',{type:'button',on:{click:()=>editor.redo()}},'Redo');
+  let saving=false;
   const save=el('button',{type:'button',on:{click:async()=>{
-   try{await source.save({document:editor.snapshot().document,appearance:editor.snapshot().appearance});editor.markSaved();status.textContent='Saved.';}
-   catch(e){status.textContent='Not saved: '+(e&&e.message||'storage error')+'. Your edits are still here; export a backup.';}}}},'Save');
+   if(saving)return;
+   const snap=editor.snapshot(),acknowledged={document:snap.document,appearance:snap.appearance};
+   saving=true;save.disabled=true;
+   try{
+    await source.save(acknowledged);
+    // Only acknowledge the exact payload written. A newer on-screen edit
+    // stays dirty if the asynchronous storage write finishes afterwards.
+    editor.markSaved(acknowledged);
+    status.textContent=editor.snapshot().dirty?
+     'Saved an earlier version; your newer edits are still unsaved.':'Saved.';
+   }catch(e){
+    status.textContent='Not saved: '+(e&&e.message||'storage error')+'. Your edits are still here; export a backup.';
+   }finally{saving=false;save.disabled=false}
+  }}},'Save');
   const tpl=el('select',{'aria-label':'Template',on:{change:e=>editor.setAppearance(applyTemplate(editor.snapshot().appearance,e.target.value))}},
    ...listTemplates().map(t=>el('option',{value:t.id},t.name+' ('+t.family+')')));
   const paper=el('select',{'aria-label':'Paper size',on:{change:e=>editor.setAppearance({paper:e.target.value})}},...OPTIONS.paper.map(p=>el('option',{value:p},p)));

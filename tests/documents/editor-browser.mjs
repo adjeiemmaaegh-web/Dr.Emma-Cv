@@ -7,11 +7,12 @@ const page_html=`<!doctype html><meta charset=utf-8><body><div id=app></div><scr
 import {createFeatureRegistry} from '/src/core/feature-registry.mjs';
 import {editorFeature} from '/src/features/editor/editor-module.mjs';
 import {SYNTH_DOC} from '/tests/documents/fixtures.mjs';
-window.saved=[];window.failSave=false;
+window.saved=[];window.failSave=false;window.pauseSave=false;window.releaseSave=null;
 const reg=createFeatureRegistry();reg.register(editorFeature);
-await reg.mount('cv-editor',{host:{element:document.getElementById('app')},services:{documentSource:{
+await reg.mount('cv-editor',{host:document.getElementById('app'),services:{documentSource:{
  load:()=>({document:SYNTH_DOC(),appearance:{}}),
- save:async v=>{if(window.failSave)throw new Error('quota exceeded');window.saved.push(v);}}}});
+ save:async v=>{if(window.pauseSave)await new Promise(resolve=>window.releaseSave=resolve);
+  if(window.failSave)throw new Error('quota exceeded');window.saved.push(v);}}}});
 window.reg=reg;window.ready=true;</script>`;
 const server=http.createServer((req,res)=>{
  if(req.url==='/')return res.writeHead(200,{'content-type':'text/html'}).end(page_html);
@@ -46,6 +47,18 @@ try{
   await page.evaluate(()=>{window.failSave=true});await page.getByLabel('Summary').fill('edited after failure');await page.getByRole('button',{name:'Save',exact:true}).click();
   await page.waitForFunction(()=>/Not saved/.test(document.querySelector('[role=status]').textContent));
   assert((await page.locator('.cv-preview').innerText()).includes('edited after failure'));
+  // A pending storage write must never acknowledge edits typed after it began.
+  await page.evaluate(()=>{window.failSave=false;window.pauseSave=true;});
+  await page.getByRole('button',{name:'Save',exact:true}).click();
+  await page.waitForFunction(()=>typeof window.releaseSave==='function');
+  await page.getByLabel('Summary').fill('newer edit while save is pending');
+  await page.evaluate(()=>{window.pauseSave=false;window.releaseSave();window.releaseSave=null;});
+  await page.waitForFunction(()=>window.saved.length===2);
+  await page.waitForFunction(()=>document.querySelector('[role=status]').textContent.includes('newer edits are still unsaved'));
+  assert((await page.locator('[role=status]').innerText()).includes('unsaved'));
+  assert((await page.locator('.cv-preview').innerText()).includes('newer edit while save is pending'));
+  await page.getByRole('button',{name:'Save',exact:true}).click();
+  await page.waitForFunction(()=>document.querySelector('[role=status]').textContent==='Saved.');
   // no horizontal overflow
   assert(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth),'horizontal overflow at '+vp.width);
   // unmount cleans up

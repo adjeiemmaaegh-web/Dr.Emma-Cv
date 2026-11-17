@@ -219,3 +219,27 @@ test('OCR cancellation discards everything, including the in-flight page',async(
  await assert.rejects(p,e=>e.code==='CANCELLED');
 });
 function hasTool(t){try{execFileSync('which',[t]);return true;}catch{return false;}}
+
+test('asynchronous save acknowledgement never marks later unsaved edits as saved',()=>{
+ const editor=createEditor({document:SYNTH_DOC()});
+ editor.setText('summary','Sent to storage');
+ const sent=editor.snapshot();
+ editor.setText('summary','Edited while save was pending');
+ editor.markSaved({document:sent.document,appearance:sent.appearance});
+ assert.equal(editor.snapshot().dirty,true,'newer change must remain dirty');
+ assert.equal(editor.snapshot().document.summary,'Edited while save was pending');
+ editor.markSaved({document:editor.snapshot().document,appearance:editor.snapshot().appearance});
+ assert.equal(editor.snapshot().dirty,false);
+});
+test('renderer adapter satisfies async pdf/docx/html contract without running network code',async()=>{
+ const {createDocumentRenderer}=await import('../../src/features/documents/index.mjs');
+ const renderer=createDocumentRenderer(),v=variant();
+ for(const format of ['pdf','docx','html']){
+  const art=await renderer.render({sourceVariantId:v.id,sourceRevision:v.revision,
+   document:v.document,appearance:v.appearance,format});
+  assert.equal(art.format,format);assert.equal(art.sourceVariantId,v.id);
+  assert.equal(art.sourceRevision,v.revision);assert(art.bytes.length>100);
+ }
+ await assert.rejects(renderer.render({sourceVariantId:v.id,sourceRevision:v.revision,
+  document:v.document,appearance:v.appearance,format:'pdf'}, {aborted:true}),e=>e.name==='AbortError');
+});

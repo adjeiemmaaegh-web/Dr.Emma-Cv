@@ -31,7 +31,11 @@ export function createEditor({document,appearance={},limit=100,onChange}={}){
  const api={
   snapshot:()=>({document:clone(state.document),appearance:clone(state.appearance),canUndo:past.length>0,canRedo:future.length>0,dirty:JSON.stringify(state)!==saved}),
   subscribe(fn){listeners.add(fn);return()=>listeners.delete(fn);},
-  markSaved(){saved=JSON.stringify(state);emit();},
+  markSaved(acknowledged){
+   // Acknowledge only the immutable snapshot that actually reached storage.
+   saved=JSON.stringify(acknowledged?{document:acknowledged.document,appearance:acknowledged.appearance}:state);
+   emit();
+  },
   setPersonal(field,value){const d=draft();if(typeof field!=='string'||/^__|prototype|constructor/.test(field)||typeof value!=='string')throw fail('INVALID','Invalid personal field');
    d.document.personalInfo[field]=value;return commit(d,'p:'+field);},
   setText(field,value){if(!TEXTS.includes(field)||typeof value!=='string')throw fail('INVALID','Invalid text field');const d=draft();d.document[field]=value;return commit(d,'t:'+field);},
