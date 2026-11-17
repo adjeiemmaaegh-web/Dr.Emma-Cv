@@ -59,7 +59,21 @@ function investigateChronology(document,now){
    // Current roles end at the current month; year-only past ends use December (conservative).
    to:e.current?now.getFullYear()*12+now.getMonth():end?lastMonth(end):null};
  });
- const issues=[];
+ const issues=[],nowMonth=now.getFullYear()*12+now.getMonth();
+ for(const x of items){
+  if(x.start&&firstMonth(x.start)>nowMonth)issues.push(finding('future-start','high',
+   'A role start date appears to be in the future ('+dateLabel(x.start)+').',
+   'Only dates definitely after the review month are flagged; year-only dates within this year are uncertain.',
+   'Verify the start date. If this is an upcoming role, label it accurately rather than showing it as completed employment.',pathOf(x.e,x.i)+'.start'));
+  if(x.end&&firstMonth(x.end)>nowMonth)issues.push(finding('future-end','medium',
+   'A past role has an end date in the future ('+dateLabel(x.end)+').',
+   'This may be a planned end date or a data-entry error; it is not a judgement about your employment.',
+   'Confirm the role’s status, and show a planned end only when it is relevant and clearly labelled.',pathOf(x.e,x.i)+'.end'));
+  if(x.e.current&&safeDate(x.e.end))issues.push(finding('current-end-conflict','medium',
+   'The same role is marked current but also has an end date.',
+   'Conflicting metadata may produce an unclear chronology in exports.',
+   'Choose the accurate status and dates; do not invent an end date.',pathOf(x.e,x.i)+'.end'));
+ }
  for(const x of items)if(x.start&&x.end&&firstMonth(x.start)>lastMonth(x.end))
   issues.push(finding('invalid-period','high','A role ends before it starts ('+tidy(x.e.title)+').',
    'This interval is chronologically impossible at the supplied precision.',
@@ -90,12 +104,20 @@ function investigateChronology(document,now){
   [/\b(manager|head of|principal)\b/i,4],[/\b(senior|supervisor|lead)\b/i,3],
   [/\b(coordinator|specialist|analyst|associate)\b/i,2],[/\b(junior|assistant|graduate)\b/i,1],
   [/\b(intern|trainee|apprentice)\b/i,0]];
- const rank=t=>{for(const [rx,n] of levels)if(rx.test(t))return n;return null;};
+ const rank=t=>{
+  // “Executive Assistant to CEO” is not a chief executive title.
+  if(/\b(?:executive assistant|assistant to|personal assistant)\b/i.test(t))return 1;
+  for(const [rx,n] of levels)if(rx.test(t))return n;return null;
+ };
  let advancement=0;
- for(const history of byEmployer.values()){
-  history.sort((a,b)=>(a.from??0)-(b.from??0));
+ for(const roles of byEmployer.values()){
+  // A promotion inference requires comparable, ordered, readable start dates.
+  const history=roles.filter(x=>x.from!==null&&x.to!==null&&x.from<=x.to)
+   .sort((a,b)=>a.from-b.from||a.to-b.to);
   for(let i=1;i<history.length;i++){
-   const a=rank(tidy(history[i-1].e.title)),b=rank(tidy(history[i].e.title));
+   const previous=history[i-1],next=history[i];
+   if(next.from<=previous.from||previous.to-next.from>3)continue;
+   const a=rank(tidy(previous.e.title)),b=rank(tidy(next.e.title));
    if(a!==null&&b!==null&&b>a)advancement++;
   }
  }
@@ -227,8 +249,8 @@ const EXTRA_FOR_CHECK=Object.freeze({
  'file-format':['file-size','file-type'],'file-name':['file-name'],
  'email':['email-tone'],'grammar':['grammar-repeat','grammar-pattern','punctuation'],
  'bullets':['bullet-style'],'hard-skills':['skill-'],'soft-skills':['skill-'],
- 'job-title':['target-title'],'credibility':['credibility','invalid-period'],
- 'interview-risk':['invalid-period','employment-gap','leadership-evidence'],
+ 'job-title':['target-title'],'credibility':['credibility','invalid-period','future-start','future-end','current-end-conflict'],
+ 'interview-risk':['invalid-period','future-start','future-end','current-end-conflict','employment-gap','leadership-evidence'],
  'age-bias':['age-bias'],'gaps':['employment-gap'],
  'progression':['progression'],'skills-evidence':['skill-'],
  'leadership':['leadership-evidence','leadership-scope']
