@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createEditor} from '../../src/features/editor/editor-state.mjs';
 import {SAMPLE_DOC} from '../../src/features/experience/workspace/store.mjs';
-import {fieldAtPath} from '../../src/features/experience/workspace/design-studio.mjs';
+import {fieldAtPath,confirmDesignEditing} from '../../src/features/experience/workspace/design-studio.mjs';
 import {normalizeAppearance,resolveStyle} from '../../src/features/templates/registry.mjs';
 import {layoutDocument,decorationGeometry,pageDecorations} from '../../src/features/documents/layout.mjs';
 import {renderPreview,renderDocumentArtifact} from '../../src/features/export/export-service.mjs';
@@ -121,4 +121,21 @@ test('seven template families use differentiated printable page accents without 
  assert.ok(new TextDecoder().decode(word.bytes).includes('w:pgBorders'));
  const corners=renderDocumentArtifact({id:'y',revision:1,name:'test',document:doc,appearance:{template:'ats-classic'}},'docx');
  assert.ok(corners.warnings.some(w=>w.includes('PDF-only')));
+});
+
+test('applying an appearance to the master CV requires explicit owner consent',()=>{
+ const store={mode:'persistent',selectedCV:{id:'master'},profile:{master:{id:'master'}},masterEditConfirmed:false,
+  confirmMasterEditing(value){this.masterEditConfirmed=value===true;return this.masterEditConfirmed}};
+ const previous=globalThis.confirm;
+ try{
+  globalThis.confirm=()=>false;
+  assert.equal(confirmDesignEditing({store}),false);
+  assert.equal(store.masterEditConfirmed,false);
+  globalThis.confirm=()=>true;
+  assert.equal(confirmDesignEditing({store}),true);
+  assert.equal(store.masterEditConfirmed,true);
+  globalThis.confirm=()=>{throw Error('Already approved; confirmation should not recur')};
+  assert.equal(confirmDesignEditing({store}),true);
+  assert.equal(confirmDesignEditing({store:{...store,mode:'preview'}}),true);
+ }finally{globalThis.confirm=previous}
 });
