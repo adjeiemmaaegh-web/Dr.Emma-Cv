@@ -195,3 +195,11 @@ test('other professional CV sections survive as editable custom sections, not di
  const approved=approveImportReview(review,{accepted:['customSections'],confirmed:true,idFactory:ID});
  assert.equal(approved.master.document.customSections.length,2);
 });
+
+test('imported skills do not fabricate numerical proficiency ratings',()=>{
+ const parsed=parseResumeText('Ada Example\nada@example.test\nSkills\nJavaScript, Project management');
+ assert.deepEqual(parsed.document.skills,[{name:'JavaScript'},{name:'Project management'}]);
+ const review=createImportReview(parsed,{idFactory:ID});
+ const imported=approveImportReview(review,{accepted:['skills'],confirmed:true,idFactory:ID});
+ assert.deepEqual(imported.master.document.skills,parsed.document.skills);
+});
