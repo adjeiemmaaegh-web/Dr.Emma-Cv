@@ -7,8 +7,11 @@ self.addEventListener('install',event=>{
  event.waitUntil((async()=>{
   try{const cache=await caches.open(CACHE);await cache.addAll(PUBLIC_SHELL)}
   catch{ /* If offline cache fails, online mode still works */ }
-  await self.skipWaiting();
+  // Updates wait until a foreground client explicitly approves activation.
  })());
+});
+self.addEventListener('message',event=>{
+ if(event.data?.type==='SKIP_WAITING')event.waitUntil(self.skipWaiting());
 });
 self.addEventListener('activate',event=>{
  event.waitUntil((async()=>{

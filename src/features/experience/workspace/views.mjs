@@ -9,6 +9,7 @@ import {exportCsv,exportBook} from '../../tracker/io.mjs';
 import {onboardingFeature} from '../../onboarding/onboarding-module.mjs';
 import {assessStorageHealth,collectStorageSignals} from '../../pwa-ui/status.mjs';
 import {SAMPLE_DOC} from './store.mjs';
+import {createWorkspaceDataPanel} from './data-panel.mjs';
 const variantOf=ed=>{const s=ed.snapshot();return {id:'workspacePreview1',revision:0,name:'CV',document:s.document,appearance:s.appearance};};
 export const ACCENTS=['#0b6b72','#c85a34','#3b5ba9','#8a5a3b','#4a4a4a','#7a3e9d'];
 const fileName=(doc,ext)=>([doc.personalInfo.firstName,doc.personalInfo.lastName,'CV'].filter(Boolean).join('_')||'CV')+'.'+ext;
@@ -44,11 +45,23 @@ export function homeView(ctx){
  }).catch(()=>{});
  grid.append(el('section',{class:'lw-card','aria-labelledby':'h-tip'},el('h2',{id:'h-tip'},'Tip'),el('p',{class:'lw-help'},'Use ',el('kbd',{},'Ctrl'),' + ',el('kbd',{},'K'),' to jump anywhere or run a command without leaving the keyboard.')));
  root.append(grid);
+ if(store.mode==='persistent'){
+  const panel=createWorkspaceDataPanel(ctx);root.append(panel.node);cleanups.push(()=>panel.destroy?.());
+ }
  const hostBox=el('div');root.append(el('section',{'aria-label':'Guided start'},hostBox));
  let cleanup=null;
  onboardingFeature.mount({host:{element:hostBox},services:{
   documentSource:{load:()=>store.hasContent()?{document:store.editor.snapshot().document,appearance:store.editor.snapshot().appearance}:null},
-  documentSink:{save:async out=>{store.replaceDocument(out.document);ctx.toast('Saved to this device.');ctx.go('#/editor');}},
+  documentSink:{save:async out=>{
+    if(store.mode==='persistent'){
+     if(store.selectedCV.id===store.profile.master.id&&!store.masterEditConfirmed&&store.hasContent()&&
+      !confirm('Replace the current master CV with these reviewed answers? Tailored copies remain separate.'))
+      throw Error('Master change not approved');
+     store.confirmMasterEditing(true);
+     await store.replaceDocument(out.document);
+    }else store.replaceDocument(out.document);
+    ctx.toast('Saved to this device.');ctx.go('#/editor');
+   }},
   draftStore:ctx.draftStore,autoFocus:false}}).then(c=>{cleanup=c;});
  return {node:root,destroy:()=>{cleanup?.();cleanups.forEach(f=>f());}};
 }
@@ -67,7 +80,18 @@ export function editorView(ctx){
  const tabs=el('div',{class:'lw-seg lw-tabs',role:'group','aria-label':'Show'},['Edit','Preview'].map(t=>el('button',{type:'button','aria-pressed':String(t==='Edit'),on:{click:()=>{wrap.dataset.tab=t.toLowerCase();for(const b of tabs.children)b.setAttribute('aria-pressed',String(b.textContent===t));redraw();}}},t)));
  root.append(el('header',{class:'lw-page-head'},el('div',{},el('h1',{id:'page-title',tabindex:'-1'},'Edit your CV'),el('p',{},'Changes save automatically on this device. The preview is exactly what the PDF will look like.')),
   el('div',{class:'lw-row'},el('button',{type:'button',class:'lw-btn',on:{click:()=>exportAs(ctx,'docx')}},icon('download'),'Word'),el('button',{type:'button',class:'lw-btn primary',on:{click:()=>exportAs(ctx,'pdf')}},icon('download'),'PDF'))));
- root.append(el('div',{class:'lw-toolbar',role:'toolbar','aria-label':'Editor tools'},undo,redo,paperSeg,zoomSeg,tabs,el('span',{class:'spacer'},status)));
+ if(store.mode==='persistent'){
+   const cv=store.selectedCV,master=cv.id===store.profile.master.id;
+   const consent=el('section',{class:'lw-card','aria-label':'Profile version and saving'},
+    el('p',{},master?'Editing the master CV. Tailored copies remain independent.':'Editing tailored CV: '+cv.name+' (revision '+cv.revision+').'),
+    master&&!store.masterEditConfirmed?
+      el('button',{type:'button',class:'lw-btn primary',on:{click:()=>{
+       if(!confirm('Allow editing the master CV? Every saved change creates a revision; existing tailored copies remain independent.'))return;
+       store.confirmMasterEditing(true);consent.replaceChildren(el('p',{},'Master editing approved for this session. Changes save with revision protection.'));
+      }}},'Confirm master editing'):null);
+   root.append(consent);
+  }
+  root.append(el('div',{class:'lw-toolbar',role:'toolbar','aria-label':'Editor tools'},undo,redo,paperSeg,zoomSeg,tabs,el('span',{class:'spacer'},status)));
  const form=el('div',{class:'lw-editor-form'}),pages=el('div',{class:'lw-pages'}),prevWrap=el('div',{class:'lw-preview-wrap',tabindex:'0',role:'region','aria-label':'CV preview'},pages);
  const wrap=el('div',{class:'lw-editor','data-tab':'edit'},el('div',{class:'lw-form-col'},form),el('div',{class:'lw-preview-col'},prevWrap));root.append(wrap);
  const field=(label,value,key,path,onInput,{area,auto}={})=>{const id='f-'+key.replace(/\W+/g,'-'),c=area?el('textarea',{id,rows:'4'}):el('input',{id,type:'text'});
@@ -123,7 +147,8 @@ export function editorView(ctx){
   for(const b of paperSeg.children)b.setAttribute('aria-pressed',String(b.dataset.v===snap.appearance.paper));
   for(const g of form.querySelectorAll('.lw-seg[aria-label="Text size"] button,.lw-seg[aria-label="Spacing"] button,.lw-seg[aria-label="Margins"] button')){const k={'Text size':'fontSize',Spacing:'spacing',Margins:'margins'}[g.parentElement.getAttribute('aria-label')];g.setAttribute('aria-pressed',String(g.dataset.v===snap.appearance[k]));}
   const st=store.status;status.className='lw-chip '+(st.state==='error'?'err':st.state==='saved'?'ok':'');
-  status.textContent=st.state==='error'?'✖ Not saved: '+(st.error==='QUOTA'?'browser storage is full':'storage unavailable')+'. Download a backup.':st.state==='saving'?'Saving…':'✓ Saved on this device';
+  status.textContent=st.state==='error'?'✖ Not saved: '+(st.detail||(
+    st.error==='QUOTA'?'browser storage is full':st.error==='CONFLICT'?'another tab changed this CV':st.error==='UNCONFIRMED'?'confirm master editing first':'storage unavailable'))+'. Download an unsaved draft.':st.state==='saving'?'Saving…':'✓ Saved on this device';
   if(shape(snap)!==last){last=shape(snap);build(snap);}
   redrawSoon();
  }

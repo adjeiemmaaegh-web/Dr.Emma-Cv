@@ -13,7 +13,7 @@
 <noscript>This app needs JavaScript. Nothing you type leaves your device.</noscript>
 <script type="module">
 import {mountWorkspace} from './workspace.mjs';
-mountWorkspace(document.getElementById('app'),{sample:new URLSearchParams(location.search).has('sample')});
+await mountWorkspace(document.getElementById('app'),{sample:new URLSearchParams(location.search).has('sample')});
 </script>
 </body>
 </html>
