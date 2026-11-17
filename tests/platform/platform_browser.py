@@ -160,6 +160,51 @@ def main():
    page.get_by_role('button',name='Open selected saved profile').click()
    page.wait_for_function("document.querySelector('[role=status]')?.textContent.startsWith('Loaded saved profile')")
    assert page.locator('textarea[placeholder="Applicant-written CV summary"]').input_value()=='Synthetic owner-entered summary A'
+   # Switching CVs cannot silently erase a summary draft. Unrelated evidence
+   # saves must not erase the unsaved text either.
+   page.get_by_role('button',name='Create tailored copy').click()
+   page.wait_for_function("document.querySelector('[role=status]')?.textContent.includes('revision 5')")
+   chooser=page.locator('select[aria-label="CV version to edit"]')
+   master_id=chooser.locator('option').nth(0).get_attribute('value')
+   variant_id=chooser.locator('option').nth(1).get_attribute('value')
+   page.locator('textarea[placeholder="Applicant-written CV summary"]').fill('Uncommitted synthetic master draft')
+   assert 'Unsaved CV summary draft' in page.locator('p[aria-live="polite"]').inner_text()
+   page.once('dialog',lambda dialog:dialog.dismiss())
+   chooser.select_option(variant_id)
+   assert chooser.input_value()==master_id,'declined switch discarded the active CV'
+   assert page.locator('textarea[placeholder="Applicant-written CV summary"]').input_value()=='Uncommitted synthetic master draft'
+   page.locator('input[placeholder="Evidence-backed achievement or responsibility"]').fill('Additional synthetic evidence')
+   page.get_by_role('button',name='Add verified-by-me evidence').click()
+   page.wait_for_function("document.querySelector('[role=status]')?.textContent.includes('revision 6')")
+   assert page.locator('textarea[placeholder="Applicant-written CV summary"]').input_value()=='Uncommitted synthetic master draft','unrelated profile save lost summary draft'
+   assert 'Unsaved CV summary draft' in page.locator('p[aria-live="polite"]').inner_text()
+   # Two separate workbench tabs: a stale save must fail and leave the typed
+   # draft on screen, while the first tab's newly committed summary wins.
+   workbench_url=f'http://127.0.0.1:{server.server_port}/development/group-a/profile-workbench.html'
+   stale_tab=context.new_page()
+   stale_tab.on('pageerror',lambda error:errors.append(str(error)))
+   stale_tab.goto(workbench_url,wait_until='load')
+   stale_tab.wait_for_function("""[...document.querySelectorAll('select[aria-label="Saved local profiles"] option')].some(x=>x.value.startsWith('ledger_'))""")
+   stale_tab.get_by_role('button',name='Open selected saved profile').click()
+   stale_tab.wait_for_function("document.querySelector('[role=status]')?.textContent.startsWith('Loaded saved profile')")
+   stale_tab.locator('textarea[placeholder="Applicant-written CV summary"]').fill('Synthetic stale tab summary')
+   page.once('dialog',lambda dialog:dialog.accept())
+   page.get_by_role('button',name='Save selected CV summary').click()
+   page.wait_for_function("document.querySelector('[role=status]')?.textContent.includes('revision 7')")
+   stale_tab.once('dialog',lambda dialog:dialog.accept())
+   stale_tab.get_by_role('button',name='Save selected CV summary').click()
+   stale_tab.wait_for_function("document.querySelector('[role=status]')?.textContent.includes('Not saved (conflict)')")
+   assert stale_tab.locator('textarea[placeholder="Applicant-written CV summary"]').input_value()=='Synthetic stale tab summary','conflict destroyed unsaved draft'
+   assert 'Unsaved CV summary draft' in stale_tab.locator('p[aria-live="polite"]').inner_text()
+   stale_tab.close()
+   page.reload(wait_until='load')
+   page.wait_for_function("""[...document.querySelectorAll('select[aria-label="Saved local profiles"] option')].some(x=>x.value.startsWith('ledger_'))""")
+   page.get_by_role('button',name='Open selected saved profile').click()
+   page.wait_for_function("document.querySelector('[role=status]')?.textContent.startsWith('Loaded saved profile')")
+   assert page.locator('textarea[placeholder="Applicant-written CV summary"]').input_value()=='Uncommitted synthetic master draft','lost winning committed summary'
+   result['draftSwitchGuard']=True
+   result['draftSurvivesEvidenceSave']=True
+   result['workbenchConflictDraftSafe']=True
    result['workbenchReload']=True
    result['workbenchRevisionRestore']=True
    assert not errors,errors
