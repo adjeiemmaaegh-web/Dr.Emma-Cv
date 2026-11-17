@@ -171,8 +171,9 @@ export function createWorkspaceDataPanel(ctx){
  function setPending(p,kind,raw){
   pending=p;sourceKind=kind;sourceRaw=raw;
   if(p.status==='review-required'){
+   const isBook=['applications','applications-preview','legacy-app-local','legacy-app-file'].includes(kind);
    const v=p.proposed;
-   review.replaceChildren(el('p',{},kind==='applications'?p.incoming.length+' reviewed job entries; '+p.conflicts.length+' existing IDs would be kept.':
+   review.replaceChildren(el('p',{},isBook?p.incoming.length+' reviewed job entries; '+p.conflicts.length+' existing IDs would be kept.':
     'Reviewed "'+v.name+'" with '+(v.variants.length+1)+' CV versions, '+v.master.document.experience.length+' job entries and '+v.evidence.length+' evidence items.'),
     el('ul',{},(p.warnings||[]).map(w=>el('li',{},w))),
     el('p',{},'No import has been performed. Approval creates a separate profile, or imports only reviewed job entries.'));
