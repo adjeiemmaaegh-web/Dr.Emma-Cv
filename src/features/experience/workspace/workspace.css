@@ -173,3 +173,34 @@
 .lw .ledger-onboarding ul>li>.ledger-help{margin-top:var(--s-1)}
 .lw-callout{display:flex;flex-wrap:wrap;align-items:center;gap:var(--s-3) var(--s-4);background:var(--accent-soft);border:1px solid var(--accent);border-radius:var(--r-2);padding:var(--s-4);margin-bottom:var(--s-4)}
 .lw-callout p{flex:1 1 240px;color:var(--ink)}
+
+
+/* Visual CV design studio — scoped to the independently stored workspace. */
+.lw-designer-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--s-3);margin-top:var(--s-3)}
+.lw-designer-control{display:grid;gap:6px;min-width:0;color:var(--ink);font-size:.9rem}
+.lw-designer-control>span{font-weight:650}
+.lw-designer-control select,.lw-designer-control input[type=color]{min-height:42px;width:100%;border:1px solid var(--border);border-radius:var(--r-1);background:var(--surface);color:var(--ink);padding:5px 8px}
+.lw-designer-control input[type=range]{width:100%;accent-color:var(--accent)}
+.lw-designer-control output{font-variant-numeric:tabular-nums;font-weight:500;color:var(--muted)}
+.lw-designer-wide{grid-column:1/-1;line-height:1.45}
+.lw-section-manager{display:grid;gap:var(--s-3)}
+.lw-section-rows{display:grid;gap:7px}
+.lw-section-row{display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:center;gap:6px;padding:7px 8px;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--r-1)}
+.lw-section-row label{display:flex;gap:10px;align-items:center;font-weight:600}
+.lw-section-row input{width:18px;height:18px;accent-color:var(--accent)}
+.lw-save-design{margin-top:var(--s-4);padding:var(--s-3);border:1px dashed var(--border);border-radius:var(--r-1)}
+.lw-save-design input{flex:1 1 160px;min-width:0}
+.lw-saved-designs{margin-bottom:var(--s-4)}
+.lw-saved-design-list{display:grid;gap:8px;margin-top:var(--s-3)}
+.lw-design-item{display:flex;align-items:center;flex-wrap:wrap;gap:var(--s-2);padding:8px;border:1px solid var(--border);border-radius:var(--r-1)}
+.lw-design-item strong{flex:1 1 130px;overflow-wrap:anywhere}
+.lw-design-swatch{width:28px;height:28px;flex:none;border-radius:50%;border:2px solid var(--surface);box-shadow:0 0 0 1px var(--border)}
+.lw-page .lw-page-edit{cursor:text;border-radius:1px;outline-offset:2px}
+.lw-page .lw-page-edit:hover{background:rgba(11,107,114,.1);outline:1px dashed #0b6b72}
+.lw-page .lw-page-edit:focus-visible{outline:2px solid #0b57d0;background:rgba(11,87,208,.10)}
+.lw-inline-editor{position:absolute;z-index:15;display:grid;gap:8px;min-width:0;padding:12px;border:2px solid var(--accent);border-radius:var(--r-2);background:var(--surface);color:var(--ink);box-shadow:var(--shadow-2);text-align:left}
+.lw-inline-editor input,.lw-inline-editor textarea{width:100%;font:inherit;border:1px solid var(--border);border-radius:var(--r-1);padding:8px;background:var(--surface);color:var(--ink)}
+.lw-inline-editor textarea{min-height:100px;resize:vertical}
+.lw-inline-editor button{justify-self:end}
+@media(max-width:460px){.lw-designer-grid{grid-template-columns:1fr}.lw-inline-editor{max-width:calc(100% - 16px)}}
+@media(forced-colors:active){.lw-page .lw-page-edit:hover,.lw-page .lw-page-edit:focus-visible{outline:2px solid Highlight}.lw-inline-editor{border:2px solid CanvasText}}
