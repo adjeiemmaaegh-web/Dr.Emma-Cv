@@ -49,7 +49,7 @@ export function sectionsControls(ed,ctx){
   const title=custom.get(key)||(NAMES[key]||key);
   const check=el('input',{type:'checkbox','aria-label':'Show '+title,on:{change:e=>safe(ctx,()=>ed.setAppearance({enabledSections:{...ed.snapshot().appearance.enabledSections,[key]:e.target.checked}}))}});
   check.checked=a.enabledSections?.[key]!==false;
-  rows.append(el('div',{class:'lw-section-row'},el('label',{},check,el('span',{},title)),
+  rows.append(el('div',{class:'lw-section-row','data-section-key':key},el('label',{},check,el('span',{},title)),
    el('button',{type:'button',class:'lw-btn sm icon','aria-label':'Move '+title+' up',disabled:i===0||undefined,on:{click:()=>safe(ctx,()=>ed.moveSection(key,-1))}},icon('up',{size:16})),
    el('button',{type:'button',class:'lw-btn sm icon','aria-label':'Move '+title+' down',disabled:i===order.length-1||undefined,on:{click:()=>safe(ctx,()=>ed.moveSection(key,1))}},icon('down',{size:16}))));
  }
