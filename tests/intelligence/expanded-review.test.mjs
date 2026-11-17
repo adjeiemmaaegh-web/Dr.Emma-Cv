@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {CLEAN,ctx} from './fixtures.mjs';
 import {ENHANCV_27_COVERAGE,analyzeResumeReadiness,analyzeJobSkills,
- recognizeSkills,findPositiveMention,compareToDocument} from '../../src/features/intelligence/index.mjs';
+ SKILL_TAXONOMY,recognizeSkills,findPositiveMention,compareToDocument} from '../../src/features/intelligence/index.mjs';
 
 const role=(text,priority='required',id='r1')=>({id,text,priority});
 const job=(...requirements)=>({role:'Senior Operations Manager',requirements});
@@ -137,4 +137,49 @@ test('seniority progression is discussed only as a possibility',()=>{
  const r=analyzeResumeReadiness(ctx(d));
  assert(r.signals.careerProgression>=1);
  assert(issues(r,'progression')[0].explanation.includes('not proof'));
+});
+
+
+test('lexicon uses unique stable IDs for punctuation-heavy skills',()=>{
+ const ids=SKILL_TAXONOMY.map(s=>s.id);
+ assert.equal(new Set(ids).size,ids.length);
+ const hits=recognizeSkills('Developed C++ and C# services using .NET');
+ for(const skill of ['C++','C#','.NET'])assert(hits.some(h=>h.name===skill),skill);
+ const matched=hits.filter(h=>['C++','C#','.NET'].includes(h.name));
+ assert.equal(new Set(matched.map(h=>h.id)).size,3);
+});
+test('negation after or before skill does not produce positive CV evidence',()=>{
+ for(const text of [
+  'No SQL experience', 'I have no SQL experience',
+  'SQL is not required', 'Not SQL', 'Without SQL'
+ ])assert.equal(findPositiveMention(text,['sql']),null,text);
+ assert(findPositiveMention('No experience with SQL, but used Python at work',['python']));
+ assert(findPositiveMention('SQL used in daily reconciliation',['sql']));
+});
+test('an action in another sentence does not demonstrate a named technical skill',()=>{
+ const d=withRole('<ul><li>Managed stock systems. Python</li></ul>');
+ d.skills=[];
+ const skills=analyzeJobSkills(job(role('Python scripting')),d);
+ assert.equal(skills.items.find(x=>x.skill==='Python').status,'mentioned');
+});
+test('job comparison does not elevate a CV header or skills-list keyword to demonstrated evidence',()=>{
+ const d=CLEAN();
+ d.summary='Python';
+ d.skills=[{name:'Python'}];
+ d.experience.forEach(e=>{e.description='<p>Improved store operations.</p>';});
+ const out=compareToDocument(job(role('Python')),d);
+ assert.equal(out.results[0].status,'partial');
+ assert.equal(out.skillEvidence.items.find(x=>x.skill==='Python').status,'mentioned');
+ assert.equal(out.score,null);
+});
+test('numeric requirements cite the matching figure but never claim a person is ineligible',()=>{
+ const d=withRole('<ul><li>Used SQL for 2 years.</li></ul>');
+ d.skills=[{name:'SQL'}];
+ const result=compareToDocument(job(role('At least 5 years of SQL experience')),d).results[0];
+ assert.equal(result.scopes.length,1);
+ assert.equal(result.scopes[0].minimum,5);
+ assert.equal(result.scopes[0].observed,2);
+ assert(result.scopes[0].citations[0].path.includes('.description['));
+ assert.equal(result.status,'partial');
+ assert.match(result.scopes[0].note,/not proof|context/i);
 });
