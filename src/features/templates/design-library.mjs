@@ -54,3 +54,44 @@ export function removeDesign(storage,id){
  if(!designs.some(d=>d.id===id))throw Error('Design not found');
  write(storage,designs.filter(d=>d.id!==id));
 }
+
+/** Portable design-only JSON; excludes document, profile and application data. */
+export const DESIGN_EXPORT_FORMAT='ledger-cv-appearance-library';
+export function exportDesigns(storage){
+ return JSON.stringify({format:DESIGN_EXPORT_FORMAT,version:1,
+  designs:readDesigns(storage).map(d=>({name:d.name,appearance:designAppearance(d.appearance)}))},null,2);
+}
+export function previewDesignImport(text){
+ if(typeof text!=='string'||text.length>128000)throw Error('Design file must be a JSON document under 128 KB');
+ let data;try{data=JSON.parse(text)}catch{throw Error('Design file is not valid JSON')}
+ if(!data||Array.isArray(data)||typeof data!=='object'||data.format!==DESIGN_EXPORT_FORMAT||data.version!==1||
+  !Array.isArray(data.designs)||data.designs.length<1||data.designs.length>MAX_DESIGNS ||
+  Object.keys(data).some(k=>!['format','version','designs'].includes(k)))
+  throw Error('Unsupported design-only export: no data was imported');
+ const names=new Set();
+ const designs=data.designs.map(entry=>{
+  if(!entry||typeof entry!=='object'||Array.isArray(entry)||
+   Object.keys(entry).some(k=>!['name','appearance'].includes(k))||
+   typeof entry.name!=='string'||!entry.name.trim()||entry.name.length>80)
+   throw Error('Invalid design in export');
+  const name=entry.name.trim(),key=name.toLocaleLowerCase('en');
+  if(names.has(key))throw Error('Duplicate design names in export');
+  names.add(key);
+  return {name,appearance:designAppearance(entry.appearance)};
+ });
+ return {count:designs.length,designs};
+}
+/** No writes occur until the user explicitly accepts the reviewed import. */
+export function importDesigns(storage,text,{confirmed=false}={}){
+ if(confirmed!==true)throw Error('Import requires explicit review and confirmation');
+ const incoming=previewDesignImport(text),old=readDesigns(storage);
+ if(old.length+incoming.count>MAX_DESIGNS)throw Error('Design library holds at most 20 designs; nothing was changed');
+ const existing=new Set(old.map(d=>d.name.toLocaleLowerCase('en')));
+ if(incoming.designs.some(d=>existing.has(d.name.toLocaleLowerCase('en'))))
+  throw Error('A design with the same name already exists; nothing was overwritten');
+ const next=[...old,...incoming.designs.map(d=>({
+  id:'d-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,10),
+  name:d.name,appearance:d.appearance
+ }))];
+ write(storage,next);return incoming.count;
+}
