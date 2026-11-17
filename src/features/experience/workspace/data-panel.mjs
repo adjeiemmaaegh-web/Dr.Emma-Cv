@@ -19,7 +19,7 @@ export function createWorkspaceDataPanel(ctx){
  const status=el('p',{role:'status','aria-live':'polite',class:'lw-help'},'You can export your saved work or review an import.');
  const control=el('div',{class:'lw-row',style:'margin:var(--s-3) 0'});
  const review=el('div',{class:'lw-help','aria-live':'polite'});
- let pending=null,sourceRaw=null,sourceKind=null,backedProfile=false,backedApps=false,legacyBacked=false;
+ let pending=null,sourceRaw=null,sourceKind=null,backedProfile=false,backedApps=false,legacyBacked=false,previewBacked=false;
  const message=t=>{status.textContent=t};
  const run=fn=>async()=>{try{await fn()}catch(e){message('Not completed: '+(e.message||e.code||'unknown error'))}};
  const btn=(label,fn)=>el('button',{type:'button',class:'lw-btn sm',on:{click:run(fn)}},label);
@@ -99,6 +99,31 @@ export function createWorkspaceDataPanel(ctx){
   const data=JSON.parse(raw),p=planLegacyProfileImport(data);
   setPending(p,'legacy-local',raw);
  }));
+ legacyControls.append(
+  btn('Download old preview workspace backup',async()=>{
+   const raw=localStorage.getItem('ledger_workspace_preview_v1');
+   if(!raw)throw Error('No older preview workspace data exists in this browser origin');
+   toDownload(raw,'ledger-workspace-preview-backup.json');
+   previewBacked=true;message('Exact old preview data exported. Its CV and application records are not yet migrated.');
+  }),
+  btn('Review old preview CV',async()=>{
+   const raw=localStorage.getItem('ledger_workspace_preview_v1');
+   if(!raw)throw Error('No old preview workspace saved data found');
+   const src=JSON.parse(raw);
+   if(!validLegacyDocument(src?.document))throw Error('Old preview CV format is invalid: download it for manual recovery');
+   const p={status:'review-required',
+    warnings:['This is an old independent preview CV; its application board remains in its original location. Review job entries separately.'],
+    proposed:createCareerProfile({document:src.document,appearance:src.appearance||{}})};
+   setPending(p,'preview-local',raw);
+  }),
+  btn('Review old preview applications',async()=>{
+   const raw=localStorage.getItem('ledger_workspace_preview_v1');
+   if(!raw)throw Error('No old preview workspace data exists');
+   const source=JSON.parse(raw),book=source.applications;
+   if(!book||book.schema!=='ledger-applications-v1')throw Error('No valid old preview application book found');
+   setPending(reviewBookImport(exportBook(book),store.applications),'applications-preview',raw);
+  })
+ );
  const file=el('input',{type:'file',accept:'.json,application/json','aria-label':'Select a local backup to review'});
  const reviewButton=btn('Review selected file',async()=>{
   const f=file.files?.[0];if(!f)throw Error('Choose a backup file first');
@@ -143,19 +168,25 @@ export function createWorkspaceDataPanel(ctx){
   if(!backedProfile||!backedApps)throw Error('Download both current profile and application backups first');
   if(sourceKind==='legacy-local'&&localStorage.getItem('ledger_cv_state_v2')!==sourceRaw)
    throw Error('Legacy CV changed since review; review it again');
-  if(sourceKind==='applications'){
-   const f=file.files?.[0];if(!f||(await f.text())!==sourceRaw)throw Error('File changed; review again');
+  if(['preview-local','applications-preview'].includes(sourceKind)&&localStorage.getItem('ledger_workspace_preview_v1')!==sourceRaw)
+   throw Error('Old preview data changed since review; review it again');
+  if(sourceKind==='applications'||sourceKind==='applications-preview'){
+   if(sourceKind==='applications'){
+    const f=file.files?.[0];if(!f||(await f.text())!==sourceRaw)throw Error('File changed; review again');
+   }
+   if(sourceKind==='applications-preview'&&!previewBacked)throw Error('Download an exact old preview backup first');
    if(!confirm('Import these reviewed applications? Existing record IDs will be kept unchanged.'))return;
    const next=approveBookImport(store.applications,pending,{confirmed:true,expectedRevision:store.applications.revision,conflictPolicy:'keep-existing'});
    store.setApplications(next);await store.saveNow();message('Application entries saved with revision protection.');review.replaceChildren();pending=null;return;
   }
-  if(sourceKind!=='legacy-local'){
+  if(!['legacy-local','preview-local'].includes(sourceKind)){
    const f=file.files?.[0];if(!f||(await f.text())!==sourceRaw)throw Error('File changed; review again');
   }
   if(sourceKind==='legacy-local'&&!legacyBacked)throw Error('Download a complete raw legacy backup first');
+  if(sourceKind==='preview-local'&&!previewBacked)throw Error('Download an exact old preview backup first');
   if(!confirm('Create this reviewed CV as a new separate IndexedDB profile? Old data will not be deleted.'))return;
   const approved=sourceKind==='profile-backup'?approveCareerProfileBackup(pending,{confirmed:true}):
-   sourceKind==='preview-file'?pending.proposed:approveLegacyProfileImport(pending,{confirmed:true});
+   ['preview-file','preview-local'].includes(sourceKind)?pending.proposed:approveLegacyProfileImport(pending,{confirmed:true});
   const imported=prepareCareerProfileImportAsNewRecord(approved);
   await store.importProfile(imported,{confirmed:true});pending=null;message('Separate reviewed profile saved. Original data remains unchanged.');
   location.hash='#/editor';location.reload();
