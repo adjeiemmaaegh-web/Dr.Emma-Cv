@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Ledger CV Studio</title>
+<meta name="description" content="Preview of the Ledger CV Studio workspace. Your CV stays on this device.">
+<link rel="stylesheet" href="../../accessibility/a11y.css">
+<link rel="stylesheet" href="./workspace.css">
+</head>
+<body style="margin:0">
+<div id="app"></div>
+<noscript>This app needs JavaScript. Nothing you type leaves your device.</noscript>
+<script type="module">
+import {mountWorkspace} from './workspace.mjs';
+mountWorkspace(document.getElementById('app'),{sample:new URLSearchParams(location.search).has('sample')});
+</script>
+</body>
+</html>
