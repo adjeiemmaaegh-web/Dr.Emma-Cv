@@ -23,8 +23,7 @@ try{
  assert.match(saved.document.summary,/revised summary edited on the CV page/);
  // Precision typography drives the same PDF layout as the on-screen preview.
  const look=page.locator('details.lw-sec',{has:page.locator('summary',{hasText:/Look and layout/})});
- await look.locator('summary').click().catch(()=>{});
- if(!(await look.getAttribute('open')))await look.locator('summary').click();
+ if(!(await look.evaluate(el=>el.open)))await look.locator('summary').click();
  await page.locator('input[data-appearance="bodySize"]').evaluate(el=>{
   el.value='12';el.dispatchEvent(new Event('input',{bubbles:true}));
  });
