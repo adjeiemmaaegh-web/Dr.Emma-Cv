@@ -255,7 +255,7 @@ export function analyzeResumeReadiness(ctx){
  const extras=[
   ...investigateText(ctx.document),...chronology.issues,...leadership.issues,
   ...extraContactChecks(ctx.document,ctx.job,ctx),
-  ...(skills?.items||[]).filter(x=>x.status!=='described').map(x=>finding(
+  ...(skills?.items||[]).filter(x=>x.status!=='described'&&x.status!=='alternative-covered').map(x=>finding(
    'skill-'+x.id,x.priority==='required'?'high':'medium',
    x.skill+' ('+x.kind+' skill): '+(x.status==='not-found'?'no positive CV mention found':'mentioned without a work example')+'.',
    x.explanation,x.correction,x.evidence[0]?.path
