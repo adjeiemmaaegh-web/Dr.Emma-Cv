@@ -6,6 +6,7 @@
 import {el} from './ui.mjs';
 import {createLocalFileImportReview} from '../../import/local-file.mjs';
 import {reviewPdfManualTranscription} from '../../import/pdf-import.mjs';
+import {createOfflineEnglishPdfOcrSession} from '../../ocr/offline-english.mjs';
 import {approveImportReview} from '../../import/text-import.mjs';
 
 const escapeHtml=value=>String(value||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -165,6 +166,25 @@ export function createWorkspaceCvImportPanel(ctx){
     const checked=el('input',{type:'checkbox','aria-label':'I checked every missing PDF page against the original'});
     const consent=el('label',{class:'lw-field'},checked,' I transcribed and checked every missing page from the original PDF.');
     left.append(notes,...fields,consent,
+     btn('Try trained English OCR for unreadable PDF pages — offline',async()=>{
+      if(!sourceFile||sourceFile!==picker.files?.[0]||current!==review)
+       throw Error('The source PDF changed. Extract it again.');
+      if(!confirm('Run the bundled English OCR locally on up to five unreadable PDF pages? The result may contain incorrect names, dates and qualifications and will need field-by-field review. No file leaves this device.'))return;
+      tell('Loading the bundled English OCR assets from this application. No document is being uploaded.');
+      const session=await createOfflineEnglishPdfOcrSession({onProgress:tell});
+      try{
+       const result=await createLocalFileImportReview(sourceFile,{
+        allowOcr:true,ocrPage:session.recognizePage,onPage:entry=>{
+         if(entry.method==='opt-in-offline-ocr')tell('OCR page '+entry.page+' extracted; the proposed CV remains unapproved.');
+        }
+       });
+       if(sourceFile!==picker.files?.[0]||current!==review)throw Error('The selected PDF changed while OCR was running. Discarding the result.');
+       current=result;
+       tell(result.status==='blocked'?'OCR could not recover every PDF page. This CV import remains blocked.':
+        'Opt-in English OCR completed locally. Compare every item with the original PDF before accepting.');
+       display(result);
+      }finally{await session.close();}
+     }),
      btn('Reconstruct review using my checked page transcriptions',async()=>{
       if(!checked.checked)throw Error('Check the complete-page transcription confirmation first.');
       if(sourceFile!==picker.files?.[0]||current!==review)throw Error('The source file or review changed. Extract again.');
