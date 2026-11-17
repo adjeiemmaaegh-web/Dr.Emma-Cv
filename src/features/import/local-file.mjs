@@ -22,7 +22,7 @@ export async function loadBundledPdfEngine({importModule=(url)=>import(url),
  module.GlobalWorkerOptions.workerSrc=workerPath;
  return module.getDocument;
 }
-export async function createLocalFileImportReview(file,{getDocument,inflate,idFactory,now}={}){
+export async function createLocalFileImportReview(file,{getDocument,inflate,idFactory,now,allowOcr=false,ocrPage,onPage}={}){
  if(!file||typeof file.name!=='string'||typeof file.arrayBuffer!=='function')
   throw contractError('INVALID','Select a local CV file first.');
  const ext=file.name.split('.').pop().toLowerCase(),format=EXTENSIONS[ext];
@@ -34,7 +34,7 @@ export async function createLocalFileImportReview(file,{getDocument,inflate,idFa
  const sourceName=file.name;
  if(format==='pdf'){
   const getPdf=getDocument||await loadBundledPdfEngine();
-  return createPdfImportReview(bytes,{getDocument:getPdf,sourceName,idFactory,now});
+  return createPdfImportReview(bytes,{getDocument:getPdf,sourceName,idFactory,now,allowOcr,ocrPage,onPage});
  }
  let text,warnings=[];
  if(format==='docx'){
