@@ -134,7 +134,13 @@ function investigateText(doc){
  const typos=[
   [/\bresponsible of\b/gi,'Use “responsible for” when that is the intended meaning.'],
   [/\btheir is\b/gi,'Check whether “there is” was intended.'],
-  [/\b(?:very\s+){2,}/gi,'Repeated intensifier weakens clarity.']
+  [/\b(?:very\s+){2,}/gi,'Repeated intensifier weakens clarity.'],
+  [/\bmanagment\b/gi,'Possible typo: “managment” is usually “management”.'],
+  [/\bexperiance\b/gi,'Possible typo: “experiance” is usually “experience”.'],
+  [/\bcommunciation\b/gi,'Possible typo: “communciation” is usually “communication”.'],
+  [/\brecieved\b/gi,'Possible typo: “recieved” is usually “received”.'],
+  [/\bacheived\b/gi,'Possible typo: “acheived” is usually “achieved”.'],
+  [/\b(?:could|should|would) of\b/gi,'Check whether “could/should/would have” is intended.']
  ];
  for(const {path,text} of lines){
   const repeated=/\b([a-z]{2,})\s+\1\b/gi;
