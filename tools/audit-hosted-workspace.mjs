@@ -36,8 +36,8 @@ assert.equal(config.outputDirectory,'site');
 assert.equal(config.git?.deploymentEnabled?.main,false,'Automatic production deployment must remain opt-in');
 assert.equal(meta.noBundledPrivateData,true);
 const dirs=[path.join(site,'src')];let count=0;
-while(dirs.length){for(const e of fs.readdirSync(dirs.pop(),{withFileTypes:true})){
- if(e.isDirectory()){assert(!/^(?:tests?|fixtures?|node_modules|vendor|\.git)$/i.test(e.name),'Private directory published');continue;}
+while(dirs.length){const current=dirs.pop();for(const e of fs.readdirSync(current,{withFileTypes:true})){
+ if(e.isDirectory()){assert(!/^(?:tests?|fixtures?|node_modules|vendor|\.git)$/i.test(e.name),'Private directory published');dirs.push(path.join(current,e.name));continue;}
  if(e.isFile())count++;
 }}
 assert(count>=40,'Too few public feature modules');
