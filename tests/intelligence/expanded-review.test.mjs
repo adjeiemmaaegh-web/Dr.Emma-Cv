@@ -215,3 +215,37 @@ test('explicit AND skills remain separate required competencies',()=>{
  assert.equal(skills.items.find(x=>x.skill==='SQL').status,'not-found');
  assert.equal(skills.summary.requiredMissing,1);
 });
+
+
+test('certain future dates and contradictory current-role metadata yield specific corrections',()=>{
+ const d=CLEAN();
+ d.experience[0].start='Jan 2028';
+ d.experience[0].end='Dec 2027';
+ const r=analyzeResumeReadiness(ctx(d));
+ assert(issues(r,'future-start').length);
+ assert(issues(r,'current-end-conflict').length);
+ assert(issues(r,'future-start')[0].path.endsWith('.start'));
+ assert(issues(r,'current-end-conflict')[0].path.endsWith('.end'));
+});
+test('only definitely future year-only dates are flagged',()=>{
+ const d=CLEAN();
+ d.experience[0].start='2026';
+ assert.equal(issues(analyzeResumeReadiness(ctx(d)),'future-start').length,0);
+ d.experience[0].start='2027';
+ assert(issues(analyzeResumeReadiness(ctx(d)),'future-start').length);
+});
+test('promotion inference excludes undated ambiguous or overlapping titles',()=>{
+ const d=CLEAN();
+ d.experience[0].employer='Bolt Stores';
+ d.experience[0].title='CEO';
+ d.experience[0].start='';
+ const review=analyzeResumeReadiness(ctx(d));
+ assert.equal(review.signals.careerProgression,0);
+ assert.equal(issues(review,'progression').length,0);
+ const d2=CLEAN();
+ d2.experience[0].employer='Bolt Stores';
+ d2.experience[0].title='CEO';
+ d2.experience[0].start='Jan 2017';
+ assert.equal(analyzeResumeReadiness(ctx(d2)).signals.careerProgression,0,
+  'overlapping multi-year roles are not inferred as promotion');
+});
