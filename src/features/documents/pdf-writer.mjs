@@ -1,5 +1,5 @@
 /** Deterministic PDF 1.4 writer using the standard base-14 fonts. Selectable text in reading order. */
-import {textWidth} from './layout.mjs';
+import {textWidth,decorationGeometry} from './layout.mjs';
 const hex=c=>{const n=parseInt(c.slice(1),16);return [(n>>16)&255,(n>>8)&255,n&255].map(v=>(v/255).toFixed(3));};
 const WIN1252=new Map([[0x20AC,128],[0x201A,130],[0x0192,131],[0x201E,132],[0x2026,133],[0x2020,134],[0x2021,135],[0x02C6,136],[0x2030,137],
  [0x0160,138],[0x2039,139],[0x0152,140],[0x017D,142],[0x2018,145],[0x2019,146],[0x201C,147],[0x201D,148],[0x2022,149],[0x2013,150],
@@ -29,6 +29,11 @@ export function renderPdf({pages,paper,style,title='CV'}){
   let c='';const annots=[];
   for(const l of page){
    const size=l.size,w=l.textWidth;
+   for(const d of decorationGeometry(l,style)){
+    const rgb=hex(d.color).join(' ');
+    if(d.kind==='rect')c+=rgb+' rg '+num(d.x)+' '+num(paper.height-d.y-d.height)+' '+num(d.width)+' '+num(d.height)+' re f\n';
+    else c+=rgb+' RG '+num(d.height)+' w '+num(d.x)+' '+num(paper.height-d.y)+' m '+num(d.x+d.width)+' '+num(paper.height-d.y)+' l S\n';
+   }
    const label=(l.bullet?'• ':'')+l.text;
    const t=winAnsi(label);lossy=lossy||t.lossy;
    let x=l.x;
@@ -41,8 +46,7 @@ export function renderPdf({pages,paper,style,title='CV'}){
     const rx=l.x+w-textWidth(l.right,size,style.font,false);
     c+='BT /F1 '+num(size)+' Tf 0.07 0.07 0.07 rg 1 0 0 1 '+num(rx)+' '+num(y)+' Tm ('+r.text+') Tj ET\n';
    }
-   if(l.kind==='section-title'&&style.rules!=='none')
-    c+=accent+' RG 0.6 w '+num(l.x)+' '+num(y-3)+' m '+num(l.x+w)+' '+num(y-3)+' l S\n';
+
    for(const k of l.links||[]){
     if(!/^(https?:\/\/|mailto:)/i.test(k.url))continue;
     annots.push(add('<< /Type /Annot /Subtype /Link /Rect ['+num(l.x)+' '+num(y-2)+' '+num(l.x+w)+' '+num(y+size)+'] /Border [0 0 0] /A << /S /URI /URI ('+winAnsi(k.url).text+') >> >>'));
