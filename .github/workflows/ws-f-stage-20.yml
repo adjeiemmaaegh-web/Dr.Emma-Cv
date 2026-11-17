@@ -1,0 +1,101 @@
+name: Ledger F20 independent acceptance (QA ONLY — NO DEPLOY)
+on:
+  push:
+    branches: [qa/ws-f-stage-20-independent-acceptance-2026-11-17]
+  pull_request:
+    branches: [main]
+    paths:
+      - 'tests/integration/f20-*'
+      - 'tests/e2e/f20-*'
+      - 'benchmarks/f20/**'
+      - 'qa/f20/**'
+      - 'docs/release/**'
+      - '.github/workflows/ws-f-stage-20.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+
+jobs:
+  independent-node-and-native:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      F20_OUTPUT: ${{ runner.temp }}/f20-native
+      F20_REPORT_DIR: ${{ runner.temp }}/f20-evidence
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install pinned build dependencies
+        run: npm install --no-save --ignore-scripts --no-audit --no-fund
+      - name: Independent F20 tests and existing A-E regression suite
+        run: |
+          node --test tests/integration/f20-*.test.mjs
+          node --test tests/platform/*.test.mjs tests/documents/*.test.mjs tests/intelligence/*.test.mjs tests/career/*.test.mjs tests/integration/*.test.mjs tests/experience/*.test.mjs
+      - name: Verify historical baseline and emitted A-E site
+        run: |
+          npm run verify:e0
+          npm run verify:platform
+          node tools/audit-e31-e30-preservation.mjs
+          npm run build
+          npm run audit:hosted
+      - name: Generate 120 synthetic exports and validate with native PDF/DOCX parsers
+        run: |
+          command -v pdfinfo >/dev/null || (sudo apt-get update && sudo apt-get install -y poppler-utils)
+          node benchmarks/f20/generate-export-matrix.mjs
+          python3 benchmarks/f20/check-native-parsers.py
+      - name: Measured-only ATS versus Enhancv public claims inventory
+        run: node benchmarks/f20/evaluate-claims.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: f20-native-and-comparison-evidence
+          path: |
+            ${{ runner.temp }}/f20-native/manifest.json
+            ${{ runner.temp }}/f20-native/native-parser-evidence.json
+            ${{ runner.temp }}/f20-evidence/comparison-inventory.json
+            site/site-integrity.json
+            site/legacy/site-integrity.json
+          retention-days: 30
+          if-no-files-found: warn
+
+  published-browser-matrix:
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chromium, firefox, webkit]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 55
+    env:
+      F20_BROWSER: ${{ matrix.browser }}
+      F20_REPORT: ${{ runner.temp }}/f20-${{ matrix.browser }}.json
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install pinned build dependencies and test-only Playwright
+        run: npm install --no-save --ignore-scripts --no-audit --no-fund playwright@1.57.0
+      - name: Install browser engine and OS requirements
+        run: npx playwright install --with-deps ${{ matrix.browser }}
+      - name: Build and audit the exact Vercel site
+        run: |
+          npm run build
+          npm run audit:hosted
+      - name: Test F20 end-to-end emitted site on actual browser origin
+        run: node tests/e2e/f20-published-browser.mjs
+      - name: Existing A-E composed browser journeys
+        if: matrix.browser == 'chromium'
+        run: |
+          node tests/platform/workspace-browser.mjs
+          node tests/integration/career-browser.mjs
+          node tests/experience/workspace-browser.mjs
+          node tests/hosting/workspace-hosted-browser.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: f20-${{ matrix.browser }}-hosted-browser-evidence
+          path: ${{ runner.temp }}/f20-${{ matrix.browser }}.json
+          retention-days: 30
+          if-no-files-found: warn
