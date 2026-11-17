@@ -55,6 +55,11 @@ try{
  assert(!source.includes('Atlas Retail'),'The source must truly be a scanned image without selectable resume text');
  const button=panel.getByRole('button',{name:'Try trained English OCR for unreadable PDF pages — offline'});
  await button.waitFor({timeout:30000});
+ // Require a complete, active service-worker install and physically disable the
+ // browser network. Otherwise same-origin localhost requests do not prove offline.
+ await page.evaluate(async()=>{await navigator.serviceWorker.ready;});
+ await page.waitForFunction(()=>!!navigator.serviceWorker.controller,null,{timeout:30000});
+ await ctx.setOffline(true);
  page.once('dialog',dialog=>dialog.accept());
  await button.click();
  await page.waitForFunction(()=>{
@@ -64,12 +69,12 @@ try{
  const status=await panel.locator('[role="status"]').first().innerText();
  assert.match(status,/Opt-in English OCR completed locally/,status);
  const recognized=await panel.getByLabel('Original extracted CV text for comparison').inputValue();
- assert.match(recognized,/Ada|Example/i,'OCR must recognize a synthetic printed name');
+ assert.match(recognized,/Ada|Example/i,'OCR must recognize a synthetic printed name offline');
  assert.match(recognized,/Atlas|Retail|Operations/i,'OCR must recognize role/employer wording');
  assert(await panel.getByLabel('Accept imported personalInfo.name').count()>0,'OCR cannot silently approve a user field');
  assert(!unexpected.length,'No remote/OCR service request: '+unexpected.join(', '));
  assert.deepEqual(errors,[],'No browser JavaScript errors');
- console.log('PASS genuine offline-trained English OCR on a local image-only PDF',JSON.stringify({
+ console.log('PASS genuine OFFLINE trained English OCR on a local image-only PDF',JSON.stringify({
   pdfBytes:scannedPdf.length,recognizedCharacters:recognized.length,
   status:'review-required; zero automatic edits',model:'tesseract-wasm@0.11.0 / pinned English traineddata'
  }));
