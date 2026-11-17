@@ -16,7 +16,7 @@ const css=read('src/styles/e30-design-system.css');
 const js=read('src/features/ui/e30-tools.inline.js');
 const verify=read('tools/verify-live-e30.mjs');
 const checks=[
- ['Configured production builder is the E31 unified build',config.buildCommand==='node tools/build-e31-unified-ux.mjs'&&config.outputDirectory==='site'],
+ ['Configured hosted builder preserves frozen E31 as separate legacy artifact',config.buildCommand==='node tools/build-workspace-vercel.mjs'&&config.outputDirectory==='site'],
  ['Package build script matches configured E31 build',pkg.scripts.build===config.buildCommand],
  ['E30 exact output digest gate preserved',build.includes("assert.equal(hash,'1dd5b058bc10e058825e37ec0de706f42efe2ac89c602a87909672f948dc546c'")],
  ['E29 source digest gate preserved',build.includes("assert.equal(sha(baseline),pinnedE29")],

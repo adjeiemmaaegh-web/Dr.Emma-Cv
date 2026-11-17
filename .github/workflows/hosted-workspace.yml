@@ -1,0 +1,58 @@
+name: Ledger A-E hosted workspace release candidate QA (NO AUTO DEPLOY)
+on:
+  push:
+    branches: [release/hosted-a-e-workspace-2026-11-17]
+  pull_request:
+    branches: [main]
+    paths:
+      - 'tools/build-workspace-vercel.mjs'
+      - 'tools/audit-hosted-workspace.mjs'
+      - 'tools/build-e30-ui.mjs'
+      - 'tools/build-e31-candidate.mjs'
+      - 'tools/audit-platform.mjs'
+      - 'tools/audit-e31-e30-preservation.mjs'
+      - 'hosting/sw.workspace.template.js'
+      - 'tests/hosting/**'
+      - 'package.json'
+      - 'vercel.json'
+      - '.github/workflows/hosted-workspace.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  published-artifact:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install existing pinned build-time dependencies
+        run: npm install --no-save --ignore-scripts --no-audit --no-fund
+      - name: Preserve exact legacy E0/E30 integrity and platform boundaries
+        run: |
+          npm run verify:e0
+          npm run verify:platform
+          node tools/audit-e31-e30-preservation.mjs
+      - name: Build deployable A-E workspace and verified classic E31
+        run: npm run build
+      - name: Verify emitted static site structure and integrity
+        run: npm run audit:hosted
+      - name: Install test-only Chromium
+        run: |
+          npm install --no-save --ignore-scripts --no-audit --no-fund playwright@1.57.0
+          npx playwright install --with-deps chromium
+      - name: Exercise exact Vercel output in real Chromium, online/offline
+        run: node tests/hosting/workspace-hosted-browser.mjs
+      - name: All group A-E and real journey unit/integration regressions
+        run: node --test tests/platform/*.test.mjs tests/documents/*.test.mjs tests/intelligence/*.test.mjs tests/career/*.test.mjs tests/integration/*.test.mjs tests/experience/*.test.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ledger-a-e-hosted-build-evidence
+          path: |
+            site/site-integrity.json
+            site/legacy/site-integrity.json
+          retention-days: 14
+          if-no-files-found: ignore
