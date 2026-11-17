@@ -24,7 +24,18 @@ export function parseCsv(text){
  if(q)throw contractError('INVALID','CSV has an unterminated quote');
  return rows;
 }
-function table(text){const r=parseCsv(text);if(r.length<1)return [];const h=r[0].map(x=>x.trim().toLowerCase());return r.slice(1).map(c=>Object.fromEntries(h.map((k,i)=>[k,(c[i]||'').trim()])));}
+function table(text){
+ const r=parseCsv(text);if(r.length<1)return [];
+ const h=r[0].map(x=>x.trim().toLowerCase());
+ const important=new Set(['headline','summary','first name','last name','title','company name','description','name',
+  'school name','degree name','started on','finished on','location']);
+ const seen=new Set();
+ for(const head of h){
+  if(head&&important.has(head)&&seen.has(head))throw contractError('INVALID','Duplicate LinkedIn CSV column: '+head);
+  seen.add(head);
+ }
+ return r.slice(1).map(c=>Object.fromEntries(h.map((k,i)=>[k,(c[i]||'').trim()])));
+}
 /** Official export: Profile.csv and Positions.csv (matched by header name; unknown columns ignored). */
 /** Only user-selected LinkedIn export data is processed; messages/connections are ignored. */
 export function fromOfficialExport({profileCsv='',positionsCsv='',skillsCsv='',educationCsv='',certificationsCsv='',projectsCsv=''}={}){
@@ -80,15 +91,18 @@ export function fromPastedText(text){
  if(/^\s*https?:\/\/\S+\s*$/i.test(t))throw contractError('INVALID','Paste the profile text itself. This tool never fetches web pages.');
  if(t.length>60000)throw contractError('INVALID','Text is too long');
  const lines=t.split(/\r?\n/).map(l=>l.trim());
- let mode='headline',headline='',about=[];const exp=[];
+ let mode='headline',headline='',about=[],skills=[],sawExp=false,sawSkills=false;const exp=[];
  for(const l of lines){
   if(/^(about|summary)$/i.test(l)){mode='about';continue;}
-  if(/^experience$/i.test(l)){mode='exp';continue;}
-  if(/^(education|skills|licenses.*|certifications|projects|languages|recommendations)$/i.test(l)){mode='other';continue;}
+  if(/^experience$/i.test(l)){mode='exp';sawExp=true;continue;}
+  if(/^skills$/i.test(l)){mode='skills';sawSkills=true;continue;}
+  if(/^headline$/i.test(l)){mode='headline';continue;}
+  if(/^(education|licenses.*|certifications|projects|languages|recommendations|volunteering)$/i.test(l)){mode='other';continue;}
   if(!l)continue;
   if(mode==='headline'&&!headline)headline=l;
   else if(mode==='about')about.push(l);
   else if(mode==='exp')exp.push(l);
+  else if(mode==='skills')skills.push(...l.replace(/^\s*[•*+-]\s*/, '').split(/[,;|]/).map(x=>x.trim()).filter(Boolean));
  }
  const positions=[];
  for(let i=0;i<exp.length;i++){
@@ -96,11 +110,14 @@ export function fromPastedText(text){
   if(m&&i>=1){
    const company=(exp[i-1]||'').split('·')[0].trim(),title=i>=2?exp[i-2]:'';
    const sw=(m[1]||'')+m[2],en=m[3];
-   const desc=[];while(i+1<exp.length&&!RANGE.test(exp[i+1])&&!(exp[i+3]&&RANGE.test(exp[i+3]))){desc.push(exp[++i]);} // next role = title, company, dates
+   const desc=[];while(i+1<exp.length&&!RANGE.test(exp[i+1])&&!(exp[i+3]&&RANGE.test(exp[i+3]))){desc.push(exp[++i]);}
    positions.push({title:title||exp[i-1],company,start:sw.trim(),end:/present/i.test(en)?'':en.trim(),description:desc.join('\n')});
   }
  }
- return {source:'pasted',headline,about:about.join('\n'),positions};
+ return {source:'pasted',headline,about:about.join('\n'),positions,
+  ...(sawSkills?{skills:[...new Set(skills)]}:{}),
+  coverage:{headline:!!headline,about:about.length>0,positions:sawExp,skills:sawSkills,
+   education:false,certifications:false,projects:false}};
 }
 const norm=x=>s(x).toLowerCase().replace(/[^a-z0-9 ]/g,'').replace(/\b(ltd|limited|inc|llc|plc|co|corp|corporation)\b/g,'').replace(/\s+/g,' ').trim();
 const year=v=>{const m=String(v||'').match(/(?:19|20)\d{2}/);return m?+m[0]:null;};
@@ -223,12 +240,35 @@ export function compareLinkedInDetails(linkedin,document){
    seen.add(ix);
    if(ed.degree&&cv[ix].degree&&norm(ed.degree)!==norm(cv[ix].degree))
     issue('education-degree-differs','warning','Degree differs at '+ed.school+'. Check the source records.',['education['+(cv[ix].id??ix)+'].degree']);
+   for(const key of ['start','end']){
+    const cvYear=year(cv[ix][key]),liYear=year(ed[key]);
+    if(cvYear&&liYear&&cvYear!==liYear)
+     issue('education-'+key+'-differs','warning','Education '+key+' year differs at '+ed.school+'.',['education['+(cv[ix].id??ix)+'].'+key]);
+   }
   }
   cv.forEach((ed,i)=>{if(!seen.has(i)&&s(ed.school))issue('education-cv-only','info','Education on the CV is absent from the provided LinkedIn data: '+ed.school,['education['+(ed.id??i)+']']);});
  }
  if(Array.isArray(linkedin.certifications)&&linkedin.coverage?.certifications!==false){
   const cv=document.certifications||[],have=new Set(linkedin.certifications.map(x=>norm(x.name)));
   cv.forEach((x,i)=>{if(x.name&&!have.has(norm(x.name)))issue('certification-cv-only','info','CV certification missing from the provided LinkedIn certifications: '+x.name,['certifications['+(x.id??i)+']']);});
+ }
+ if(Array.isArray(linkedin.projects)&&linkedin.coverage?.projects!==false){
+  const cvProjects=document.projects||[],linked=new Set(linkedin.projects.map(p=>norm(p.name||p.title)));
+  const owned=new Set(cvProjects.map(p=>norm(p.name||p.title)));
+  cvProjects.forEach((p,i)=>{
+   const name=s(p.name||p.title);if(name&&!linked.has(norm(name)))
+    issue('project-cv-only','info','CV project missing from the provided LinkedIn projects: '+name,['projects['+(p.id??i)+']']);
+  });
+  linkedin.projects.forEach(p=>{
+   const name=s(p.name||p.title);if(name&&!owned.has(norm(name)))
+    issue('project-linkedin-only','info','LinkedIn project is not explicitly listed on your CV: '+name);
+  });
+ }
+ if(Array.isArray(linkedin.certifications)&&linkedin.coverage?.certifications!==false){
+  const own=new Set((document.certifications||[]).map(x=>norm(x.name||x.title)));
+  for(const c of linkedin.certifications){
+   if(c.name&&!own.has(norm(c.name)))issue('certification-linkedin-only','info','LinkedIn certification not on CV: '+c.name);
+  }
  }
  if(s(document.summary)&&!s(linkedin.about))issue('about-missing','info','LinkedIn About text is missing from the supplied profile.',['summary']);
  else if(s(document.summary)&&s(linkedin.about)&&textDifference(document.summary,linkedin.about))
