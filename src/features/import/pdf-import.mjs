@@ -91,3 +91,29 @@ export async function createPdfImportReview(bytes,{getDocument,ocrPage,allowOcr=
  return {...review,status:extracted.complete?review.status:'blocked',
   warnings:review.warnings,missingPages:extracted.missingPages,pages:extracted.pages,format:'pdf',userReviewed:false};
 }
+
+/**
+ * Manual recovery for scanned/image-only PDF pages.
+ * No OCR, no inferred facts and no CV write. All missing page transcriptions must
+ * be explicitly supplied and confirmed before a new ImportReview is proposed.
+ */
+export function reviewPdfManualTranscription(review,{transcriptions={},confirmed=false,idFactory,now}={}){
+ if(confirmed!==true)throw contractError('UNCONFIRMED','Confirm complete manual transcription of missing PDF pages.');
+ if(review?.format!=='pdf'||!Array.isArray(review.pages)||!Array.isArray(review.missingPages)||!review.missingPages.length)
+  throw contractError('INVALID','Select an incomplete reviewed PDF first.');
+ const missing=new Set(review.missingPages);
+ const pages=review.pages.map(p=>{
+  if(!missing.has(p.page))return {...p};
+  const typed=transcriptions[p.page];
+  if(typeof typed!=='string'||!typed.trim()||typed.length>IMPORT_LIMITS.maxChars)
+   throw contractError('INVALID','Every missing PDF page needs a complete manual transcription.');
+  return {...p,text:typed.trim(),method:'user-transcribed',confidence:null};
+ });
+ const combined=pages.map(p=>p.text).join('\n');
+ const parsed=parseResumeText(combined);
+ parsed.warnings.unshift('PDF page(s) '+[...missing].join(', ')+
+  ' were manually transcribed by the user, NOT OCR-verified. Check every name, date and qualification against the original page.',
+  ...(review.warnings||[]).filter(x=>!/Import blocked: PDF page/.test(x)));
+ const proposal=createImportReview(parsed,{sourceName:review.sourceName,idFactory,now});
+ return {...proposal,format:'pdf',pages,missingPages:[],transcribedPages:[...missing],userReviewed:false};
+}
