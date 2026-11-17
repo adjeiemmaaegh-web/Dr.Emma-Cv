@@ -1,0 +1,49 @@
+name: Ledger A-D synthetic integration (NO DEPLOY)
+on:
+  push:
+    branches:
+      - integration/a-d-synthetic-gate-2026-11-17
+  pull_request:
+    branches:
+      - feat/ws-a-stages-00-03-foundation-2026-11-17
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  ad-contracts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Group A boundary audits
+        run: node tools/audit-platform.mjs
+      - name: Group A/B/C/D and synthetic integration Node checks
+        run: node --test tests/platform/*.test.mjs tests/documents/*.test.mjs tests/intelligence/*.test.mjs tests/career/*.test.mjs tests/integration/*.test.mjs
+      - name: JS syntax verification for integration and features
+        run: |
+          find src/features src/integration -type f -name '*.mjs' -print0 | xargs -0 -n1 node --check
+  ad-browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install test-only matching Chromium drivers
+        run: |
+          npm install --no-save --ignore-scripts --no-audit --no-fund playwright@1.57.0
+          python -m pip install playwright==1.57.0
+          python -m playwright install chromium
+      - name: Existing Group A actual IndexedDB browser QA
+        run: python tests/platform/platform_browser.py
+      - name: Group B actual editor browser QA
+        run: node tests/documents/editor-browser.mjs
+      - name: A-D integrated real browser journey
+        run: node tests/integration/ad-browser.mjs
