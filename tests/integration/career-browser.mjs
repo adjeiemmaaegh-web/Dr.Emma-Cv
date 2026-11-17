@@ -63,6 +63,33 @@ try{
  await page.locator('details[data-sec="experience"] summary').click();
  assert.match(await page.locator('details[data-sec="experience"]').innerText(),/New Store/,'approved LinkedIn fields must survive a real browser restart');
 
+
+ // Real browser TXT -> source-side review -> corrected role -> independent persisted profile.
+ const earlierId=await page.evaluate(()=>localStorage.getItem('ledger_workspace_active_profile_v1'));
+ await page.getByRole('link',{name:'Home'}).click();
+ const importPanel=page.locator('section[aria-label="Import an existing CV"]');
+ await importPanel.getByLabel('Select existing CV PDF DOCX TXT or HTML').setInputFiles({
+  name:'my-old-cv.txt',mimeType:'text/plain',buffer:Buffer.from(
+   'Ada Example\nada@example.test\nExperience\nStore Manager at Acme\nJan 2020 - Present\n• Managed daily operations\nSkills\nScheduling')
+ });
+ await importPanel.getByRole('button',{name:'Extract selected CV for review'}).click();
+ await page.waitForFunction(()=>document.querySelector('section[aria-label="Import an existing CV"] [role="status"]')?.textContent.includes('Extracted locally'));
+ assert.match(await importPanel.getByLabel('Original extracted CV text for comparison').inputValue(),/Acme/);
+ await importPanel.getByLabel('Accept imported experience[0]').check();
+ const rolePanel=importPanel.locator('details').filter({has:importPanel.getByLabel('Accept imported experience[0]')});
+ await rolePanel.evaluate(n=>{n.open=true});
+ await rolePanel.getByLabel('title',{exact:true}).fill('Retail Excellence Lead');
+ page.once('dialog',d=>d.accept());
+ await importPanel.getByRole('button',{name:'Create new CV profile from approved fields'}).click();
+ await page.waitForFunction(()=>location.hash==='#/editor');
+ const newId=await page.evaluate(()=>localStorage.getItem('ledger_workspace_active_profile_v1'));
+ assert.notEqual(newId,earlierId,'file import must create a separate profile');
+ await page.locator('details[data-sec="experience"] summary').click();
+ assert.match(await page.locator('details[data-sec="experience"]').innerText(),/Retail Excellence Lead/);
+ await page.reload();await page.getByRole('link',{name:'Edit'}).click();
+ await page.locator('details[data-sec="experience"] summary').click();
+ assert.match(await page.locator('details[data-sec="experience"]').innerText(),/Retail Excellence Lead/);
+
  assert.deepEqual(errors,[]);assert.deepEqual(external,[],'no external requests');
  console.log('PASS real persisted A-D career journey vacancy, letter, interview, LinkedIn and application linking');
  await ctx.close();
