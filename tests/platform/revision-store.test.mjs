@@ -77,3 +77,33 @@ test('browser storage denial, quota and invalid transaction emit typed failures'
  await assert.rejects(invalidTx.save(seed().id,seed(),null),e=>e.code==='UNAVAILABLE');
  await assert.rejects(invalidTx.listIds(),e=>e.code==='UNAVAILABLE');
 });
+
+test('synchronous IndexedDB request failures are typed rather than leaking DOM exceptions',async()=>{
+ const nameError=(name)=>{const error=new Error('Synthetic '+name);error.name=name;return error};
+ function brokenPort(operation,errorName){
+  return createIndexedDBRevisionStore({databaseName:'ledger_cv_fault_'+operation,
+   indexedDBFactory:{open(){
+    const request={};
+    queueMicrotask(()=>{
+     request.result={close(){},transaction(){
+      const tx={abort(){if(tx.onabort)tx.onabort()}};
+      const store={
+       get(){if(operation==='load')throw nameError(errorName);
+        const getRequest={result:null};
+        queueMicrotask(()=>getRequest.onsuccess());return getRequest},
+       put(){throw nameError(errorName)},
+       getAllKeys(){throw nameError(errorName)}
+      };
+      tx.objectStore=()=>store;
+      return tx;
+     }};
+     request.onsuccess();
+    });
+    return request;
+   }}});
+ }
+ const profile=seed();
+ await assert.rejects(brokenPort('load','QuotaExceededError').load(profile.id),e=>e.code==='QUOTA');
+ await assert.rejects(brokenPort('list','SecurityError').listIds(),e=>e.code==='UNAVAILABLE');
+ await assert.rejects(brokenPort('save','QuotaExceededError').save(profile.id,profile,null),e=>e.code==='QUOTA');
+});

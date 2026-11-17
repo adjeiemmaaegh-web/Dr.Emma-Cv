@@ -88,7 +88,14 @@ export function createIndexedDBRevisionStore({indexedDBFactory=globalThis.indexe
    let tx;
    try{tx=database.transaction(STORE,'readonly')}
    catch(error){reject(asStorageError(error));return}
-   tx.objectStore(STORE).get(id).onsuccess=event=>{found=event.target.result||null};
+   let request;
+   try{request=tx.objectStore(STORE).get(id)}
+   catch(error){
+    done=true;reject(asStorageError(error));
+    try{tx.abort()}catch{}
+    return;
+   }
+   request.onsuccess=event=>{found=event.target.result||null};
    tx.oncomplete=()=>{done=true;try{resolve(copyRecord(found,id))}catch(e){reject(e)}};
    tx.onerror=tx.onabort=()=>{if(!done){done=true;reject(asStorageError(tx.error))}};
   });
@@ -102,8 +109,13 @@ export function createIndexedDBRevisionStore({indexedDBFactory=globalThis.indexe
    let tx;
    try{tx=database.transaction(STORE,'readwrite')}
    catch(error){reject(asStorageError(error));return}
-   const store=tx.objectStore(STORE);
-   const get=store.get(id);
+   let store,get;
+   try{store=tx.objectStore(STORE);get=store.get(id)}
+   catch(error){
+    settled=true;reject(asStorageError(error));
+    try{tx.abort()}catch{}
+    return;
+   }
    get.onsuccess=()=>{
     try{
      const existing=get.result||null;
@@ -111,7 +123,7 @@ export function createIndexedDBRevisionStore({indexedDBFactory=globalThis.indexe
      store.put({id,revision:immutable.revision,value:immutable});
      accepted=true;
     }catch(error){
-     if(!settled){settled=true;reject(error)}
+     if(!settled){settled=true;reject(asStorageError(error))}
      try{tx.abort()}catch{}
     }
    };
@@ -134,7 +146,13 @@ export function createIndexedDBRevisionStore({indexedDBFactory=globalThis.indexe
    let tx;
    try{tx=database.transaction(STORE,'readonly')}
    catch(error){reject(asStorageError(error));return}
-   const request=tx.objectStore(STORE).getAllKeys();
+   let request;
+   try{request=tx.objectStore(STORE).getAllKeys()}
+   catch(error){
+    done=true;reject(asStorageError(error));
+    try{tx.abort()}catch{}
+    return;
+   }
    request.onsuccess=()=>{keys=request.result};
    tx.oncomplete=()=>{
     if(done)return;done=true;
