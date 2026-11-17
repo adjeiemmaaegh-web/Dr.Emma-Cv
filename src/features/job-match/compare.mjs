@@ -107,5 +107,5 @@ export function compareToDocument(job,document){
  return {results,skillEvidence,summary:{evidenced:by('evidenced'),partial:by('partial'),
   noEvidence:by('no-evidence'),notAssessable:by('not-assessable'),total:results.length},
   score:null,validated:false,
-  disclaimer:'Local keyword/phrase evidence, not a validated job-fit score or ATS/hiring prediction. Numeric and unverified competency requirements require human review.'};
+  disclaimer:'Local keyword/phrase evidence only. This is not a prediction of ATS processing, hiring or job fit, and not a validated score. Numeric and competency requirements require human review.'};
 }
