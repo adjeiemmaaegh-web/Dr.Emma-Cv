@@ -107,10 +107,11 @@ const year=v=>{const m=String(v||'').match(/(19|20)\d{2}/);return m?+m[0]:null;}
 /** Consistency between LinkedIn and the CV (read-only). */
 export function compareWithCv(linkedin,document){
  const out=[],cv=document.experience||[],used=new Set();
- for(const p of linkedin.positions){
-  const i=cv.findIndex((e,k)=>!used.has(k)&&norm(e.employer)&&norm(e.employer)===norm(p.company));
+ // The exported Positions.csv category might not have been selected. Unknown is not empty.
+ if(linkedin.coverage?.positions===false)return out;
+ for(const {linkedin:p,cv:e,index:i} of matchedRoles(linkedin,document)){
   if(i<0){out.push({kind:'linkedin-only',severity:'info',message:'"'+p.title+'" at '+p.company+' is on LinkedIn but not on your CV.',citations:[]});continue;}
-  used.add(i);const e=cv[i],path='experience['+(e.id??i)+']';
+  used.add(i);const path='experience['+(e.id??i)+']';
   if(norm(e.title)!==norm(p.title))out.push({kind:'title-differs',severity:'warning',message:'Title differs for '+p.company+': LinkedIn "'+p.title+'" vs CV "'+e.title+'". Decide which is accurate.',citations:[path+'.title']});
   const a=year(e.start),b=year(p.start);if(a&&b&&a!==b)out.push({kind:'start-differs',severity:'warning',message:'Start year differs for '+p.company+': LinkedIn '+b+' vs CV '+a+'.',citations:[path+'.start']});
  }
@@ -159,14 +160,14 @@ function textDifference(a,b){
 /** Extra comparison layers do not infer that absent export sections are empty on LinkedIn. */
 export function compareLinkedInDetails(linkedin,document){
  const out=[], cvSkills=(document.skills||[]).map(x=>s(x.name)).filter(Boolean);
- const linkedSkills=Array.isArray(linkedin.skills)?linkedin.skills.map(s).filter(Boolean):null;
+ const linkedSkills=Array.isArray(linkedin.skills)&&linkedin.coverage?.skills!==false?linkedin.skills.map(s).filter(Boolean):null;
  const issue=(kind,severity,message,citations=[],source='comparison')=>out.push({kind,severity,message,citations,source});
  if(linkedSkills){
   const have=new Set(linkedSkills.map(norm)),wanted=new Set(cvSkills.map(norm));
   for(let i=0;i<cvSkills.length;i++)if(!have.has(norm(cvSkills[i])))issue('skill-cv-only','info','Skill recorded on CV but not in the provided LinkedIn skills: '+cvSkills[i],['skills['+i+']']);
   for(const skill of linkedSkills)if(!wanted.has(norm(skill)))issue('skill-linkedin-only','info','LinkedIn skill is not explicitly listed on the CV: '+skill);
  }
- if(Array.isArray(linkedin.education)){
+ if(Array.isArray(linkedin.education)&&linkedin.coverage?.education!==false){
   const cv=document.education||[],seen=new Set();
   for(const ed of linkedin.education){
    const ix=cv.findIndex((x,i)=>!seen.has(i)&&norm(x.school)===norm(ed.school)&&!!norm(x.school));
@@ -177,7 +178,7 @@ export function compareLinkedInDetails(linkedin,document){
   }
   cv.forEach((ed,i)=>{if(!seen.has(i)&&s(ed.school))issue('education-cv-only','info','Education on the CV is absent from the provided LinkedIn data: '+ed.school,['education['+(ed.id??i)+']']);});
  }
- if(Array.isArray(linkedin.certifications)){
+ if(Array.isArray(linkedin.certifications)&&linkedin.coverage?.certifications!==false){
   const cv=document.certifications||[],have=new Set(linkedin.certifications.map(x=>norm(x.name)));
   cv.forEach((x,i)=>{if(x.name&&!have.has(norm(x.name)))issue('certification-cv-only','info','CV certification missing from the provided LinkedIn certifications: '+x.name,['certifications['+(x.id??i)+']']);});
  }
@@ -201,7 +202,7 @@ export function compareLinkedInDetails(linkedin,document){
 function moreSuggestions(linkedin,document){
  const source=plainText(document),out=[],cv=(document.skills||[]).map(x=>s(x.name)).filter(Boolean);
  const linked=new Set((linkedin.skills||[]).map(norm));
- if(Array.isArray(linkedin.skills)){
+ if(Array.isArray(linkedin.skills)&&linkedin.coverage?.skills!==false){
   const add=cv.map((v,i)=>({value:v,i})).filter(x=>!linked.has(norm(x.value)));
   if(add.length){
    const after=add.map(x=>x.value).join(', ');
