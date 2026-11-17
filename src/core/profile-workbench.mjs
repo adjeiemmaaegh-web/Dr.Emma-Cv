@@ -47,6 +47,7 @@ export function registerCareerProfileWorkbench(registry,{repository}={}){
   const summaryEdit=control(document,'textarea',{placeholder:'Applicant-written CV summary'});summaryEdit.rows=4;
   summaryEdit.maxLength=20000;
   const summaryLabel=control(document,'label',{text:'Edit selected CV summary (applicant-written facts only)'});summaryLabel.append(summaryEdit);
+  const draftWarning=control(document,'p');draftWarning.setAttribute('aria-live','polite');
   const historyPicker=control(document,'select');historyPicker.setAttribute('aria-label','Previous CV revision');
   const historyLabel=control(document,'label',{text:'Previous CV revision to restore'});historyLabel.append(historyPicker);
   const importInput=control(document,'textarea',{placeholder:'Paste a previously exported Ledger profile backup or legacy CV JSON'});importInput.rows=5;
@@ -56,9 +57,30 @@ export function registerCareerProfileWorkbench(registry,{repository}={}){
   savedLabel.append(savedPicker);
   const actions=control(document,'div');actions.style.display='flex';actions.style.flexWrap='wrap';actions.style.gap='0.5rem';
   const makeButton=(label,action)=>{const button=control(document,'button',{text:label,type:'button'});
-    button.addEventListener('click',()=>void action().catch(e=>{status.textContent='Not saved: '+e.message}));
+    button.addEventListener('click',()=>void action().catch(e=>{
+     status.textContent=e?.code==='CONFLICT'?
+      'Not saved (conflict): Another tab changed this profile. Your draft is still on screen; copy it before reloading.':
+      e?.code==='QUOTA'||e?.code==='UNAVAILABLE'?
+      'Not saved (storage unavailable): '+e.message+'. Your draft is still on screen; copy it before leaving.':
+      'Not saved: '+e.message;
+    }));
     actions.append(button);return button};
   let profile=null,savedRevision=null,pending=null,pendingRaw=null,busy=false;
+  let displayedCvId=null,displayedSummary='';
+  const hasUnsavedSummary=()=>Boolean(profile&&displayedCvId&&summaryEdit.value!==displayedSummary);
+  function updateDraftWarning(){
+   draftWarning.textContent=hasUnsavedSummary()?
+    'Unsaved CV summary draft. Save before leaving or switching CVs, or copy this text elsewhere.':'';
+  }
+  function confirmDiscardSummary(reason){
+   return !hasUnsavedSummary()||document.defaultView.confirm(
+    'You have unsaved CV summary edits. '+reason+' will discard them. Continue?');
+  }
+  summaryEdit.addEventListener('input',updateDraftWarning);
+  const warnOnUnload=event=>{
+   if(hasUnsavedSummary()){event.preventDefault();event.returnValue='';}
+  };
+  document.defaultView.addEventListener('beforeunload',warnOnUnload);
   async function refreshSavedProfiles(){
    const ids=await store.listIds();
    savedPicker.replaceChildren();
@@ -76,26 +98,36 @@ export function registerCareerProfileWorkbench(registry,{repository}={}){
    }
    if(profile&&ids.includes(profile.id))savedPicker.value=profile.id;
   }
-  function renderCVSelection(){
-   const selected=cvPicker.value;
+  function renderCVSelection({preserveDraft=false}={}){
+   const selected=cvPicker.value,priorText=summaryEdit.value;
+   const retain=preserveDraft&&hasUnsavedSummary()&&selected===displayedCvId;
    cvPicker.replaceChildren();historyPicker.replaceChildren();
-   if(!profile){summaryEdit.value='';return}
+   if(!profile){
+    summaryEdit.value='';displayedCvId=null;displayedSummary='';updateDraftWarning();return;
+   }
    for(const item of [profile.master,...profile.variants]){
     const option=control(document,'option',{text:item.name+' (revision '+item.revision+')'});
     option.value=item.id;cvPicker.append(option);
    }
    if([...cvPicker.options].some(option=>option.value===selected))cvPicker.value=selected;
    const active=[profile.master,...profile.variants].find(item=>item.id===cvPicker.value);
-   summaryEdit.value=active.document.summary;
+   displayedCvId=active.id;displayedSummary=active.document.summary;
+   summaryEdit.value=retain?priorText:displayedSummary;
    for(const old of [...(active.history||[])].reverse()){
     const option=control(document,'option',{text:'Revision '+old.revision+' (previously saved)'});
     option.value=String(old.revision);historyPicker.append(option);
    }
    historyPicker.disabled=!active.history?.length;
+   updateDraftWarning();
   }
-  cvPicker.addEventListener('change',renderCVSelection);
-  function render(){
+  cvPicker.addEventListener('change',()=>{
+   if(!confirmDiscardSummary('Switching CV versions')){
+    cvPicker.value=displayedCvId;return;
+   }
    renderCVSelection();
+  });
+  function render({preserveDraft=false}={}){
+   renderCVSelection({preserveDraft});
    overview.textContent=profile?[
     'Name: '+profile.name,'Profile revision: '+profile.revision,
     'Master: '+profile.master.name,
@@ -107,27 +139,31 @@ export function registerCareerProfileWorkbench(registry,{repository}={}){
      (item.verifiedByUser?'Owner-confirmed':'Not independently verified')+' ['+item.source+']: '+item.claim)
    ].join('\n'):'No profile in this preview.';
   }
-  async function persist(next){
+  async function persist(next,{preserveDraft=true}={}){
    if(busy)throw Error('Operation already running');
    busy=true;
    try{
     const result=await store.save(next.id,next,savedRevision);
-    profile=result.value;savedRevision=result.revision;status.textContent='Saved locally at revision '+savedRevision;render();
+    profile=result.value;savedRevision=result.revision;
+    status.textContent='Saved locally at revision '+savedRevision;
+    render({preserveDraft});
     try{await refreshSavedProfiles()}catch{status.textContent+='; profile list unavailable'}
    }finally{busy=false}
   }
   makeButton('Create new profile',async()=>{
+   if(!confirmDiscardSummary('Creating a new profile'))return;
    if(profile&&!document.defaultView.confirm('Replace the previewed profile? Your earlier saved profile is not deleted.'))return;
    const created=createCareerProfile({displayName:displayName.value.trim()||'My career profile'});
    const previous=profile,previousRevision=savedRevision;
    profile=null;savedRevision=null;
-   try{await persist(created)}catch(error){
-    profile=previous;savedRevision=previousRevision;render();throw error;
+   try{await persist(created,{preserveDraft:false})}catch(error){
+    profile=previous;savedRevision=previousRevision;render({preserveDraft:true});throw error;
    }
   });
   makeButton('Open selected saved profile',async()=>{
    if(busy)throw Error('Operation already running');
    if(!savedPicker.value)throw Error('Choose an existing profile');
+   if(!confirmDiscardSummary('Opening a saved profile'))return;
    if(profile&&profile.id!==savedPicker.value&&
       !document.defaultView.confirm('Open a different saved profile?'))return;
    busy=true;
@@ -175,10 +211,12 @@ export function registerCareerProfileWorkbench(registry,{repository}={}){
    if(!document.defaultView.confirm('Restore the selected previous CV content as a new revision? Current content will be retained in history.'))return;
    const next=restoreCVRevision(profile,{variantId:selected,snapshotRevision:revision,
     expectedRevision:profile.revision,confirmed:true});
-   await persist(next);
+   await persist(next,{preserveDraft:false});
   });
   makeButton('Export checksum backup',async()=>{
    if(!profile)throw Error('No career profile to export');
+   if(hasUnsavedSummary()&&!document.defaultView.confirm(
+    'The current summary draft is unsaved and will NOT be in this backup. Export saved data only?'))return;
    const backup=await createCareerProfileBackup(profile);
    downloadText(document,backup,'ledger-career-profile-backup.json');
    status.textContent='Backup exported; preserve it somewhere safe.';
@@ -211,20 +249,22 @@ export function registerCareerProfileWorkbench(registry,{repository}={}){
    if(profile?.id===next.id)throw Error('An existing profile with this identity is already open. Export it first; overwrite is not permitted here.');
    const exists=await store.load(next.id);
    if(exists)throw Error('A local profile with this ID exists; automatic overwrite is blocked.');
+   if(!confirmDiscardSummary('Opening an imported profile'))return;
    const previous=profile,previousRevision=savedRevision;
    profile=null;savedRevision=null;
-   try{await persist(next)}catch(error){
-    profile=previous;savedRevision=previousRevision;render();throw error;
+   try{await persist(next,{preserveDraft:false})}catch(error){
+    profile=previous;savedRevision=previousRevision;render({preserveDraft:true});throw error;
    }
    pending=null;pendingRaw=null;
    importReview.textContent='Approved and saved. Imported claims require factual review.';
   });
   root.append(heading,note,nameLabel,savedLabel,evidenceLabel,variantLabel,
-   cvLabel,summaryLabel,historyLabel,actions,status,overview,
+   cvLabel,summaryLabel,draftWarning,historyLabel,actions,status,overview,
    control(document,'h3',{text:'Manual, review-only import'}),importInput,importReview);
   host.append(root);render();
   void refreshSavedProfiles().catch(()=>{status.textContent='Profile list unavailable; local storage may be blocked.'});
-  return ()=>{root.remove();profile=null;pending=null;pendingRaw=null;
+  return ()=>{document.defaultView.removeEventListener('beforeunload',warnOnUnload);
+   root.remove();profile=null;pending=null;pendingRaw=null;
    if(repository===undefined&&typeof store.close==='function')store.close();
   };
  }});
