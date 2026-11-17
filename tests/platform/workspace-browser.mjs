@@ -60,7 +60,10 @@ try{
   const {SYNTH_DOC}=await import('/tests/documents/fixtures.mjs');
   localStorage.setItem('ledger_cv_state_v2',JSON.stringify({document:SYNTH_DOC(),appearance:{},versions:[]}));
   localStorage.setItem('ledger_cv_recovery_v24','INTENTIONALLY_BROKEN_JSON');
-  localStorage.setItem('ledger_cv_stage6_applications_v1','[]');
+  localStorage.setItem('ledger_cv_stage6_applications_v1',JSON.stringify([{
+   id:'legacyapp0001',company:'Legacy Employer',role:'Operations Lead',
+   location:'',url:'',notes:'',date:'',status:'Saved'
+  }]));
  });
  const original=await p.evaluate(()=>localStorage.getItem('ledger_cv_state_v2'));
  const [profileDownload]=await Promise.all([p.waitForEvent('download'),p.getByRole('button',{name:'Download saved CV backup'}).click()]);
@@ -69,6 +72,20 @@ try{
  assert.equal(JSON.parse(fs.readFileSync(await appsDownload.path(),'utf8')).kind,'ledger-applications');
  const [legacyDownload]=await Promise.all([p.waitForEvent('download'),p.getByRole('button',{name:'Download exact legacy data backup'}).click()]);
  assert.equal(JSON.parse(fs.readFileSync(await legacyDownload.path(),'utf8')).format,'ledger-legacy-raw-backup');
+ const oldLegacyApps=await p.evaluate(()=>localStorage.getItem('ledger_cv_stage6_applications_v1'));
+ await p.getByRole('button',{name:'Review this browser’s legacy applications'}).click();
+ await p.getByText(/1 reviewed job entries/).waitFor();
+ await p.getByRole('button',{name:'Approve reviewed import'}).click();
+ await p.getByRole('link',{name:'Jobs'}).click();
+ await p.getByText('Legacy Employer').waitFor();
+ assert.equal(await p.evaluate(()=>localStorage.getItem('ledger_cv_stage6_applications_v1')),oldLegacyApps);
+ await p.getByRole('link',{name:'Home'}).click();
+ // The old application backup no longer covers the newly imported revision.
+ await p.getByRole('button',{name:'Review this browser’s legacy CV'}).click();
+ await p.getByRole('button',{name:'Approve reviewed import'}).click();
+ await p.getByText(/Not completed: Saved data changed after backup/).waitFor();
+ const [freshAppsDownload]=await Promise.all([p.waitForEvent('download'),p.getByRole('button',{name:'Download application backup'}).click()]);
+ assert.equal(JSON.parse(fs.readFileSync(await freshAppsDownload.path(),'utf8')).book.applications.length,1);
  await p.getByRole('button',{name:'Review this browser’s legacy CV'}).click();
  await p.getByText(/Reviewed "My career profile"/).waitFor();
  await p.getByRole('button',{name:'Approve reviewed import'}).click();
