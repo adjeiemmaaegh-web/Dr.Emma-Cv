@@ -16,7 +16,7 @@ const SECTION_RX=[
  ['hobbies',/^(interests|hobbies)$/i],['references',/^references$/i]
 ];
 const MONTH='(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\\.?\\s+';
-const DATE=`(?:${MONTH})?(?:19|20)\\d{2}`;
+const DATE=`(?:(?:${MONTH})?(?:19|20)\\d{2}|(?:0?[1-9]|1[0-2])[\\/-](?:19|20)\\d{2}|(?:19|20)\\d{2}[\\/-](?:0?[1-9]|1[0-2]))`;
 const RANGE=new RegExp(`(${DATE})\\s*(?:-|–|—|to)\\s*(${DATE}|present|current|now)`,'i');
 const EMAIL=/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/,PHONE=/(?:\+\d{1,3}[\s.-]?)?(?:\(?\d{2,4}\)?[\s.-]?)\d{3}[\s.-]?\d{3,4}\b/;
 const LINKEDIN=/(?:https?:\/\/)?(?:[a-z]{2,3}\.)?linkedin\.com\/[^\s|,]+/i;
@@ -42,21 +42,23 @@ export function parseResumeText(raw){
   if(!section){head.push([l,n+1]);continue;}
   buckets[section].push([l,n+1]);
  }
- const p=doc.personalInfo;
+ const p=doc.personalInfo,consumedHead=new Set();
  const nameLine=head.find(([l])=>!EMAIL.test(l)&&!LINKEDIN.test(l)&&!/\d{4,}/.test(l)&&l.split(/\s+/).length<=5);
  if(nameLine){const parts=nameLine[0].replace(/[,|]/g,' ').trim().split(/\s+/);
-  p.firstName=parts[0];p.lastName=parts.slice(1).join(' ');add('personalInfo.name',nameLine[0],nameLine[1],parts.length<2||parts.length>4);}
+  p.firstName=parts[0];p.lastName=parts.slice(1).join(' ');add('personalInfo.name',nameLine[0],nameLine[1],parts.length<2||parts.length>4);consumedHead.add(nameLine[1]);}
  else warnings.push('No name line found.');
  for(const [l,n] of head){
-  const e=l.match(EMAIL);if(e&&!p.email){p.email=e[0];add('personalInfo.email',e[0],n);}
-  const li=l.match(LINKEDIN);if(li&&!p.linkedin){p.linkedin=li[0];add('personalInfo.linkedin',li[0],n);}
-  const ph=l.replace(EMAIL,'').replace(LINKEDIN,'').match(PHONE);if(ph&&!p.phone&&ph[0].replace(/\D/g,'').length>=8){p.phone=ph[0].trim();add('personalInfo.phone',p.phone,n,true);}
-  if(nameLine&&l!==nameLine[0]&&!p.title&&!e&&!li&&!ph&&l.length<80){p.title=l;add('personalInfo.title',l,n,true);}
+  const e=l.match(EMAIL);if(e&&!p.email){p.email=e[0];add('personalInfo.email',e[0],n);consumedHead.add(n);}
+  const li=l.match(LINKEDIN);if(li&&!p.linkedin){p.linkedin=li[0];add('personalInfo.linkedin',li[0],n);consumedHead.add(n);}
+  const ph=l.replace(EMAIL,'').replace(LINKEDIN,'').match(PHONE);if(ph&&!p.phone&&ph[0].replace(/\D/g,'').length>=8){p.phone=ph[0].trim();add('personalInfo.phone',p.phone,n,true);consumedHead.add(n);}
+  if(nameLine&&l!==nameLine[0]&&!p.title&&!e&&!li&&!ph&&l.length<80){p.title=l;add('personalInfo.title',l,n,true);consumedHead.add(n);}
  }
  if(!p.email)warnings.push('No email address found.');
  if(buckets.summary?.length){doc.summary=buckets.summary.map(x=>x[0]).join(' ');add('summary',doc.summary,buckets.summary[0][1]);}
  for(const k of ['hobbies','references'])if(buckets[k]?.length){doc[k]=buckets[k].map(x=>x[0]).join('\n');add(k,doc[k],buckets[k][0][1]);}
  // experience / education: a dated line starts an entry; bullets and prose attach to it.
+ const unmappedSourceLines=head.filter(([,n])=>!consumedHead.has(n)).map(([text,sourceLine])=>({text,sourceLine,reason:'Header detail was not mapped to a structured CV field'}));
+ if(unmappedSourceLines.length)warnings.push(unmappedSourceLines.length+' header line(s) require manual reconstruction; the original source remains available.');
  const entries=(rows,kind)=>{
   const out=[];let cur=null;
   for(let k=0;k<rows.length;k++){
@@ -68,8 +70,9 @@ export function parseResumeText(raw){
     cur={...dates,headline:rest,desc:[],line:n};out.push(cur);continue;
    }
    const nextIsDate=k+1<rows.length&&RANGE.test(rows[k+1][0])&&!BULLET.test(rows[k+1][0]);
+   if(!isBullet&&nextIsDate&&cur&&!cur.start&&!cur.second&&!cur.desc.length){cur.second=l;continue;}
    if(!isBullet&&(!cur||nextIsDate&&l.length<100)){cur={start:'',end:'',current:false,headline:l,desc:[],line:n};out.push(cur);continue;}
-   if(isBullet)cur.desc.push({b:true,t:l.replace(BULLET,'')});
+   if(isBullet){if(!cur){cur={start:'',end:'',current:false,headline:'',desc:[],line:n};out.push(cur);}cur.desc.push({b:true,t:l.replace(BULLET,''));}
    else if(!cur.headline)cur.headline=l;
    else if(kind==='experience'&&!cur.second&&!cur.desc.length&&l.length<80)cur.second=l;
    else cur.desc.push({b:false,t:l});
@@ -102,7 +105,7 @@ export function parseResumeText(raw){
  }
  if(!doc.experience.length&&!doc.education.length&&!doc.skills.length)warnings.push('No experience, education or skills sections were recognised; review the source text manually.');
  for(const u of uncertain)warnings.push(u);
- return {document:doc,items,warnings,sourceText:text};
+ return {document:doc,items,warnings,sourceText:text,unmappedSourceLines};
 }
 /** Build the contract-level ImportReview. proposed is NOT saved and carries no verified claims. */
 export function createImportReview(parsed,{idFactory,now=new Date().toISOString(),sourceName}={}){
@@ -111,7 +114,8 @@ export function createImportReview(parsed,{idFactory,now=new Date().toISOString(
  const mk=idFactory?{idFactory}:{};
  const proposed=hasContent?createCareerProfile({displayName:'Imported CV',document:parsed.document,now,...mk}):null;
  return {status:hasContent?'review-required':'blocked',warnings:[...parsed.warnings],proposed,requiresUserConfirmation:true,
-  items:parsed.items.map(x=>({...x,decision:'pending'})),sourceName,sourceText:parsed.sourceText};
+  items:parsed.items.map(x=>({...x,decision:'pending'})),sourceName,sourceText:parsed.sourceText,
+  unmappedSourceLines:parsed.unmappedSourceLines||[]};
 }
 /**
  * Apply per-item decisions and an explicit confirmation. Rejected/pending items are omitted;
