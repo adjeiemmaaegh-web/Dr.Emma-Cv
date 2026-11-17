@@ -111,7 +111,8 @@ export function fromPastedText(text){
    const company=(exp[i-1]||'').split('·')[0].trim(),title=i>=2?exp[i-2]:'';
    const sw=(m[1]||'')+m[2],en=m[3];
    const desc=[];while(i+1<exp.length&&!RANGE.test(exp[i+1])&&!(exp[i+3]&&RANGE.test(exp[i+3]))){desc.push(exp[++i]);}
-   positions.push({title:title||exp[i-1],company,start:sw.trim(),end:/present/i.test(en)?'':en.trim(),description:desc.join('\n')});
+   positions.push({title:title||exp[i-1],company,start:sw.trim(),end:/present/i.test(en)?'':en.trim(),
+    current:/present/i.test(en),description:desc.join('\n')});
   }
  }
  return {source:'pasted',headline,about:about.join('\n'),positions,
