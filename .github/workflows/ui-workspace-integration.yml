@@ -1,0 +1,70 @@
+name: Ledger E polished workspace integration QA (NO DEPLOY)
+on:
+  push:
+    branches:
+      - integration/ui-workspace-main-2026-11-17
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/features/**'
+      - 'src/core/**'
+      - 'src/contracts/**'
+      - 'src/domain/**'
+      - 'tests/experience/**'
+      - 'tests/integration/**'
+      - '.github/workflows/ui-workspace-integration.yml'
+      - 'package.json'
+      - 'vercel.json'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  ui-node-and-contracts:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Preserve Group A boundaries and frozen production build
+        run: |
+          node tools/audit-platform.mjs
+          node tools/audit-e31-e30-preservation.mjs
+          node -e "const c=require('./vercel.json');if(c.git?.deploymentEnabled?.main!==false)process.exit(1)"
+      - name: Check syntax for all Group E feature and test modules
+        run: |
+          find src/features/{accessibility,onboarding,pwa-ui,experience} tests/experience -type f -name '*.mjs' -print0 | xargs -0 -n1 node --check
+      - name: Run Group A-D and Group E unit/integration suites
+        run: node --test tests/platform/*.test.mjs tests/documents/*.test.mjs tests/intelligence/*.test.mjs tests/career/*.test.mjs tests/integration/*.test.mjs tests/experience/*.test.mjs
+  ui-native-browser:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pinned test-only Chromium runtime
+        run: |
+          npm install --no-save --ignore-scripts --no-audit --no-fund playwright@1.57.0
+          python -m pip install playwright==1.57.0
+          python -m playwright install chromium
+      - name: Group E guided journeys and accessibility
+        run: node tests/experience/onboarding-browser.mjs
+      - name: Group E portable offline/storage UI
+        run: node tests/experience/pwa-browser.mjs
+      - name: Group B editor Group E accessibility integration
+        run: STRICT=1 node tests/experience/editor-a11y.mjs
+      - name: Verify negative control in accessibility audit
+        run: node tests/experience/audit-selftest.mjs
+      - name: Polished workspace all routes/widths/themes and interactions
+        run: node tests/experience/workspace-browser.mjs
+      - name: Existing A-D actual IndexedDB and editor browser regression
+        run: |
+          python tests/platform/platform_browser.py
+          node tests/documents/editor-browser.mjs
+          node tests/integration/ad-browser.mjs
