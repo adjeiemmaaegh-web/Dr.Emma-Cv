@@ -143,6 +143,6 @@ export function approveImportReview(review,{accepted,confirmed=false,idFactory,n
  const mkId=idFactory||(()=> 'ledger_'+globalThis.crypto.randomUUID().replace(/-/g,''));
  profile.evidence=keep.filter(i=>i.path.startsWith('experience')||i.path.startsWith('education')).map(i=>({
   id:mkId(),source:'document',claim:(i.value.title||i.value.degree||'Entry')+' '+(i.value.employer||i.value.school||'')+' ('+(i.value.start||'?')+')',
-  sourceRef:(review.sourceName||'import')+':line '+i.sourceLine,path:i.path,capturedAt:now,verifiedByUser:false}));
+  sourceRef:i.sourceRef||(review.sourceName||'import')+':line '+i.sourceLine,path:i.path,capturedAt:now,verifiedByUser:false}));
  return profile;
 }
