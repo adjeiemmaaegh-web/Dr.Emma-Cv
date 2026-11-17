@@ -47,12 +47,24 @@ export function createEditor({document,appearance={},limit=100,onChange}={}){
   /** Keyboard-friendly alternative to drag and drop. delta -1 up, +1 down; clamped, no loss. */
   moveItem(section,id,delta){const d=draft(),arr=list(d,section),i=find(arr,id),j=Math.max(0,Math.min(arr.length-1,i+delta));
    if(i===j)return api.snapshot();const [it]=arr.splice(i,1);arr.splice(j,0,it);return commit(d);},
-  moveSection(key,delta){const d=draft();const order=(Array.isArray(d.appearance.sectionOrder)?[...d.appearance.sectionOrder]:[...DEFAULT_SECTION_ORDER]);
-   for(const k of DEFAULT_SECTION_ORDER)if(!order.includes(k))order.push(k);
+  moveSection(key,delta){const d=draft();
+   const keys=[...DEFAULT_SECTION_ORDER,...d.document.customSections.map(x=>'custom:'+x.id)];
+   const order=Array.isArray(d.appearance.sectionOrder)?
+    [...new Set(d.appearance.sectionOrder.filter(x=>keys.includes(x)))]:[];
+   for(const k of keys)if(!order.includes(k))order.push(k);
    const i=order.indexOf(key);if(i<0)throw fail('INVALID','Unknown section');const j=Math.max(0,Math.min(order.length-1,i+delta));
    order.splice(i,1);order.splice(j,0,key);d.appearance.sectionOrder=order;return commit(d);},
-  setAppearance(patch){const d=draft();const r=normalizeAppearance({...d.appearance,...patch});
-   if(r.errors.length)throw fail('INVALID',r.errors.join('; '));d.appearance=r.appearance;return commit(d);},
+  setAppearance(patch,{coalesceKey}={}){const d=draft();const r=normalizeAppearance({...d.appearance,...patch});
+   if(r.errors.length)throw fail('INVALID',r.errors.join('; '));
+   d.appearance=r.appearance;
+   return commit(d,typeof coalesceKey==='string'&&coalesceKey?'appearance:'+coalesceKey:null);
+  },
+  endCoalescing(){lastKey=null;},
+  replaceAppearance(appearance){
+   const d=draft(),r=normalizeAppearance(appearance);
+   if(r.errors.length)throw fail('INVALID',r.errors.join('; '));
+   d.appearance=r.appearance;return commit(d);
+  },
   undo(){if(!past.length)return api.snapshot();future.push(state);state=past.pop();lastKey=null;emit();return api.snapshot();},
   redo(){if(!future.length)return api.snapshot();past.push(state);state=future.pop();lastKey=null;emit();return api.snapshot();}
  };

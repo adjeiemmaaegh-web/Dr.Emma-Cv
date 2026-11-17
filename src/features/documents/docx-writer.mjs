@@ -11,9 +11,16 @@ export function renderDocx({blocks,style,paper,title='CV'}){
   const k=b.kind,align=style.header==='centered'&&(k==='name'||k==='title'||k==='contact')?'<w:jc w:val="center"/>':'';
   const keep=b.keepWithNext?'<w:keepNext/>':'';
   const text=style.caps&&(k==='section-title'||k==='name')?b.text.toUpperCase():b.text;
-  const size={name:style.size*2.2,title:style.size*1.2,'section-title':style.size*1.15}[k]||style.size;
-  const spacing='<w:spacing w:before="'+tw(k==='section-title'?10:k==='entry-head'?5:0)+'" w:after="'+tw(k==='contact'?8:2)+'" w:line="'+Math.round(style.lineHeight*240)+'" w:lineRule="auto"/>';
+  const size={name:style.size*style.headerScale,title:style.size*1.2,'section-title':style.size*style.headingScale}[k]||style.size;
+  const spacing='<w:spacing w:before="'+tw(k==='section-title'?style.sectionGap:k==='entry-head'?style.entryGap:0)+'" w:after="'+tw(k==='contact'?8:style.paragraphGap)+'" w:line="'+Math.round(style.lineHeight*240)+'" w:lineRule="auto"/>';
   let ppr='<w:pPr>'+({name:'<w:pStyle w:val="Title"/>','section-title':'<w:pStyle w:val="Heading1"/>','entry-head':'<w:pStyle w:val="Heading2"/>',bullet:'<w:pStyle w:val="ListBullet"/><w:numPr><w:ilvl w:val="0"/><w:numId w:val="1"/></w:numPr>'}[k]||'')+keep;
+  if(k==='section-title'&&style.rules!=='none'){
+   const edge=['left-bar','timeline'].includes(style.rules)?'left':'bottom';
+   const line=style.rules==='double'?'double':'single',thickness=Math.max(4,Math.min(42,Math.round(style.ruleWeight*(style.rules==='bar'?33:13))));
+   ppr+='<w:pBdr><w:'+edge+' w:val="'+line+'" w:sz="'+thickness+'" w:space="3" w:color="'+color+'"/></w:pBdr>';
+  }
+  if(k==='name'&&style.header==='band')ppr+='<w:shd w:val="clear" w:fill="EEF3F7"/>';
+  if(k==='name'&&style.header==='badge')ppr+='<w:pBdr><w:left w:val="single" w:sz="22" w:space="4" w:color="'+color+'"/></w:pBdr>';
   if(k==='entry-head'&&b.right)ppr+='<w:tabs><w:tab w:val="right" w:pos="'+right+'"/></w:tabs>';
   ppr+=spacing+align+'</w:pPr>';
   const bold=k==='name'||k==='section-title'||k==='entry-head';
@@ -29,12 +36,20 @@ export function renderDocx({blocks,style,paper,title='CV'}){
   if(k==='entry-head'&&b.right)body+='<w:r><w:tab/></w:r>'+run(b.right,{size,font});
   return '<w:p>'+ppr+body+'</w:p>';
  };
+ const pageBorder=(()=>{
+  const edge=style.pageAccent;
+  if(edge!=='top-rule'&&edge!=='side-rail')return '';
+  const size=Math.max(4,Math.min(32,Math.round(style.ruleWeight*13)));
+  const side=edge==='top-rule'?'top':'left';
+  return '<w:pgBorders w:offsetFrom="text"><w:'+side+' w:val="single" w:sz="'+size+
+   '" w:space="14" w:color="'+color+'"/></w:pgBorders>';
+ })();
  const doc='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><w:body>'+
   blocks.map(para).join('')+
-  '<w:sectPr><w:pgSz w:w="'+tw(paper.width)+'" w:h="'+tw(paper.height)+'"/><w:pgMar w:top="'+tw(style.margin)+'" w:right="'+tw(style.margin)+'" w:bottom="'+tw(style.margin)+'" w:left="'+tw(style.margin)+'" w:header="720" w:footer="720" w:gutter="0"/></w:sectPr></w:body></w:document>';
+  '<w:sectPr><w:pgSz w:w="'+tw(paper.width)+'" w:h="'+tw(paper.height)+'"/><w:pgMar w:top="'+tw(style.margin)+'" w:right="'+tw(style.margin)+'" w:bottom="'+tw(style.margin)+'" w:left="'+tw(style.margin)+'" w:header="720" w:footer="720" w:gutter="0"/> ' + pageBorder + '</w:sectPr></w:body></w:document>';
  const styles='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:docDefaults><w:rPrDefault><w:rPr><w:rFonts w:ascii="'+font+'" w:hAnsi="'+font+'" w:cs="'+font+'"/><w:sz w:val="'+Math.round(style.size*2)+'"/></w:rPr></w:rPrDefault></w:docDefaults>'+
   '<w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/></w:style>'+
-  [['Title','Title',style.size*2.2],['Heading1','heading 1',style.size*1.15],['Heading2','heading 2',style.size]].map(([id,n,s])=>'<w:style w:type="paragraph" w:styleId="'+id+'"><w:name w:val="'+n+'"/><w:basedOn w:val="Normal"/><w:next w:val="Normal"/><w:qFormat/><w:pPr><w:keepNext/></w:pPr><w:rPr><w:b/><w:sz w:val="'+Math.round(s*2)+'"/></w:rPr></w:style>').join('')+
+  [['Title','Title',style.size*style.headerScale],['Heading1','heading 1',style.size*style.headingScale],['Heading2','heading 2',style.size]].map(([id,n,s])=>'<w:style w:type="paragraph" w:styleId="'+id+'"><w:name w:val="'+n+'"/><w:basedOn w:val="Normal"/><w:next w:val="Normal"/><w:qFormat/><w:pPr><w:keepNext/></w:pPr><w:rPr><w:b/><w:sz w:val="'+Math.round(s*2)+'"/></w:rPr></w:style>').join('')+
   '<w:style w:type="paragraph" w:styleId="ListBullet"><w:name w:val="List Bullet"/><w:basedOn w:val="Normal"/></w:style></w:styles>';
  const numbering='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:numbering xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:abstractNum w:abstractNumId="0"><w:multiLevelType w:val="hybridMultilevel"/><w:lvl w:ilvl="0"><w:start w:val="1"/><w:numFmt w:val="bullet"/><w:lvlText w:val="•"/><w:lvlJc w:val="left"/><w:pPr><w:ind w:left="360" w:hanging="240"/></w:pPr></w:lvl></w:abstractNum><w:num w:numId="1"><w:abstractNumId w:val="0"/></w:num></w:numbering>';
  const docRels='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rIdS" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/><Relationship Id="rIdN" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/numbering" Target="numbering.xml"/>'+
@@ -46,5 +61,5 @@ export function renderDocx({blocks,style,paper,title='CV'}){
   {name:'word/document.xml',data:doc},{name:'word/styles.xml',data:styles},{name:'word/numbering.xml',data:numbering},
   {name:'word/_rels/document.xml.rels',data:docRels}
  ];
- return {bytes:zipStore(files.map(f=>({name:f.name,data:utf8(f.data)}))),warnings:[]};
+ return {bytes:zipStore(files.map(f=>({name:f.name,data:utf8(f.data)}))),warnings:style.pageAccent==='corner-marks'?['Decorative corner markers are PDF-only; Word keeps content in editable paragraphs.']:[]};
 }
