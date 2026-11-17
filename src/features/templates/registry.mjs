@@ -5,8 +5,11 @@
  */
 export const PAPER_SIZES=Object.freeze({A4:{width:595.28,height:841.89},Letter:{width:612,height:792}});
 export const FAMILIES=Object.freeze(['classic','executive','graduate','academic','technical','modern','creative']);
+const FAMILY_EDGE=Object.freeze({classic:'none',executive:'top-rule',graduate:'none',academic:'none',
+ technical:'corner-marks',modern:'top-rule',creative:'side-rail'});
 const T=(id,name,family,tokens,color)=>Object.freeze({id,name,family,tokens:Object.freeze({
- layout:'single',header:'left',caps:false,rules:'under-title',font:'sans',density:'standard',...tokens}),color});
+ layout:'single',header:'left',caps:false,rules:'under-title',font:'sans',density:'standard',
+ edge:FAMILY_EDGE[family]||'none',...tokens}),color});
 export const TEMPLATES=Object.freeze([
  T('modern','Modern','modern',{header:'left',rules:'under-title'}),
  T('modern-navy','Modern Navy','modern',{header:'left'},'#1e3a5f'),
@@ -47,10 +50,11 @@ export const OPTIONS=Object.freeze({
  fontSize:['small','medium','large'],spacing:['compact','standard','relaxed'],
  margins:['narrow','standard','wide'],paper:['A4','Letter'],
  font:['template','sans','serif'],headerStyle:['template','left','centered','band','badge'],
- columns:['template','single','sidebar'],ruleStyle:['template','none','under-title','double','bar','left-bar','timeline']
+ columns:['template','single','sidebar'],ruleStyle:['template','none','under-title','double','bar','left-bar','timeline'],
+ pageAccent:['template','none','top-rule','side-rail','corner-marks']
 });
 export const DEFAULT_APPEARANCE=Object.freeze({template:'modern',color:'#2B6F68',font:'template',fontSize:'medium',
- spacing:'standard',margins:'standard',paper:'A4',headerStyle:'template',columns:'template',photo:false});
+ spacing:'standard',margins:'standard',paper:'A4',headerStyle:'template',columns:'template',pageAccent:'template',photo:false});
 const COLOR=/^#[0-9a-fA-F]{6}$/;
 export const SECTION_KEYS=Object.freeze(['summary','experience','education','skills','certifications','languages','projects','accomplishments','hobbies','references']);
 export const NUMERIC_OPTIONS=Object.freeze({bodySize:[8,14],leading:[1.1,1.9],sectionGap:[3,24],marginSize:[24,90],headerScale:[1.7,3.1],
@@ -117,7 +121,8 @@ export function resolveStyle(appearance){
   headingScale:a.headingScale??1.15,entryGap:a.entryGap??5,paragraphGap:a.paragraphGap??1,ruleWeight:a.ruleWeight??0.6,
   header:a.headerStyle==='template'?t.tokens.header:a.headerStyle,
   columns:a.columns==='template'?t.tokens.layout:a.columns==='sidebar'?'sidebar':'single',
-  caps:t.tokens.caps,rules:a.ruleStyle&&a.ruleStyle!=='template'?a.ruleStyle:t.tokens.rules,photo:a.photo,
+  caps:t.tokens.caps,rules:a.ruleStyle&&a.ruleStyle!=='template'?a.ruleStyle:t.tokens.rules,
+  pageAccent:a.pageAccent&&a.pageAccent!=='template'?a.pageAccent:t.tokens.edge,photo:a.photo,
   sectionOrder:Array.isArray(a.sectionOrder)?a.sectionOrder.filter(x=>typeof x==='string'):undefined,
   enabledSections:a.enabledSections&&typeof a.enabledSections==='object'?a.enabledSections:undefined
  });
