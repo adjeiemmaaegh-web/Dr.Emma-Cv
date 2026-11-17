@@ -46,3 +46,17 @@ export function approveCareerProfileBackup(preview,{confirmed=false}={}){
  validateCareerProfile(preview.proposed);
  return cloneData(preview.proposed);
 }
+
+/**
+ * Explicitly approved backup import into an EMPTY repository record.
+ * Aggregate revision numbers are local CAS counters: a new origin starts at
+ * 0 while CV document revision/history and all applicant facts stay intact.
+ * Caller MUST separately check that the identity does not already exist.
+ */
+export function prepareCareerProfileImportAsNewRecord(approved){
+ validateCareerProfile(approved);
+ const copy=cloneData(approved);
+ copy.revision=0;
+ validateCareerProfile(copy);
+ return copy;
+}

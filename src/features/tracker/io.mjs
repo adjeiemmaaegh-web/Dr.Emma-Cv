@@ -8,7 +8,7 @@ export function exportCsv(book){
  const head=['Company','Role','Status','Date','Location','Link','Notes'];
  return [head,...book.applications.map(a=>[a.company,a.role,a.status,a.date,a.location,a.url,a.notes])].map(r=>r.map(csvCell).join(',')).join('\r\n')+'\r\n';
 }
-const validDate=v=>typeof v==='string'&&(/^\\d{4}-\\d{2}-\\d{2}$/.test(v))&&
+const validDate=v=>typeof v==='string'&&(/^\d{4}-\d{2}-\d{2}$/.test(v))&&
  !Number.isNaN(Date.parse(v))&&new Date(v+'T00:00:00Z').toISOString().slice(0,10)===v;
 function recordProblem(a){
  if(!isPlainObject(a)||!isSafeId(a.id))return 'Invalid application identity';

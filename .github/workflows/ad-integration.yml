@@ -11,7 +11,7 @@ permissions:
   contents: read
 jobs:
   ad-contracts:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
@@ -26,7 +26,7 @@ jobs:
         run: |
           find src/features src/integration -type f -name '*.mjs' -print0 | xargs -0 -n1 node --check
   ad-browser:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4

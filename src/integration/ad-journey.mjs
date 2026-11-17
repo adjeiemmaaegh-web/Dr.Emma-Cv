@@ -4,7 +4,8 @@
  */
 import {createCareerProfile} from '../domain/profile/career-profile.mjs';
 import {createMemoryRevisionStore} from '../domain/storage/revision-store.mjs';
-import {createCareerProfileBackup,previewCareerProfileBackup,approveCareerProfileBackup} from '../domain/storage/profile-backup.mjs';
+import {createCareerProfileBackup,previewCareerProfileBackup,approveCareerProfileBackup,
+ prepareCareerProfileImportAsNewRecord} from '../domain/storage/profile-backup.mjs';
 import {createDocumentRenderer} from '../features/documents/index.mjs';
 import {runAtsChecks,parseJobText,compareToDocument,
  buildTailoringSuggestions,applyApprovedSuggestions} from '../features/intelligence/index.mjs';
@@ -93,7 +94,7 @@ export async function runSyntheticJourney({repository=createMemoryRevisionStore(
  requireCase(preview.status==='review-required','Group A profile backup integrity');
  const restored=approveCareerProfileBackup(preview,{confirmed:true});
  const restoreStore=createMemoryRevisionStore();
- await restoreStore.save(profileId,restored,null);
+ await restoreStore.save(profileId,prepareCareerProfileImportAsNewRecord(restored),null);
  const back=await restoreStore.load(profileId);
  // Backup restores the logical profile, not its repository transaction counter.
  requireCase(back.value.master.document.summary===original.document.summary&&

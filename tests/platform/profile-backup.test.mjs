@@ -36,3 +36,23 @@ test('previous variant snapshots survive checksum backup and manual approval',as
  assert.deepEqual(restored.variants[0].history,p.variants[0].history);
  assert.equal(restored.variants[0].history[0].revision,0);
 });
+
+test('approved advanced profile backup rebases only aggregate CAS counter for empty origin',async()=>{
+ let p=seed();
+ p=createCVVariant(p,{id:'variantABC123',expectedRevision:0,now:date});
+ const doc=blankCareerDocument();doc.summary='User entered';
+ p=updateCVVariant(p,{variantId:'variantABC123',document:doc,expectedRevision:1,now:date});
+ const raw=await createCareerProfileBackup(p,{now:date});
+ const {prepareCareerProfileImportAsNewRecord}=await import('../../src/domain/storage/profile-backup.mjs');
+ const approved=approveCareerProfileBackup(await previewCareerProfileBackup(raw),{confirmed:true});
+ const prepared=prepareCareerProfileImportAsNewRecord(approved);
+ assert.equal(prepared.revision,0);
+ assert.equal(prepared.variants[0].revision,approved.variants[0].revision);
+ assert.deepEqual(prepared.variants[0].history,approved.variants[0].history);
+ const {createMemoryRevisionStore}=await import('../../src/domain/storage/revision-store.mjs');
+ const repo=createMemoryRevisionStore();
+ const result=await repo.save(prepared.id,prepared,null);
+ assert.equal(result.revision,0);
+ assert.equal(result.value.variants[0].document.summary,'User entered');
+ assert.equal(approved.revision,2,'original exported revision is preserved');
+});

@@ -9,8 +9,8 @@ import {createCareerProfile,createCVVariant,updateCVVariant,replaceMasterDocumen
  approveLegacyProfileImport} from '../domain/profile/career-profile.mjs';
 import {cloneData} from '../contracts/platform.mjs';
 import {createIndexedDBRevisionStore} from '../domain/storage/revision-store.mjs';
-import {createCareerProfileBackup,previewCareerProfileBackup,approveCareerProfileBackup
-} from '../domain/storage/profile-backup.mjs';
+import {createCareerProfileBackup,previewCareerProfileBackup,approveCareerProfileBackup,
+ prepareCareerProfileImportAsNewRecord} from '../domain/storage/profile-backup.mjs';
 
 function control(document,tag,{text='',type,id,placeholder}={}){
  const element=document.createElement(tag);
@@ -244,8 +244,9 @@ export function registerCareerProfileWorkbench(registry,{repository}={}){
    if(!pending||pending.status!=='review-required')throw Error('Review a valid import first');
    if(pendingRaw!==importInput.value)throw Error('Import content changed; review it again before approval');
    if(!document.defaultView.confirm('Save the reviewed profile as a new separate local record? Existing legacy CV data will remain unchanged.'))return;
-   const next=pending.sourceKey?approveLegacyProfileImport(pending,{confirmed:true}):
+   const approved=pending.sourceKey?approveLegacyProfileImport(pending,{confirmed:true}):
     approveCareerProfileBackup(pending,{confirmed:true});
+   const next=prepareCareerProfileImportAsNewRecord(approved);
    if(profile?.id===next.id)throw Error('An existing profile with this identity is already open. Export it first; overwrite is not permitted here.');
    const exists=await store.load(next.id);
    if(exists)throw Error('A local profile with this ID exists; automatic overwrite is blocked.');
