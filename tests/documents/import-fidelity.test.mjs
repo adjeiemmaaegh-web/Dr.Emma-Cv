@@ -169,3 +169,16 @@ test('editing one certification or project field preserves other metadata and in
  assert.equal(doc.projects[0].url,'https://example.org/work');
  assert.equal(doc.projects[0].role,'Lead');
 });
+
+test('PDF page with only selectable page numbers is not misclassified as a complete scanned CV',async()=>{
+ const document=()=>({promise:Promise.resolve({
+  numPages:1,getPage:async()=>({getTextContent:async()=>({items:[
+   {str:'2',transform:[1,0,0,1,550,30],hasEOL:true}
+  ]})}),destroy:async()=>{}
+ })});
+ const review=await createPdfImportReview(pdfBytes,{getDocument:document,idFactory:ID});
+ assert.equal(review.status,'blocked');
+ assert.deepEqual(review.missingPages,[1]);
+ assert.equal(review.pages[0].method,'sparse-text');
+ assert(review.warnings.some(x=>/sparse text/.test(x)));
+});
