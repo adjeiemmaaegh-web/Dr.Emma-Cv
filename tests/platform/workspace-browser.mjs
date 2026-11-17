@@ -76,11 +76,9 @@ try{
  await p.getByRole('button',{name:'Review this browser’s legacy applications'}).click();
  await p.getByText(/1 reviewed job entries/).waitFor();
  await p.getByRole('button',{name:'Approve reviewed import'}).click();
- await p.getByRole('link',{name:'Jobs'}).click();
- await p.getByText('Legacy Employer').waitFor();
  assert.equal(await p.evaluate(()=>localStorage.getItem('ledger_cv_stage6_applications_v1')),oldLegacyApps);
- await p.getByRole('link',{name:'Home'}).click();
- // The old application backup no longer covers the newly imported revision.
+ // Stay in the same reviewed session: the old application backup no longer
+ // covers the newly imported application revision, so approval must fail.
  await p.getByRole('button',{name:'Review this browser’s legacy CV'}).click();
  await p.getByRole('button',{name:'Approve reviewed import'}).click();
  await p.getByText(/Not completed: Saved data changed after backup/).waitFor();
@@ -94,6 +92,9 @@ try{
  assert.equal(await p.evaluate(()=>localStorage.getItem('ledger_cv_state_v2')),original);
  await p.getByRole('link',{name:'Edit',exact:true}).click();
  assert.equal(await p.getByLabel('First name').inputValue(),'Ada');
+ await p.getByRole('link',{name:'Jobs'}).click();
+ await p.getByText('Legacy Employer').waitFor();
+ await p.getByRole('link',{name:'Edit',exact:true}).click();
  const final=await p.evaluate(async()=>{
   const db=await new Promise((resolve,reject)=>{const r=indexedDB.open('ledger_cv_workspace_v1');r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error)});
   const ids=await new Promise((resolve,reject)=>{const t=db.transaction('career_profiles','readonly'),r=t.objectStore('career_profiles').getAllKeys();r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error)});
