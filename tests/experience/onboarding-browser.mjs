@@ -11,7 +11,7 @@ const doc=q.get('doc')?{document:{personalInfo:{firstName:'Ama',lastName:'Mensah
 const services={documentSource:{load:()=>doc},documentSink:{save:async v=>{if(window.failSave)throw new Error('storage is full');window.saved.push(v);}}};
 if(!q.get('nodraft'))services.draftStore={load:()=>window.draft,save:s=>{window.draft=s;sessionStorage.setItem('draft',s);},clear:()=>{window.draft=null;sessionStorage.removeItem('draft');}};
 const reg=createFeatureRegistry();reg.register(onboardingFeature);
-await reg.mount('onboarding',{host:{element:document.getElementById('app')},services});window.reg=reg;window.ready=true;`);
+await reg.mount('onboarding',{host:document.getElementById('app'),services});window.reg=reg;window.ready=true;`);
 const {port,close}=serve({'/':page_html});
 const browser=await chromium.launch();let failed=false;
 const audit=async(page,label)=>{

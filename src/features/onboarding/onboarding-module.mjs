@@ -10,7 +10,7 @@ import {createAnnouncer,focusHeading,el,uniqueId} from '../accessibility/a11y.mj
 export const onboardingFeature=Object.freeze({
  id:'onboarding',dependencies:[],
  async mount({host,services}){
-  const root=host.element;if(!root||typeof root.append!=='function')throw new TypeError('host.element is required');
+  const root=host?.element??host;if(!root||typeof root.append!=='function')throw new TypeError('DOM host or host.element is required');
   const wrap=el('section',{class:'ledger-a11y ledger-onboarding','aria-labelledby':'ob-h'});root.append(wrap);
   const ann=createAnnouncer(root); // lives outside the re-rendered section so announcements are not destroyed
   let existing=null;try{existing=(await services.documentSource?.load())||null;}catch{existing=null;}

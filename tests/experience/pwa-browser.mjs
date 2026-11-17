@@ -16,7 +16,7 @@ const bs={lastBackupAt:q.get('old')?Date.now()-30*864e5:undefined,changedSinceBa
 const env={navigator:{onLine:q.get('offline')?false:true,serviceWorker:{},storage:{estimate:async()=>({usage:q.get('full')?96e6:2e6,quota:100e6}),persisted:async()=>false,persist:async()=>true}},
  location:{protocol:q.get('file')?'file:':'https:'},localStorage:window.localStorage,isSecureContext:true,standalone:false,window};
 const reg2=createFeatureRegistry();reg2.register(pwaStatusFeature);
-await reg2.mount('pwa-status',{host:{element:document.getElementById('app')},services:{env,backupState:bs,updateManager:um,onUpdateChange:f=>{listeners.add(f);return()=>listeners.delete(f);},
+await reg2.mount('pwa-status',{host:document.getElementById('app'),services:{env,backupState:bs,updateManager:um,onUpdateChange:f=>{listeners.add(f);return()=>listeners.delete(f);},
  backup:{export:async()=>{window.downloads++;}},offlineReady:!!q.get('ready'),lastWriteError:q.get('quota')?'QUOTA':null,install:{promptAvailable:false}}});
 window.reg=reg2;window.ready=true;`);
 const {port,close}=serve({'/':page_html});

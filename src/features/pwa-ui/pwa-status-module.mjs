@@ -9,7 +9,7 @@ import {createAnnouncer,el,uniqueId} from '../accessibility/a11y.mjs';
 export const pwaStatusFeature=Object.freeze({
  id:'pwa-status',dependencies:[],
  async mount({host,services}){
-  const root=host.element;if(!root||typeof root.append!=='function')throw new TypeError('host.element is required');
+  const root=host?.element??host;if(!root||typeof root.append!=='function')throw new TypeError('DOM host or host.element is required');
   const env=services.env||{};
   const wrap=el('section',{class:'ledger-a11y ledger-pwa','aria-labelledby':'pwa-h'});root.append(wrap);
   const ann=createAnnouncer(root);

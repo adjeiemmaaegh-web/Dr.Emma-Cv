@@ -17,7 +17,9 @@
     "test:documents": "node --test tests/documents/*.test.mjs",
     "test:intelligence": "node --test tests/intelligence/*.test.mjs",
     "test:career": "node --test tests/career/*.test.mjs",
-    "test:ad-integration": "node --test tests/platform/*.test.mjs tests/documents/*.test.mjs tests/intelligence/*.test.mjs tests/career/*.test.mjs tests/integration/*.test.mjs"
+    "test:ad-integration": "node --test tests/platform/*.test.mjs tests/documents/*.test.mjs tests/intelligence/*.test.mjs tests/career/*.test.mjs tests/integration/*.test.mjs",
+    "test:experience": "node --test tests/experience/*.test.mjs",
+    "test:ui-workspace": "node tests/experience/workspace-browser.mjs"
   },
   "devDependencies": {
     "pdfjs-dist": "6.5.438",
