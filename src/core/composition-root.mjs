@@ -43,11 +43,13 @@ export function createFrontendComposition({registry,host,routes,services={}}={})
  function dispose(){
   return serial(async()=>{
    if(disposed)return;
-   disposed=true;
    if(current){
+    // Do not mark disposed until cleanup succeeds. A failing feature cleanup
+    // leaves the route attached so the caller can retry and recover safely.
     await registry.unmount(current.featureId);
     current.slot.remove();current=null;
    }
+   disposed=true;
   });
  }
  return Object.freeze({navigate,currentRoute:()=>current?.path??null,dispose});

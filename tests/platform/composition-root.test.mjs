@@ -39,3 +39,20 @@ test('failed route mounts clean their slots and allow retry',async()=>{
  assert.equal(host.children.length,1);
  await composer.dispose();
 });
+
+test('failed asynchronous feature cleanup keeps the route and permits safe retry',async()=>{
+ let disposeAttempts=0;
+ const registry=createFeatureRegistry(),host=fakeHost();
+ registry.register({id:'unstable-feature',mount:()=>()=>{if(++disposeAttempts===1)throw Error('synthetic cleanup failure')}});
+ const composer=createFrontendComposition({registry,host,routes:{'/unstable':'unstable-feature'}});
+ await composer.navigate('/unstable');
+ await assert.rejects(composer.dispose(),/synthetic cleanup failure/);
+ assert.equal(composer.currentRoute(),'/unstable');
+ assert.equal(host.children.length,1,'failed cleanup must not silently orphan the DOM');
+ assert.equal(registry.isMounted('unstable-feature'),true);
+ await composer.dispose();
+ assert.equal(disposeAttempts,2);
+ assert.equal(host.children.length,0);
+ assert.equal(composer.currentRoute(),null);
+ await assert.rejects(composer.navigate('/unstable'),/disposed/);
+});
