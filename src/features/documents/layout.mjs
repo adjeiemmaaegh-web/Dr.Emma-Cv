@@ -202,3 +202,26 @@ export function decorationGeometry(line,style){
   default:return [{kind:'line',x,y:y+3,width:w,height:style.ruleWeight,color:style.color}];
  }
 }
+
+/** Decorative page accents use the same top-origin point geometry in the preview and PDF.
+ * All artwork lives within the paper margins and never changes ATS text order.
+ */
+export function pageDecorations(style,paper){
+ const m=style.margin,weight=style.ruleWeight,color=style.color;
+ const horizontal=(x,y,w)=>({kind:'line',x,y,width:w,height:weight,color});
+ const rect=(x,y,w,h)=>({kind:'rect',x,y,width:w,height:h,color});
+ const width=paper.width-2*m;
+ switch(style.pageAccent){
+  case 'top-rule':return [horizontal(m,Math.max(12,m*0.48),width)];
+  case 'side-rail':return [rect(Math.max(10,m*0.48),m,Math.max(2.2,weight*4),paper.height-2*m)];
+  case 'corner-marks':{
+   const inset=Math.max(12,m*0.46),short=Math.min(24,m*0.56),thick=Math.max(1.2,weight*2);
+   return [rect(inset,inset,short,thick),rect(inset,inset,thick,short),
+    rect(paper.width-inset-short,inset,short,thick),rect(paper.width-inset-thick,inset,thick,short),
+    rect(inset,paper.height-inset-thick,short,thick),rect(inset,paper.height-inset-short,thick,short),
+    rect(paper.width-inset-short,paper.height-inset-thick,short,thick),
+    rect(paper.width-inset-thick,paper.height-inset-short,thick,short)];
+  }
+  default:return [];
+ }
+}
