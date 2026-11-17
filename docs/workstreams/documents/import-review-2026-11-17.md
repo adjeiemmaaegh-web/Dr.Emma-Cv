@@ -4,19 +4,22 @@
 
 ## Included
 - DOCX OOXML document/header/footer extraction retains table cell and row boundaries. Styles.xml paragraph/run visibility including inherited hidden styles is reviewed; deleted tracked-change content is omitted. Hyperlink display labels are retained and link destinations explicitly called out for human inspection.
-- ZIP reader now validates CRC32, duplicate selected filenames and local/central directory consistency before trusting an extracted Word document or LinkedIn export.
+- ZIP reader validates CRC32, duplicate selected filenames and local/central directory consistency; raw-deflate extraction is streamed with a strict expanded-byte bound to avoid uncontrolled decompression of malicious files.
 - Text CV parser handles split role title / employer / date lines, numeric month-year ranges and a leading bullet without crashing or assigning it as a job title. Unmapped header lines are retained in the review for reconstruction.
-- PDF import adapter provides page-scoped text/provenance and an opt-in offline OCR hook. There is **no online document upload**. No PDF processing or CV data is persisted by this adapter.
+- The persistent Home workspace now provides PDF/DOCX/TXT/HTML file selection, locally extracted source text, editable proposed fields, individual acceptance checkboxes, final consent and creation of a **new** local CV profile. No original master or source file is overwritten.
+- PDF.js 6.5.438 core and worker are copied byte-for-byte from pinned local node_modules into the hosted build, with its license; all assets are same-origin and cached offline. The adapter provides per-page text/provenance and explicitly blocks partial PDF imports when any page has no recoverable text.
+- User-verified manual transcription can rescue every missing scanned-PDF page only after explicit confirmation; this is NOT automatic OCR. No PDF or DOCX data is sent to any remote service.
+- Oversized/truncated text is blocked rather than offering a misleading partial proposed CV.
 - ImportReview keeps original text, warnings, proposed fields, source references and pending decisions. Approval must be explicit; a separate profile is created. Existing CVs are not silently replaced.
 
 ## Limitations / integration requirements
-- src/features/import/pdf-import.mjs needs a **locally bundled** PDF.js getDocument implementation supplied by Group A/B at the application boundary. Generic PDF parsing is not yet enabled in the published workspace UI. Historical PDF OCR candidates have not been rewritten or promoted.
-- Scanned pages still need a bundled, genuinely running offline OCR adapter and explicit allowOcr; absent OCR, page text is marked unavailable, not guessed.
+- The source workspace tests can run without a copied PDF.js module; direct PDF import requires the **built hosted site** so /pdf-engine/pdf.mjs and /pdf-engine/pdf.worker.mjs are present. A hosted Chromium test now exercises the actual built PDF engine against a synthetic generated PDF. This test must pass in CI before acceptance.
+- Automatic scanned-PDF OCR remains **unwired** in the new workspace. Historical E25–E28 OCR assets are still frozen; the new flow offers explicit full-page **manual** transcription instead. Do not claim scanned-PDF OCR parity.
 - Complex multi-column PDFs, Word drawings, text boxes, alt text, non-English OCR and unusual date layouts need representative golden-corpus validation. Exact PDF/DOCX field-by-field reconstruction accuracy has not been measured.
 - OCR confidence is an engine-reported value, **not** a validated probability of correctness. Never use it to auto-approve a fact.
 - Existing approveImportReview creates a new career profile and does not atomically merge into an existing master. That non-destructive policy is intentional.
 
 ## Reproduction / gates
-Run: node --test tests/documents/*.test.mjs. Then run the inherited suite and an actual PDF/DOCX input corpus after integration. Require original-vs-reconstructed side-by-side human checks, Windows Word/native browsers, multilingual text, mobile memory, malformed archive and visual reading order QA.
+Run: node --test tests/documents/*.test.mjs and npm run build && npm run audit:hosted, followed by the published-site Chromium test tests/hosting/workspace-hosted-browser.mjs. Then run the inherited suite and a real PDF/DOCX golden input corpus. Require original-vs-reconstructed side-by-side human checks, Windows Word/native browsers, multilingual text, mobile memory, malformed archive and visual reading order QA.
 
 No deployment, live LinkedIn access, customer data, purchase, cloud sync or release approval is implied.
