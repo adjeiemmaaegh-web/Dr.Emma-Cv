@@ -8,6 +8,13 @@ const PRECISION=[['Body size','bodySize',0.5,' pt'],['Line height','leading',0.0
  ['Name scale','headerScale',0.1,'×'],['Section heading scale','headingScale',0.05,'×'],['Entry spacing','entryGap',1,' pt'],
  ['Paragraph spacing','paragraphGap',0.5,' pt'],['Divider weight','ruleWeight',0.2,' pt']];
 const safe=(ctx,fn)=>{try{fn()}catch(e){ctx.toast(e.message||'Could not update the design')}};
+/** Design changes use the same explicit master-record consent as content edits. */
+export function confirmDesignEditing(ctx){
+ const store=ctx.store;
+ if(store.mode!=='persistent'||store.selectedCV.id!==store.profile.master.id||store.masterEditConfirmed)return true;
+ if(!confirm('Apply this visual change to the master CV? Tailored copies remain independent and revision history is retained.'))return false;
+ return store.confirmMasterEditing(true);
+}
 const label=(name,input)=>el('label',{class:'lw-designer-control'},el('span',{},name),input);
 export function designControls(ed,ctx){
  const a=ed.snapshot().appearance,style=resolveStyle(a),grid=el('div',{class:'lw-designer-grid'});
@@ -70,7 +77,7 @@ export function savedDesignGallery(ctx,storage=globalThis.localStorage){
   if(!designs.length){list.append(el('p',{class:'lw-help'},'No saved designs yet. Use Edit → Look and layout → Save reusable design.'));return}
   for(const d of designs)list.append(el('div',{class:'lw-design-item'},
    el('span',{class:'lw-design-swatch',style:'background:'+d.appearance.color}),el('strong',{},d.name),
-   el('button',{type:'button',class:'lw-btn sm',on:{click:()=>safe(ctx,()=>{ctx.store.editor.replaceAppearance(d.appearance);ctx.toast('Applied “'+d.name+'”. Undo restores the previous look.');ctx.go('#/editor');})}},'Apply'),
+   el('button',{type:'button',class:'lw-btn sm',on:{click:()=>safe(ctx,()=>{if(!confirmDesignEditing(ctx))return;ctx.store.editor.replaceAppearance(d.appearance);ctx.toast('Applied “'+d.name+'”. Undo restores the previous look.');ctx.go('#/editor');})}},'Apply'),
    el('button',{type:'button',class:'lw-btn sm ghost danger','aria-label':'Delete '+d.name,on:{click:()=>{if(!confirm('Delete design “'+d.name+'”? CV content stays unchanged.'))return;safe(ctx,()=>{removeDesign(storage,d.id);draw()});}}},'Delete')));
  }
  const file=el('input',{type:'file',accept:'.json,application/json','aria-label':'Import saved designs JSON',on:{change:async e=>{
