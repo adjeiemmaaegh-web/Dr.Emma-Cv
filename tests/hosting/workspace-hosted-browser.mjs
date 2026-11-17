@@ -37,6 +37,35 @@ try{
  await page.reload();await page.getByRole('link',{name:'Career tools'}).click();
  await page.waitForFunction(()=>document.querySelector('.lw-career')?.textContent.includes('Example Stores'));
  assert.equal(await page.getByLabel('Employer').inputValue(),'Example Stores');
+ await page.getByLabel('Story title').fill('Stock review');
+ await page.getByLabel('Situation — what actually happened?').fill('Stock entries were inconsistent.');
+ await page.getByLabel('Task — what were you responsible for?').fill('Check inventory.');
+ await page.getByLabel('Action — what did you personally do?').fill('I compared receipts and counted products.');
+ await page.getByLabel('Result — what happened (only true outcomes)?').fill('The ledger was corrected.');
+ await page.getByRole('button',{name:'Save STAR story'}).click();
+ await page.waitForFunction(()=>document.body.textContent.includes('STAR story Saved locally'));
+ await page.getByLabel('Your answer to the selected question').fill('We delivered 777% improvement.');
+ await page.getByRole('button',{name:'Check my answer'}).click();
+ await page.waitForFunction(()=>document.body.textContent.includes('Check this claim'));
+ await page.getByRole('button',{name:'Save answer and coaching review'}).click();
+ await page.waitForFunction(()=>document.body.textContent.includes('1 saved practice answer reviews'));
+ await page.getByLabel('Source title').fill('Example corporate news');
+ await page.getByLabel('Public HTTPS source link').fill('https://example.org/news');
+ await page.getByLabel('Exact relevant excerpt (from source)').fill('The company opened another store.');
+ await page.getByLabel('I opened and reviewed this source').check();
+ await page.getByRole('button',{name:'Add reviewed research source'}).click();
+ await page.waitForFunction(()=>document.body.textContent.includes('The company opened another store.'));
+ assert.equal(await page.getByRole('link',{name:'View source'}).getAttribute('href'),'https://example.org/news');
+ for(const format of ['PDF','DOCX']){
+  const downloadPromise=page.waitForEvent('download');
+  await page.getByRole('button',{name:'Download interview workbook '+format}).click();
+  const file=await downloadPromise;
+  assert.equal(file.suggestedFilename(),'interview-workbook.'+format.toLowerCase());
+ }
+ await page.reload();await page.getByRole('link',{name:'Career tools'}).click();
+ await page.waitForFunction(()=>document.querySelector('.lw-career')?.textContent.includes('Example corporate news'));
+ assert.match(await page.locator('.lw-career').innerText(),/1 saved practice answer reviews/);
+
  await page.getByRole('button',{name:'Start cover letter draft'}).click();
  await page.waitForFunction(()=>document.body.textContent.includes('Cover letter draft created.'));
  await page.getByRole('button',{name:'Save application and link CV'}).click();
@@ -56,7 +85,7 @@ try{
  const classic=await page.request.get(origin+'/legacy/index.html');
  assert.equal(classic.status(),200);
  assert((await classic.body()).byteLength>10000000);
- console.log('PASS final Vercel site/ A-E workspace online/offline job flow, persistence and classic E31 route');
+ console.log('PASS final Vercel site/ advanced interview, sources, workbook exports, offline job flow, persistence and classic E31 route');
  await ctx.close();
 }catch(e){failed=true;console.error(e)}finally{await browser.close();server.close();}
 process.exit(failed?1:0);
