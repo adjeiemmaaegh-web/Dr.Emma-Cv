@@ -85,6 +85,7 @@ export function renderInterviewCoach({job,cv,session,saveSession,button,notice,s
     const q=selectedQuestion(),feedback=coachInterviewAnswer({answer:answer.value,question:q,story:storyForReview(),job,document});
     await saveSession(saveCoachingReview(current,{questionId:q.id,questionText:q.text,answer:answer.value,feedback,expectedRevision:current.revision}),'Answer review');
    },true)));
+ root.append(feedbackView);
  if(current.reviews?.length)root.append(para(current.reviews.length+' saved practice answer reviews.'));
  const open=current.practice.find(p=>p.endedAt===undefined);
  const scoreBox=el('div');
