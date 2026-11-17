@@ -18,7 +18,7 @@ function recordProblem(a){
  }
  if(!String(a.company||'').trim()&&!String(a.role||'').trim())return 'Company or role is required';
  if(a.date&&!validDate(a.date))return 'Invalid application date';
- if(a.url&&!/^https?:\\/\\//i.test(a.url))return 'Unsafe application URL';
+ if(a.url&&!new RegExp('^https?://','i').test(a.url))return 'Unsafe application URL';
  for(const key of ['tasks','contacts','history'])if(a[key]!==undefined&&!Array.isArray(a[key]))return 'Invalid '+key;
  if((a.tasks||[]).length>40||(a.contacts||[]).length>10||(a.history||[]).length>500)return 'Application entries exceed limits';
  for(const x of a.tasks||[]){

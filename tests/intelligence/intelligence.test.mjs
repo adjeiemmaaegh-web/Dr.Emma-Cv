@@ -124,7 +124,7 @@ test('bullet reordering keeps every line and its wording',()=>{
 });
 test('an unsupported suggestion is refused unless the user edits it into supported text',()=>{
  const {job,profile}=setup();
- const bad={id:'sg-x',path:'summary',before:'',after:'Led 500 engineers',explanation:'x',evidenceIds:[],unsupportedFact:true,status:'proposed',operation:{type:'set-summary',text:'Led 500 engineers'}};
+ const bad={id:'sg-x',path:'summary',before:profile.master.document.summary,after:'Led 500 engineers',explanation:'x',evidenceIds:[],unsupportedFact:true,status:'proposed',operation:{type:'set-summary',text:'Led 500 engineers'}};
  let r=applyApprovedSuggestions(profile,{job,suggestions:[bad],decisions:{'sg-x':'approved'},expectedRevision:0,now:NOW});
  assert.equal(r.applied.length,0);assert(/unsupported-fact/.test(r.skipped[0].reason));
  r=applyApprovedSuggestions(profile,{job,suggestions:[bad],decisions:{'sg-x':{status:'approved',after:'Led 900 engineers'}},expectedRevision:0,now:NOW});
