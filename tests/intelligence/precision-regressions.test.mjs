@@ -120,3 +120,16 @@ test('progression signals do not mistake a senior director for a junior role',()
  assert(r.opportunities.some(x=>x.id==='progression'));
  assert(r.prioritizedCorrections.every(x=>x.id!=='progression'));
 });
+
+test('vacancy parser bounds excessive requirements and discloses what was not processed',()=>{
+ const raw='Operations Analyst\nRequirements\n'+Array.from({length:220},(_,i)=>'- Skill number '+i).join('\n');
+ const parsed=parseJobText(raw);
+ assert.equal(parsed.job.requirements.length,180);
+ assert(parsed.warnings.some(w=>/NOT analysed/.test(w)));
+ assert(parsed.job.originalText.includes('Skill number 219'));
+});
+test('externally supplied oversized job cannot freeze the local comparator or skill engine',()=>{
+ const oversized=job(...Array.from({length:181},(_,i)=>req('Python skill', 'required', 'r'+i)));
+ assert.throws(()=>compareToDocument(oversized,CLEAN()),e=>e.code==='INVALID');
+ assert.throws(()=>analyzeJobSkills(oversized,CLEAN()),e=>e.code==='INVALID');
+});
