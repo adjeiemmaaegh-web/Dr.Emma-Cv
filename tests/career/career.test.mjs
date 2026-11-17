@@ -234,3 +234,23 @@ test('locale labels fall back honestly and flag the Arabic/RTL renderer limitati
  const xx=D.sectionLabels('xx');assert.equal(xx.fallback,true);assert.equal(xx.labels.summary,'Summary');
  for(const l of Object.values(D.LOCALES))assert.deepEqual(Object.keys(l.labels),Object.keys(D.LOCALES.en.labels));
 });
+
+test('untrusted application backup cannot insert invalid statuses, task types or revised preview entries',()=>{
+ const empty=D.tracker.emptyBook();
+ const book={kind:'ledger-applications',version:1,book:{applications:[
+  {id:'appINVALID1',company:'Spoof',role:'Job',status:'SecretInterview'},
+  {id:'appINVALID2',company:'Bad',role:'Job',status:'Saved',tasks:[{id:'taskAAAA01',title:'Do it',done:'yes',due:'2026-11-19'}]},
+  {id:'appVALID001',company:'Good',role:'Job',status:'Applied',tasks:[]}
+ ]}};
+ const preview=D.reviewBookImport(JSON.stringify(book),empty);
+ assert.equal(preview.status,'review-required');
+ assert.deepEqual(preview.incoming.map(a=>a.id),['appVALID001']);
+ assert(preview.warnings.some(w=>/status/.test(w)));
+ assert(preview.warnings.some(w=>/task/.test(w)));
+ const n=D.approveBookImport(empty,preview,{confirmed:true,expectedRevision:0});
+ assert.equal(n.applications.length,1);
+ assert.equal(D.tracker.kanban(n).Applied.length,1);
+ preview.incoming[0].status='unlisted';
+ assert.throws(()=>D.approveBookImport(empty,preview,{confirmed:true,expectedRevision:0}),e=>e.code==='INVALID');
+ assert.throws(()=>D.approveBookImport(empty,{...preview,incoming:[]},{confirmed:true,expectedRevision:0,conflictPolicy:'force'}),e=>e.code==='INVALID');
+});
