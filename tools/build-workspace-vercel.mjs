@@ -94,7 +94,7 @@ const relativeAnchor='else {wasmBinaryFile=new URL("tesseract-core.wasm",(typeof
 assert.equal(workerUpstream.split(relativeAnchor).length,2,'Unrecognized tesseract worker; review compatibility patch');
 const patchedWorker=workerUpstream.replace(relativeAnchor,'else {wasmBinaryFile="tesseract-core.wasm";}');
 for(const [file,data] of [
- ['client.mjs',ocrLib+'\nexport {OCRClient,supportsFastBuild};\n'],
+ ['client.mjs',ocrLib],
  ['worker.js',patchedWorker],
  ['tesseract-core.wasm',fs.readFileSync(path.join(upstreamOcr,'tesseract-core.wasm'))],
  ['tesseract-core-fallback.wasm',fs.readFileSync(path.join(upstreamOcr,'tesseract-core-fallback.wasm'))],
