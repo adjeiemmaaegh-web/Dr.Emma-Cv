@@ -48,6 +48,22 @@ function visit(dir){
  }
 }
 visit(path.join(target,'src'));
+
+/* Same-origin, offline-cached PDF.js runtime. Build-only dependency; no CDN. */
+const pdfInput=at('node_modules/pdfjs-dist/legacy/build');
+const pdfOutput=path.join(target,'pdf-engine');
+fs.mkdirSync(pdfOutput,{recursive:true});
+for(const [file,source] of [
+ ['pdf.mjs',path.join(pdfInput,'pdf.mjs')],
+ ['pdf.worker.mjs',path.join(pdfInput,'pdf.worker.mjs')],
+ ['LICENSE.txt',at('node_modules/pdfjs-dist/LICENSE')]
+]){
+ const data=fs.readFileSync(source);
+ assert(data.length>1000,'Missing bundled PDF import dependency: '+source);
+ fs.writeFileSync(path.join(pdfOutput,file),data);
+ served.push('/pdf-engine/'+file);
+}
+
 let index=fs.readFileSync(at('src/features/experience/workspace/index.html'),'utf8');
 function change(old,next){
  assert.equal(index.split(old).length,2,'Unexpected workspace entry: '+old);
@@ -90,7 +106,7 @@ const manifest={
  status:'DEPLOYABLE BETA: independent production acceptance still open',
  sourceBranch:'main',workspaceHtmlSha256:sha(rootHtml),workspaceHtmlBytes:rootHtml.length,
  classicE31Sha256:sha(originalHtml),classicE31Bytes:originalHtml.length,
- classicRoute:'/legacy/index.html',publicModuleCount:served.length,
+ classicRoute:'/legacy/index.html',publicModuleCount:served.length,bundledPdfEngine:true,
  noServerCVStorage:true,noBundledPrivateData:true,legacyOriginalDataUntouched:true,
  releaseGatesOpen:['real-device/browser acceptance','native PDF/DOCX and RTL fidelity','independent F signoff']
 };
