@@ -20,7 +20,7 @@ node --test tests/documents/*.test.mjs        # Group B, still green
 A proposal is flagged `unsupportedFact` if it adds a number, a proper-noun-like term or a credential word not present in the source CV. It flags for human review; it cannot prove truth, and a single capitalised sentence-opening word is deliberately ignored.
 
 ## Known limitations (honest list)
-- **Enhancv's "27 checks": not mapped.** I did not obtain or verify that list, so no coverage claim against it is made. `coverageMatrix()` lists our own 32 rules; mapping to the competitor's published list is an open Stage 20/`C` task to do from the live page.
+- **Enhancv's published 27 checks are now mapped** to existing, expanded, input-dependent and explicitly unsupported local capabilities; see [the traceability and validation register](ENHANCV_27_TRACEABILITY.md). This is not 27 independently validated checks or proprietary scoring parity. `coverageMatrix()` still lists the original 32 verified-per-fixture rules.
 - Matching is stemmed term overlap with a tiny synonym table, not semantic understanding. Expect misses (e.g. "supervised staff" vs "line management") and some partial matches that need a human read. No accuracy figure is claimed; there is no labelled corpus yet.
 - English only. The action-verb list is finite, so `bullets.verbs` has known false positives (policy stated per rule).
 - Local in-browser models are **not** implemented (the roadmap makes them conditional on proven performance). The AI port is an interface with an injected transport; no provider is wired in and no network call exists in this code.
