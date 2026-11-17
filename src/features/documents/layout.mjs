@@ -34,7 +34,7 @@ function sectionBlocks(key,doc){
  if(key==='summary'||key==='hobbies'||key==='references'){
   const lines=key==='summary'?[str(doc[key])]:htmlToLines(doc[key]).map(l=>l.text);
   const body=lines.flatMap(l=>String(l).split(/\n+/)).map(str).filter(Boolean);
-  if(!body.length)return [];head();body.forEach(t=>push({kind:'line',text:t}));return out;
+  if(!body.length)return [];head();body.forEach(t=>push({kind:'line',text:t,sourcePath:key}));return out;
  }
  if(!Array.isArray(list)||!list.length)return [];
  if(key==='skills'){
@@ -45,13 +45,13 @@ function sectionBlocks(key,doc){
  for(const e of list){
   if(key==='experience'){
    const t=join(e.title,e.employer);if(!t&&!dates(e))continue;
-   push({kind:'entry-head',text:t||'Role',right:dates(e),keepWithNext:true});
-   if(str(e.location))push({kind:'line',text:str(e.location),keepWithNext:true,muted:true});
-   const ls=htmlToLines(e.description);ls.forEach(l=>push({kind:l.bullet?'bullet':'line',text:l.text}));
+   push({kind:'entry-head',text:t||'Role',right:dates(e),keepWithNext:true,sourcePath:'experience['+e.id+'].title'});
+   if(str(e.location))push({kind:'line',text:str(e.location),keepWithNext:true,muted:true,sourcePath:'experience['+e.id+'].location'});
+   const ls=htmlToLines(e.description);ls.forEach(l=>push({kind:l.bullet?'bullet':'line',text:l.text,sourcePath:'experience['+e.id+'].description'}));
   }else if(key==='education'){
    const t=join(e.degree||e.title,e.school||e.institution);if(!t)continue;
-   push({kind:'entry-head',text:t,right:dates(e),keepWithNext:true});
-   htmlToLines(e.description).forEach(l=>push({kind:l.bullet?'bullet':'line',text:l.text}));
+   push({kind:'entry-head',text:t,right:dates(e),keepWithNext:true,sourcePath:'education['+e.id+'].degree'});
+   htmlToLines(e.description).forEach(l=>push({kind:l.bullet?'bullet':'line',text:l.text,sourcePath:'education['+e.id+'].description'}));
   }else if(key==='languages'){
    const t=join(e.name||e.language,e.level);if(t)push({kind:'line',text:t});
   }else{
@@ -68,8 +68,8 @@ function sectionBlocks(key,doc){
 export function buildBlocks(doc,appearance={}){
  const style=resolveStyle(appearance),p=doc.personalInfo||{},blocks=[],warnings=[];
  const name=[p.firstName,p.lastName].map(str).filter(Boolean).join(' ');
- if(name)blocks.push({kind:'name',text:name,links:[]});
- if(str(p.title))blocks.push({kind:'title',text:str(p.title),links:[]});
+ if(name)blocks.push({kind:'name',text:name,links:[],sourcePath:'personalInfo.firstName'});
+ if(str(p.title))blocks.push({kind:'title',text:str(p.title),links:[],sourcePath:'personalInfo.title'});
  const links=[];
  const contact=[];
  for(const k of ['email','phone']) if(str(p[k])){contact.push(str(p[k]));if(k==='email'){const u=toUrl(p.email);if(u)links.push({text:str(p.email),url:u});}}
@@ -79,14 +79,14 @@ export function buildBlocks(doc,appearance={}){
  const order=(style.sectionOrder&&style.sectionOrder.length?style.sectionOrder:DEFAULT_SECTION_ORDER).filter(k=>TITLES[k]);
  const seen=new Set(order);for(const k of DEFAULT_SECTION_ORDER)if(!seen.has(k))order.push(k);
  for(const key of order){
-  if(OPTIONAL.has(key)&&style.enabledSections&&style.enabledSections[key]===false)continue;
+  if(style.enabledSections&&style.enabledSections[key]===false)continue;
   blocks.push(...sectionBlocks(key,doc));
  }
  for(const c of Array.isArray(doc.customSections)?doc.customSections:[]){
   const t=str(c.title||c.name);if(!t)continue;
-  blocks.push({kind:'section-title',text:t,keepWithNext:true,links:[]});
+  blocks.push({kind:'section-title',text:t,keepWithNext:true,links:[],sourcePath:'customSections['+c.id+'].title'});
   const ls=htmlToLines(c.content||c.description);
-  if(!ls.length)blocks.pop();else ls.forEach(l=>blocks.push({kind:l.bullet?'bullet':'line',text:l.text,links:[]}));
+  if(!ls.length)blocks.pop();else ls.forEach(l=>blocks.push({kind:l.bullet?'bullet':'line',text:l.text,links:[],sourcePath:'customSections['+c.id+'].content'}));
  }
  if(style.columns==='sidebar')warnings.push('Sidebar template is exported as a single column to keep reading order ATS-safe.');
  return {blocks,style,warnings};
@@ -124,9 +124,9 @@ export function wrapText(text,maxWidth,size,font,bold){
  return lines.length?lines:[''];
 }
 const BLOCK_STYLE=(k,s)=>({
- name:{size:s.size*2.2,bold:true,before:0,after:2},title:{size:s.size*1.2,bold:false,before:0,after:3},
+ name:{size:s.size*s.headerScale,bold:true,before:0,after:2},title:{size:s.size*1.2,bold:false,before:0,after:3},
  contact:{size:s.size*0.95,bold:false,before:0,after:8},
- 'section-title':{size:s.size*1.15,bold:true,before:10,after:3},
+ 'section-title':{size:s.size*1.15,bold:true,before:s.sectionGap,after:3},
  'entry-head':{size:s.size,bold:true,before:5,after:1},line:{size:s.size,bold:false,before:0,after:1},
  bullet:{size:s.size,bold:false,before:0,after:1,indent:12}
 }[k]);
@@ -160,7 +160,7 @@ export function paginate(blocks,style){
    page.push({kind:entry.block.kind,text:l.text,right:l.first?entry.block.right:undefined,
     size:entry.st.size,bold:entry.st.bold,muted:entry.block.muted||false,x:style.margin+entry.indent,
     y:style.margin+y-entry.lh*0.25,centered:entry.centered,bullet:entry.block.kind==='bullet'&&l.first,
-    links:l.first?(entry.block.links||[]):[],paperWidth:paper.width,textWidth:width-entry.indent});
+    links:l.first?(entry.block.links||[]):[],sourcePath:entry.block.sourcePath||null,paperWidth:paper.width,textWidth:width-entry.indent});
   });
   y+=entry.st.after;
  };
@@ -179,4 +179,23 @@ export function layoutDocument(doc,appearance){
  const {blocks,style,warnings}=buildBlocks(doc,appearance);
  const {pages,paper}=paginate(blocks,style);
  return {pages:pages.length?pages:[[]],paper,style,warnings,blocks};
+}
+
+/**
+ * Shared page decorations in PDF-point coordinates. Preview and PDF export
+ * consume the exact same geometry; never insert decoration into ATS text.
+ */
+export function decorationGeometry(line,style){
+ const x=line.x,w=line.textWidth,y=line.y;
+ if(line.kind==='name'&&style.header==='band')return [{kind:'rect',x:x-6,y:y-line.size*1.1,width:w+12,height:line.size*1.38,color:'#eef3f7'}];
+ if(line.kind==='name'&&style.header==='badge')return [{kind:'rect',x:x-9,y:y-line.size*1.08,width:4,height:line.size*1.35,color:style.color}];
+ if(line.kind!=='section-title')return [];
+ switch(style.rules){
+  case 'none':return [];
+  case 'double':return [{kind:'line',x,y:y+3,width:w,height:0.65,color:style.color},{kind:'line',x,y:y+5.5,width:w,height:0.65,color:style.color}];
+  case 'bar':return [{kind:'rect',x,y:y+3,width:w,height:2.3,color:style.color}];
+  case 'left-bar':return [{kind:'rect',x:x-7,y:y-line.size*0.82,width:3,height:line.size*1.15,color:style.color}];
+  case 'timeline':return [{kind:'rect',x:x-8,y:y-line.size*0.82,width:2,height:line.size*1.25,color:style.color}];
+  default:return [{kind:'line',x,y:y+3,width:w,height:0.6,color:style.color}];
+ }
 }
