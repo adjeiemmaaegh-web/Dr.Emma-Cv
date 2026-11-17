@@ -3,6 +3,7 @@
  * specific candidate text or an explicit "no evidence found" statement. There is no pass probability.
  */
 import {documentUnits,stems,tokens,isStop} from '../intelligence/text.mjs';
+import {analyzeJobSkills} from './skill-evidence.mjs';
 const SYN={js:'javascript',ts:'typescript',ml:'machine learning',pm:'project management',crm:'customer relationship management',qa:'quality assurance',hr:'human resources',kpi:'key performance indicators'};
 const expand=t=>SYN[t]?[t,...SYN[t].split(' ')]:[t];
 export function requirementTerms(text){
@@ -26,6 +27,6 @@ export function compareToDocument(job,document){
     :status==='partial'?'Only some terms are supported: '+[...hit].join(', ')+'.':''};
  });
  const by=s=>results.filter(r=>r.status===s).length;
- return {results,summary:{evidenced:by('evidenced'),partial:by('partial'),noEvidence:by('no-evidence'),notAssessable:by('not-assessable'),total:results.length},
+ return {results,skillEvidence:analyzeJobSkills(job,document),summary:{evidenced:by('evidenced'),partial:by('partial'),noEvidence:by('no-evidence'),notAssessable:by('not-assessable'),total:results.length},
   disclaimer:'Text overlap between a job post and your CV. It is not a prediction of selection or ATS outcome.'};
 }
