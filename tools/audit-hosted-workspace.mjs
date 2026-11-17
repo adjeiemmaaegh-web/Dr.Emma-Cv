@@ -30,6 +30,32 @@ for(const rel of ['src/features/experience/workspace/workspace.mjs','src/feature
  'src/features/accessibility/a11y.css','favicon.svg','site.webmanifest']){
  assert(fs.statSync(path.join(site,rel)).isFile(),'Missing hosted module: '+rel);
 }
+for(const name of ['pdf.mjs','pdf.worker.mjs','LICENSE.txt']){
+ const expected=path.join('node_modules/pdfjs-dist',name==='LICENSE.txt'?'LICENSE':'legacy/build/'+name);
+ const published=path.join(site,'pdf-engine',name);
+ assert.equal(hash(fs.readFileSync(published)),hash(fs.readFileSync(expected)),
+  'Offline bundled PDF engine source/license checksum mismatch: '+name);
+ assert(sw.includes('/pdf-engine/'+name),'Offline service-worker cache must include '+name);
+}
+assert.equal(meta.bundledPdfEngine,true);
+const ocrPath=path.join(site,'ocr-engine');
+const model=fs.readFileSync(path.join(ocrPath,'eng.traineddata'));
+const ocrGitSha=crypto.createHash('sha1').update('blob '+model.length+'\0').update(model).digest('hex');
+assert.equal(ocrGitSha,'bbef4675053b5b468cdb477053e28b1c698ba08e',
+ 'Unexpected offline trained English model; refuse release');
+assert.equal(meta.bundledTrainedEnglishOCR,true,'Trained OCR must ship in hosted candidate');
+assert.equal(meta.englishOcrModelGitSha,ocrGitSha);
+for(const name of ['client.mjs','worker.js','tesseract-core.wasm','tesseract-core-fallback.wasm','eng.traineddata','THIRD_PARTY_NOTICES.txt']){
+ assert(fs.statSync(path.join(ocrPath,name)).size>1000,'OCR asset missing: '+name);
+ assert(sw.includes('/ocr-engine/'+name),'Offline cache must include OCR asset: '+name);
+}
+const notices=fs.readFileSync(path.join(ocrPath,'THIRD_PARTY_NOTICES.txt'),'utf8');
+assert(/BSD 2-Clause License/.test(notices)&&/Apache License/.test(notices),
+ 'Offline OCR third-party license evidence missing');
+assert(fs.readFileSync(path.join(ocrPath,'client.mjs'),'utf8').includes('OCRClient')&&
+ fs.readFileSync(path.join(ocrPath,'client.mjs'),'utf8').includes('supportsFastBuild'),
+ 'Pinned OCR client symbols missing');
+
 const config=JSON.parse(fs.readFileSync('vercel.json','utf8'));
 assert.equal(config.buildCommand,'node tools/build-workspace-vercel.mjs');
 assert.equal(config.outputDirectory,'site');

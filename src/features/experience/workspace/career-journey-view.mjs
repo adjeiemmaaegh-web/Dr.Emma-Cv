@@ -8,7 +8,10 @@ import {createIndexedDBCareerJourneyStore,createMemoryCareerJourneyStore,emptyCa
 import {parseJobText,compareToDocument,buildTailoringSuggestions} from '../../intelligence/index.mjs';
 import {createLetterDraft,reviseLetter,checkLetterFacts,exportLetter} from '../../cover-letter/letter.mjs';
 import {renderInterviewCoach} from './interview-coach-view.mjs';
-import {fromPastedText,coachLinkedIn} from '../../linkedin-coach/linkedin.mjs';
+import {fromPastedText,fromOfficialExport,fromOfficialZip,coachLinkedIn} from '../../linkedin-coach/linkedin.mjs';
+import {linkedinToCvReview} from '../../linkedin-coach/to-cv.mjs';
+import {approveImportReview} from '../../import/text-import.mjs';
+import {reviewFieldEditors} from './cv-import-panel.mjs';
 import {REGIONS,regionChecks} from '../../career-region/regions.mjs';
 import {addApplication,linkDocuments} from '../../tracker/tracker.mjs';
 let persistentRepository;
@@ -159,17 +162,82 @@ export function careerJourneyView(ctx){
 
   }
   const linkIn=area('',5);
-  const linkResults=el('div');
+  const linkedFiles=el('input',{type:'file',accept:'.zip,.csv,application/zip,text/csv',multiple:true,
+   'aria-label':'Choose LinkedIn export ZIP or selected official CSV files'});
+  const linkResults=el('div',{'aria-live':'polite'});
+  const reviewedFields=el('div',{'aria-live':'polite'});
+  let linkedProfile=null,linkedReview=null,reviewChoices=[];
+  const readLinkedInFiles=async()=>{
+   const selected=[...(linkedFiles.files||[])];
+   if(!selected.length)throw Error('Select your own official LinkedIn ZIP or CSV files.');
+   if(selected.length===1&&/\.zip$/i.test(selected[0].name)){
+    if(selected[0].size>24*1024*1024)throw Error('Selected ZIP exceeds 24 MB.');
+    return fromOfficialZip(new Uint8Array(await selected[0].arrayBuffer()));
+   }
+   if(selected.some(f=>!/\.csv$/i.test(f.name)))throw Error('Select one ZIP or individual official CSV files, not a mixture.');
+   const names=new Map([['profile.csv','profileCsv'],['positions.csv','positionsCsv'],['skills.csv','skillsCsv'],
+    ['education.csv','educationCsv'],['certifications.csv','certificationsCsv'],['projects.csv','projectsCsv']]);
+   const input={};
+   for(const f of selected){
+    const key=names.get(f.name.toLowerCase());
+    if(!key)continue; // Connections, Messages and all other unrelated files are not read.
+    if(input[key]!==undefined)throw Error('Duplicate LinkedIn '+f.name+'; choose one source file per category.');
+    if(f.size>4*1024*1024)throw Error(f.name+' exceeds the local CSV size limit.');
+    input[key]=await f.text();
+   }
+   return fromOfficialExport(input);
+  };
+  const showLinkedIn=profile=>{
+   linkedProfile=profile;linkedReview=null;reviewedFields.replaceChildren();
+   const result=coachLinkedIn(profile,cv().document);
+   linkResults.replaceChildren(el('p',{class:'lw-help'},result.notice),
+    el('p',{class:'lw-help'},'Findings: '+result.findings.length+'. Review every discrepancy against its original source; missing export categories are not treated as absent LinkedIn facts.'),
+    items(result.findings,f=>el('li',{class:'lw-finding '+(f.severity==='warning'?'warning':'info')},f.message)),
+    ...result.suggestions.map(s=>field('Suggested '+s.path+' — manually review before copying',area(s.after,3,3500))));
+   notice('LinkedIn analysis completed locally. No LinkedIn website was accessed or data uploaded.');
+  };
+  const previewLinkedInReconstruction=()=>{
+   if(!linkedProfile)throw Error('First review a pasted profile or the selected official export.');
+   linkedReview=linkedinToCvReview(linkedProfile);
+   reviewChoices=[];
+   reviewedFields.replaceChildren(
+    el('p',{class:'lw-help'},'Nothing has changed in your saved CV. Check and expand each proposed field to correct the extracted wording before approval. A NEW separate career profile will be created; unselected fields are omitted.'),
+    el('details',{},el('summary',{},'Review source information provided to LinkedIn import'),
+     el('pre',{class:'lw-help',style:'white-space:pre-wrap;overflow-wrap:anywhere'},linkedReview.sourceText||'')),
+    ...linkedReview.warnings.map(w=>el('p',{class:'lw-help'},w)),
+    ...linkedReview.items.map(item=>{
+     const control=el('input',{type:'checkbox','aria-label':'Accept '+item.path});
+     reviewChoices.push({control,path:item.path});
+     const preview=typeof item.value==='string'?item.value:JSON.stringify(item.value);
+     return el('details',{class:'lw-sec'},el('summary',{},control,
+      el('span',{},' '+item.path+(item.uncertain?' — uncertain':'')+
+       (item.sourceRef?' ('+item.sourceRef+')':'')+': '+preview.slice(0,200))),
+       el('div',{class:'lw-sec-body'},...reviewFieldEditors(item,linkedReview.proposed.master.document)));
+    }),
+    button('Create separate profile from selected fields',async()=>{
+     if(!linkedReview||!stable||typeof store.importProfile!=='function')
+      throw Error('Saving imported profiles is unavailable in sample mode. Use the persistent workspace.');
+     const accepted=reviewChoices.filter(x=>x.control.checked).map(x=>x.path);
+     if(!accepted.length)throw Error('Select at least one reviewed field first.');
+     if(!confirm('Create a new separate career profile from '+accepted.length+' approved LinkedIn field(s)? Your existing CV remains saved as a separate profile.'))
+      return;
+     const approved=approveImportReview(linkedReview,{accepted,confirmed:true});
+     await store.importProfile(approved,{confirmed:true});
+     linkedReview=null;linkedProfile=null;
+     notice('Approved fields saved to a separate local CV profile. The original profile was not overwritten.');
+     // Remount the workspace on the new active profile: never reuse the prior profile’s career-journey ID.
+     ctx.go('#/editor');
+    },true));
+  };
   content.append(section('6. LinkedIn consistency coach',
-   el('p',{class:'lw-help'},'Paste your own LinkedIn text; this tool does not scrape profiles or send anything to LinkedIn. The pasted text is not stored.'),
+   el('p',{class:'lw-help'},'Paste your own profile text or choose your LinkedIn-provided ZIP/CSV export. Files stay in this browser; unrelated connection/message files are ignored. No scraping, login or automatic LinkedIn changes.'),
    field('Your pasted LinkedIn profile text',linkIn),
-   button('Check LinkedIn against my CV',async()=>{
-    const profile=fromPastedText(linkIn.value),result=coachLinkedIn(profile,cv().document);
-    linkResults.replaceChildren(el('p',{class:'lw-help'},result.notice),
-     items(result.findings,f=>el('li',{class:'lw-finding '+(f.severity==='warning'?'warning':'info')},f.message)),
-     ...result.suggestions.map(s=>field('Suggested '+s.path+' (review before copying)',area(s.after,3,3500))));
-    notice('LinkedIn analysis completed locally. No profile was accessed online.');
-   }),linkResults));
+   button('Check LinkedIn against my CV',async()=>showLinkedIn(fromPastedText(linkIn.value))),
+   field('Official LinkedIn archive or selected Profile/Positions/Skills/Education/Certifications/Projects CSV files',linkedFiles),
+   button('Review selected official LinkedIn export',async()=>showLinkedIn(await readLinkedInFiles())),
+   linkResults,
+   button('Review LinkedIn-to-CV reconstruction',async()=>previewLinkedInReconstruction()),
+   reviewedFields));
   const region=el('select',{'aria-label':'Country guidance'},REGIONS.map(r=>el('option',{value:r.id},r.name)));
   const regionResult=el('div');
   const updateRegion=()=>{const data=regionChecks(region.value,{document:cv().document,appearance:cv().appearance});

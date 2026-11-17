@@ -15,8 +15,9 @@ const SECTION_RX=[
  ['accomplishments',/^(achievements?|accomplishments?|awards)$/i],
  ['hobbies',/^(interests|hobbies)$/i],['references',/^references$/i]
 ];
+const EXTRA_SECTION_RX=/^(volunteer(ing)?(\s+experience)?|publications?|research|patents?|professional\s+memberships?|memberships?|conferences?|community\s+service|professional\s+development|additional\s+information|other\s+experience)$/i;
 const MONTH='(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\\.?\\s+';
-const DATE=`(?:${MONTH})?(?:19|20)\\d{2}`;
+const DATE=`(?:(?:${MONTH})?(?:19|20)\\d{2}|(?:0?[1-9]|1[0-2])[\\/-](?:19|20)\\d{2}|(?:19|20)\\d{2}[\\/-](?:0?[1-9]|1[0-2]))`;
 const RANGE=new RegExp(`(${DATE})\\s*(?:-|–|—|to)\\s*(${DATE}|present|current|now)`,'i');
 const EMAIL=/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/,PHONE=/(?:\+\d{1,3}[\s.-]?)?(?:\(?\d{2,4}\)?[\s.-]?)\d{3}[\s.-]?\d{3,4}\b/;
 const LINKEDIN=/(?:https?:\/\/)?(?:[a-z]{2,3}\.)?linkedin\.com\/[^\s|,]+/i;
@@ -25,38 +26,47 @@ const CTRL=new RegExp('['+[[0,8],[11,12],[14,31],[0x200b,0x200f],[0x2028,0x2029]
 const cleanLine=l=>l.replace(CTRL,'').replace(/\t+/g,'  ').trimEnd();
 export function parseResumeText(raw){
  if(typeof raw!=='string')throw contractError('INVALID','Text required');
- const warnings=[];let text=raw;
- if(text.length>IMPORT_LIMITS.maxChars){text=text.slice(0,IMPORT_LIMITS.maxChars);warnings.push('Input was longer than '+IMPORT_LIMITS.maxChars+' characters; the remainder was NOT imported.');}
+ const warnings=[];let text=raw,truncated=false;
+ if(text.length>IMPORT_LIMITS.maxChars){truncated=true;text=text.slice(0,IMPORT_LIMITS.maxChars);warnings.push('Input was longer than '+IMPORT_LIMITS.maxChars+' characters; the remainder was NOT imported.');}
  let lines=text.split(/\r?\n/).map(cleanLine);
- if(lines.length>IMPORT_LIMITS.maxLines){lines=lines.slice(0,IMPORT_LIMITS.maxLines);warnings.push('Too many lines; the remainder was NOT imported.');}
+ if(lines.length>IMPORT_LIMITS.maxLines){truncated=true;lines=lines.slice(0,IMPORT_LIMITS.maxLines);warnings.push('Too many lines; the remainder was NOT imported.');}
  const doc=blankCareerDocument(),items=[],uncertain=[];
  const add=(path,value,line,isUncertain)=>{items.push({path,value,sourceLine:line,uncertain:!!isUncertain});};
  let i=0;while(i<lines.length&&!lines[i].trim())i++;
- const head=[];
+ const head=[],otherSections=[];
  let section=null,sectionLine=0;const buckets={};
  for(let n=i;n<lines.length;n++){
   const l=lines[n].trim();
   if(!l)continue;
   const key=l.length<40?SECTION_RX.find(([,rx])=>rx.test(l.replace(/[:\s]+$/,'')))?.[0]:null;
   if(key){section=key;sectionLine=n+1;buckets[key]??=[];continue;}
+  if(l.length<60&&EXTRA_SECTION_RX.test(l.replace(/[:\s]+$/,''))){
+   const sectionInfo={title:l.replace(/[:\s]+$/,''),sourceLine:n+1,rows:[]};
+   otherSections.push(sectionInfo);section='__custom';continue;
+  }
+  if(section==='__custom'){
+   otherSections[otherSections.length-1].rows.push([l,n+1]);continue;
+  }
   if(!section){head.push([l,n+1]);continue;}
   buckets[section].push([l,n+1]);
  }
- const p=doc.personalInfo;
+ const p=doc.personalInfo,consumedHead=new Set();
  const nameLine=head.find(([l])=>!EMAIL.test(l)&&!LINKEDIN.test(l)&&!/\d{4,}/.test(l)&&l.split(/\s+/).length<=5);
  if(nameLine){const parts=nameLine[0].replace(/[,|]/g,' ').trim().split(/\s+/);
-  p.firstName=parts[0];p.lastName=parts.slice(1).join(' ');add('personalInfo.name',nameLine[0],nameLine[1],parts.length<2||parts.length>4);}
+  p.firstName=parts[0];p.lastName=parts.slice(1).join(' ');add('personalInfo.name',nameLine[0],nameLine[1],parts.length<2||parts.length>4);consumedHead.add(nameLine[1]);}
  else warnings.push('No name line found.');
  for(const [l,n] of head){
-  const e=l.match(EMAIL);if(e&&!p.email){p.email=e[0];add('personalInfo.email',e[0],n);}
-  const li=l.match(LINKEDIN);if(li&&!p.linkedin){p.linkedin=li[0];add('personalInfo.linkedin',li[0],n);}
-  const ph=l.replace(EMAIL,'').replace(LINKEDIN,'').match(PHONE);if(ph&&!p.phone&&ph[0].replace(/\D/g,'').length>=8){p.phone=ph[0].trim();add('personalInfo.phone',p.phone,n,true);}
-  if(nameLine&&l!==nameLine[0]&&!p.title&&!e&&!li&&!ph&&l.length<80){p.title=l;add('personalInfo.title',l,n,true);}
+  const e=l.match(EMAIL);if(e&&!p.email){p.email=e[0];add('personalInfo.email',e[0],n);consumedHead.add(n);}
+  const li=l.match(LINKEDIN);if(li&&!p.linkedin){p.linkedin=li[0];add('personalInfo.linkedin',li[0],n);consumedHead.add(n);}
+  const ph=l.replace(EMAIL,'').replace(LINKEDIN,'').match(PHONE);if(ph&&!p.phone&&ph[0].replace(/\D/g,'').length>=8){p.phone=ph[0].trim();add('personalInfo.phone',p.phone,n,true);consumedHead.add(n);}
+  if(nameLine&&l!==nameLine[0]&&!p.title&&!e&&!li&&!ph&&l.length<80){p.title=l;add('personalInfo.title',l,n,true);consumedHead.add(n);}
  }
  if(!p.email)warnings.push('No email address found.');
  if(buckets.summary?.length){doc.summary=buckets.summary.map(x=>x[0]).join(' ');add('summary',doc.summary,buckets.summary[0][1]);}
  for(const k of ['hobbies','references'])if(buckets[k]?.length){doc[k]=buckets[k].map(x=>x[0]).join('\n');add(k,doc[k],buckets[k][0][1]);}
  // experience / education: a dated line starts an entry; bullets and prose attach to it.
+ const unmappedSourceLines=head.filter(([,n])=>!consumedHead.has(n)).map(([text,sourceLine])=>({text,sourceLine,reason:'Header detail was not mapped to a structured CV field'}));
+ if(unmappedSourceLines.length)warnings.push(unmappedSourceLines.length+' header line(s) require manual reconstruction; the original source remains available.');
  const entries=(rows,kind)=>{
   const out=[];let cur=null;
   for(let k=0;k<rows.length;k++){
@@ -68,8 +78,10 @@ export function parseResumeText(raw){
     cur={...dates,headline:rest,desc:[],line:n};out.push(cur);continue;
    }
    const nextIsDate=k+1<rows.length&&RANGE.test(rows[k+1][0])&&!BULLET.test(rows[k+1][0]);
+   if(!isBullet&&cur&&!cur.headline&&cur.desc.length)cur=null; // preserve orphan bullets separately; do not attach a subsequent role heading to them
+   if(!isBullet&&nextIsDate&&cur&&!cur.start&&!cur.second&&!cur.desc.length){cur.second=l;continue;}
    if(!isBullet&&(!cur||nextIsDate&&l.length<100)){cur={start:'',end:'',current:false,headline:l,desc:[],line:n};out.push(cur);continue;}
-   if(isBullet)cur.desc.push({b:true,t:l.replace(BULLET,'')});
+   if(isBullet){if(!cur){cur={start:'',end:'',current:false,headline:'',desc:[],line:n};out.push(cur);}cur.desc.push({b:true,t:l.replace(BULLET,'')});}
    else if(!cur.headline)cur.headline=l;
    else if(kind==='experience'&&!cur.second&&!cur.desc.length&&l.length<80)cur.second=l;
    else cur.desc.push({b:false,t:l});
@@ -93,25 +105,39 @@ export function parseResumeText(raw){
   const entry={degree,school:school||e.second||'',start:e.start,end:e.end,description:descHtml(e.desc)};
   doc.education.push(entry);add('education['+(doc.education.length-1)+']',entry,e.line,!degree||!entry.school);
  }
+ for(const [index,sectionInfo] of otherSections.entries()){
+  if(!sectionInfo.rows.length){
+   warnings.push('A '+sectionInfo.title+' heading was found without body text. Check the source.');
+   continue;
+  }
+  const entry={id:'importSection'+index,title:sectionInfo.title,
+   content:'<p>'+sectionInfo.rows.map(([line])=>html(line)).join('<br>')+'</p>'};
+  doc.customSections.push(entry);
+ }
+ if(doc.customSections.length){
+  add('customSections',doc.customSections,otherSections[0].sourceLine,true);
+  warnings.push('Additional CV sections were preserved as editable custom sections; verify their titles and content.');
+ }
  if(buckets.skills?.length){
   const names=buckets.skills.flatMap(([l])=>l.replace(BULLET,'').split(/[,;|•]/)).map(s=>s.trim()).filter(s=>s&&s.length<60);
-  doc.skills=[...new Set(names)].map(name=>({name,level:3}));add('skills',doc.skills,buckets.skills[0][1]);
+  doc.skills=[...new Set(names)].map(name=>({name}));add('skills',doc.skills,buckets.skills[0][1]);
  }
  for(const k of ['certifications','languages','projects','accomplishments']){
   if(buckets[k]?.length){doc[k]=buckets[k].map(([l])=>({name:l.replace(BULLET,''),title:l.replace(BULLET,''),description:''}));add(k,doc[k],buckets[k][0][1]);}
  }
  if(!doc.experience.length&&!doc.education.length&&!doc.skills.length)warnings.push('No experience, education or skills sections were recognised; review the source text manually.');
  for(const u of uncertain)warnings.push(u);
- return {document:doc,items,warnings,sourceText:text};
+ return {document:doc,items,warnings,sourceText:text,unmappedSourceLines,truncated};
 }
 /** Build the contract-level ImportReview. proposed is NOT saved and carries no verified claims. */
 export function createImportReview(parsed,{idFactory,now=new Date().toISOString(),sourceName}={}){
  if(!parsed||!parsed.document)throw contractError('INVALID','Parsed content required');
- const hasContent=parsed.items.length>0;
+ const hasContent=parsed.items.length>0&&!parsed.truncated;
  const mk=idFactory?{idFactory}:{};
  const proposed=hasContent?createCareerProfile({displayName:'Imported CV',document:parsed.document,now,...mk}):null;
- return {status:hasContent?'review-required':'blocked',warnings:[...parsed.warnings],proposed,requiresUserConfirmation:true,
-  items:parsed.items.map(x=>({...x,decision:'pending'})),sourceName,sourceText:parsed.sourceText};
+ return {status:hasContent?'review-required':'blocked',warnings:[...parsed.warnings,...(parsed.truncated?['Import blocked: source text was truncated. Use a smaller complete document; partial CV facts were NOT approved.']:[])],proposed,requiresUserConfirmation:true,
+  items:parsed.items.map(x=>({...x,decision:'pending'})),sourceName,sourceText:parsed.sourceText,
+  unmappedSourceLines:parsed.unmappedSourceLines||[]};
 }
 /**
  * Apply per-item decisions and an explicit confirmation. Rejected/pending items are omitted;
@@ -130,14 +156,18 @@ export function approveImportReview(review,{accepted,confirmed=false,idFactory,n
   if(it.path==='personalInfo.name'){personal.firstName=src.personalInfo.firstName;personal.lastName=src.personalInfo.lastName;}
   else if(it.path.startsWith('personalInfo.'))personal[it.path.split('.')[1]]=src.personalInfo[it.path.split('.')[1]];
   else if(['summary','hobbies','references'].includes(it.path))doc[it.path]=src[it.path];
-  else if(['skills','certifications','languages','projects','accomplishments'].includes(it.path))doc[it.path]=cloneData(src[it.path]);
-  else{const m=it.path.match(/^(experience|education)\[(\d+)\]$/);if(m)doc[m[1]].push(cloneData(src[m[1]][+m[2]]));}
+  else if(['skills','certifications','languages','projects','accomplishments','customSections'].includes(it.path))doc[it.path]=cloneData(src[it.path]);
+  else{const m=it.path.match(/^(experience|education)\[(\d+)\]$/);if(m){const revised=cloneData(src[m[1]][+m[2]]);doc[m[1]].push(revised);keep[keep.length-1]={...it,approvedValue:revised};}}
  }
  doc.personalInfo=personal;
  const profile=createCareerProfile({displayName:review.proposed.name,document:doc,now,...(idFactory?{idFactory}:{})});
  const mkId=idFactory||(()=> 'ledger_'+globalThis.crypto.randomUUID().replace(/-/g,''));
- profile.evidence=keep.filter(i=>i.path.startsWith('experience')||i.path.startsWith('education')).map(i=>({
-  id:mkId(),source:'document',claim:(i.value.title||i.value.degree||'Entry')+' '+(i.value.employer||i.value.school||'')+' ('+(i.value.start||'?')+')',
-  sourceRef:(review.sourceName||'import')+':line '+i.sourceLine,path:i.path,capturedAt:now,verifiedByUser:false}));
+ profile.evidence=keep.filter(i=>i.approvedValue).map(i=>{
+  const v=i.approvedValue;
+  return {id:mkId(),source:'document',
+   claim:(v.title||v.degree||'Entry')+' '+(v.employer||v.school||'')+' ('+(v.start||'?')+')',
+   sourceRef:i.sourceRef||(review.sourceName||'import')+':line '+i.sourceLine,
+   path:i.path,capturedAt:now,verifiedByUser:false};
+ });
  return profile;
 }

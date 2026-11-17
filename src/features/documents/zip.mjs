@@ -23,10 +23,27 @@ export function zipStore(files){
  return out;
 }
 export const ZIP_LIMITS=Object.freeze({maxEntries:200,maxEntryBytes:20*1024*1024,maxTotalBytes:60*1024*1024});
-async function defaultInflate(bytes){
+/**
+ * Streaming, bounded raw-deflate reader. A fraudulent small ZIP size must not
+ * force Response.arrayBuffer() to allocate an arbitrarily large decompression.
+ */
+async function defaultInflate(bytes,maxBytes=ZIP_LIMITS.maxEntryBytes){
  if(typeof DecompressionStream!=='function')throw new Error('No inflate implementation available');
- const stream=new Blob([bytes]).stream().pipeThrough(new DecompressionStream('deflate-raw'));
- return new Uint8Array(await new Response(stream).arrayBuffer());
+ const reader=new Blob([bytes]).stream().pipeThrough(new DecompressionStream('deflate-raw')).getReader();
+ const chunks=[];let size=0;
+ try{
+  for(;;){
+   const {value,done}=await reader.read();
+   if(done)break;
+   size+=value.byteLength;
+   if(size>maxBytes)throw new Error('Archive decompression exceeds declared size');
+   chunks.push(value);
+  }
+ }catch(error){try{await reader.cancel(error);}catch{}throw error;}
+ finally{reader.releaseLock();}
+ const out=new Uint8Array(size);let pos=0;
+ for(const chunk of chunks){out.set(chunk,pos);pos+=chunk.byteLength;}
+ return out;
 }
 /** Reads selected entries. Declared sizes are bounded and verified against actual output (zip-bomb guard). */
 export async function unzipEntries(bytes,{want=()=>true,inflate=defaultInflate,limits=ZIP_LIMITS}={}){
@@ -38,19 +55,24 @@ export async function unzipEntries(bytes,{want=()=>true,inflate=defaultInflate,l
  const out=new Map();let total=0;
  for(let i=0;i<count;i++){
   if(p+46>bytes.length||v.getUint32(p,true)!==0x02014b50)throw new Error('Corrupt ZIP directory');
-  const flags=v.getUint16(p+8,true),method=v.getUint16(p+10,true),csize=v.getUint32(p+20,true),usize=v.getUint32(p+24,true);
+  const flags=v.getUint16(p+8,true),method=v.getUint16(p+10,true),declaredCrc=v.getUint32(p+16,true),csize=v.getUint32(p+20,true),usize=v.getUint32(p+24,true);
   const nlen=v.getUint16(p+28,true),xlen=v.getUint16(p+30,true),clen=v.getUint16(p+32,true),lho=v.getUint32(p+42,true);
   const name=dec.decode(bytes.subarray(p+46,p+46+nlen));p+=46+nlen+xlen+clen;
   if(!want(name))continue;
+  if(out.has(name))throw new Error('Duplicate ZIP entry: '+name);
   if(flags&1)throw new Error('Encrypted archives are not supported');
   if(usize>limits.maxEntryBytes||(total+=usize)>limits.maxTotalBytes)throw new Error('Archive entry too large');
   if(lho+30>bytes.length||v.getUint32(lho,true)!==0x04034b50)throw new Error('Corrupt ZIP entry');
-  const start=lho+30+v.getUint16(lho+26,true)+v.getUint16(lho+28,true);
+  const localNameLen=v.getUint16(lho+26,true),localExtraLen=v.getUint16(lho+28,true);
+  if(dec.decode(bytes.subarray(lho+30,lho+30+localNameLen))!==name||v.getUint16(lho+8,true)!==method)
+   throw new Error('ZIP local and central directory mismatch');
+  const start=lho+30+localNameLen+localExtraLen;
   if(start+csize>bytes.length)throw new Error('Truncated ZIP entry');
   const raw=bytes.subarray(start,start+csize);
-  const data=method===0?raw:method===8?await inflate(raw):null;
+  const data=method===0?raw:method===8?await inflate(raw,Math.min(usize,limits.maxEntryBytes)):null;
   if(!data)throw new Error('Unsupported compression');
   if(data.length!==usize||data.length>limits.maxEntryBytes)throw new Error('Archive size mismatch');
+  if(crc32(data)!==declaredCrc)throw new Error('Archive CRC32 mismatch: '+name);
   out.set(name,data);
  }
  return out;
