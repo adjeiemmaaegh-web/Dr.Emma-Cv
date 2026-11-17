@@ -1,7 +1,7 @@
 /** Workspace views. Each returns {node, destroy?}. They only use other workstreams' public APIs. */
 import {el,icon,download,debounceFrame} from './ui.mjs';
 import {layoutFor,drawPages,thumbnail} from './preview.mjs';
-import {listTemplates,FAMILIES,applyTemplate,getTemplate,OPTIONS,TEMPLATES} from '../../templates/registry.mjs';
+import {listTemplates,FAMILIES,applyTemplate,getTemplate,OPTIONS,TEMPLATES,resolveStyle} from '../../templates/registry.mjs';
 import {renderDocumentArtifact} from '../../export/export-service.mjs';
 import {runAtsChecks,analyzeWriting} from '../../intelligence/index.mjs';
 import * as T from '../../tracker/tracker.mjs';
@@ -93,7 +93,9 @@ export function editorView(ctx){
    root.append(consent);
   }
   root.append(el('div',{class:'lw-toolbar',role:'toolbar','aria-label':'Editor tools'},undo,redo,paperSeg,zoomSeg,tabs,el('span',{class:'spacer'},status)));
- const form=el('div',{class:'lw-editor-form'}),pages=el('div',{class:'lw-pages'}),prevWrap=el('div',{class:'lw-preview-wrap',tabindex:'0',role:'region','aria-label':'CV preview'},pages);
+ const form=el('div',{class:'lw-editor-form'}),pages=el('div',{class:'lw-pages'});
+ const metrics=el('p',{class:'lw-preview-metrics',role:'status','aria-live':'polite'},'Calculating pages…');
+ const prevWrap=el('div',{class:'lw-preview-wrap',tabindex:'0',role:'region','aria-label':'CV preview'},metrics,pages);
  const wrap=el('div',{class:'lw-editor','data-tab':'edit'},el('div',{class:'lw-form-col'},form),el('div',{class:'lw-preview-col'},prevWrap));root.append(wrap);
  const field=(label,value,key,path,onInput,{area,auto}={})=>{const id='f-'+key.replace(/\W+/g,'-'),c=area?el('textarea',{id,rows:'4'}):el('input',{id,type:'text'});
   c.value=value||'';c.dataset.key=key;c.dataset.path=path;if(auto)c.setAttribute('autocomplete',auto);c.addEventListener('input',()=>onInput(c.value));return el('div',{class:'lw-field'},el('label',{for:id},label),c);};
@@ -109,8 +111,8 @@ export function editorView(ctx){
    const items=snap.document[name],body=[];
    if(!items.length)body.push(el('p',{class:'lw-help',style:'margin-bottom:var(--s-3)'},'Nothing here yet.'));
    items.forEach((it,i)=>{
-    const card=el('div',{class:'lw-item',role:'group','aria-label':def.label+' '+(i+1)+': '+def.name(it)});
-    card.append(el('div',{class:'lw-item-head'},el('strong',{},def.name(it)),
+    const card=el('div',{class:'lw-item',role:'group','aria-label':def.label+' '+(i+1)+': '+def.name(it),'data-entry-section':name,'data-entry-id':it.id});
+    card.append(el('div',{class:'lw-item-head'},el('strong',{'data-entry-name':it.id},def.name(it)),
      el('button',{type:'button',class:'lw-btn sm icon','aria-label':'Move '+def.name(it)+' up',disabled:i===0||undefined,on:{click:()=>ed.moveItem(name,it.id,-1)}},icon('up',{size:16})),
      el('button',{type:'button',class:'lw-btn sm icon','aria-label':'Move '+def.name(it)+' down',disabled:i===items.length-1||undefined,on:{click:()=>ed.moveItem(name,it.id,1)}},icon('down',{size:16})),
      el('button',{type:'button',class:'lw-btn sm icon danger','aria-label':'Remove '+def.name(it)+' (you can undo)',on:{click:()=>{ed.removeItem(name,it.id);ctx.toast(def.label+' entry removed. Press Undo to bring it back.');}}},icon('trash',{size:16}))));
@@ -146,13 +148,19 @@ export function editorView(ctx){
   if(custom.length)form.append(sec('custom','Custom sections ('+custom.length+')',...customKids));
   if(act){const n=form.querySelector('[data-key="'+act+'"]');if(n)n.focus();}
  }
- const shape=s=>JSON.stringify([s.document.experience.map(i=>i.id+(i.title||i.employer||'')),s.document.education.map(i=>i.id+(i.degree||i.school||'')),s.document.skills.map(x=>x.name),s.document.customSections.map(x=>x.id),s.appearance.template,s.appearance.sectionOrder,s.appearance.enabledSections]);
+ const shape=s=>JSON.stringify([s.document.experience.map(i=>i.id),s.document.education.map(i=>i.id),
+  s.document.skills.map(x=>x.id+':'+x.name),s.document.customSections.map(x=>x.id),s.appearance.template,
+  s.appearance.sectionOrder,s.appearance.enabledSections]);
  let last='',layout=null;
  const quick=quickEditOnPage(prevWrap,ed,ctx);
  function redraw(){
   const snap=ed.snapshot();layout=layoutFor(snap.document,snap.appearance);
   const w=prevWrap.clientWidth-32,fit=Math.max(0.3,Math.min(1.4,w/layout.paper.width)),scale=zoomMode.fit?fit:1;
   drawPages(pages,layout,scale||0.6,{onEdit:(path,anchor)=>quick.open(path,anchor)});
+  const count=layout.pageCount;
+  metrics.textContent=count+(count===1?' page':' pages')+' · '+layout.style.paper+
+   ' · '+getTemplate(layout.style.template).name+
+   (layout.warnings.length?' · '+layout.warnings[0]:'');
  }
  const redrawSoon=debounceFrame(redraw);
  function sync(snap){
@@ -163,19 +171,30 @@ export function editorView(ctx){
   status.textContent=st.state==='error'?'✖ Not saved: '+(st.detail||(
     st.error==='QUOTA'?'browser storage is full':st.error==='CONFLICT'?'another tab changed this CV':st.error==='UNCONFIRMED'?'confirm master editing first':'storage unavailable'))+'. Download an unsaved draft.':st.state==='saving'?'Saving…':'✓ Saved on this device';
   if(shape(snap)!==last){last=shape(snap);build(snap);}
-  const effective=layoutFor(snap.document,snap.appearance).style;
+  const effective=resolveStyle(snap.appearance);
   for(const input of form.querySelectorAll('[data-appearance]')){
    if(document.activeElement===input)continue;
    const key=input.dataset.appearance;
-   const val=snap.appearance[key]??({bodySize:effective.size,leading:effective.lineHeight,sectionGap:effective.sectionGap,marginSize:effective.margin,headerScale:effective.headerScale}[key]);
+   const val=snap.appearance[key]??({bodySize:effective.size,leading:effective.lineHeight,sectionGap:effective.sectionGap,marginSize:effective.margin,headerScale:effective.headerScale,headingScale:effective.headingScale,
+    entryGap:effective.entryGap,paragraphGap:effective.paragraphGap,ruleWeight:effective.ruleWeight}[key]);
    if(val!==undefined&&val!==null)input.value=String(val);
    const output=form.querySelector('[data-output="'+key+'"]');
-   if(output&&typeof val==='number')output.textContent=val.toFixed(key==='leading'||key==='headerScale'?2:1)+(key==='leading'||key==='headerScale'?'×':' pt');
+   if(output&&typeof val==='number')output.textContent=val.toFixed(['leading','headerScale','headingScale'].includes(key)?2:1)+(['leading','headerScale','headingScale'].includes(key)?'×':' pt');
   }
   for(const input of form.querySelectorAll('input[data-path],textarea[data-path]')){
    if(document.activeElement===input)continue;
-   const info=fieldAtPath(ed,input.dataset.path);
+   const info=fieldAtPath(ed,input.dataset.path,snap.document);
    if(info&&input.value!==info.value)input.value=info.value;
+  }
+  // Update role labels without tearing down focused form inputs on each keystroke.
+  for(const card of form.querySelectorAll('[data-entry-section]')){
+   const section=card.dataset.entrySection,id=card.dataset.entryId;
+   const item=snap.document[section]?.find(x=>x.id===id);
+   const text=item&&SECS[section]?.name(item);
+   if(text){
+    const strong=card.querySelector('[data-entry-name]');
+    if(strong&&strong.textContent!==text)strong.textContent=text;
+   }
   }
   redrawSoon();
  }
