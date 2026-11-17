@@ -8,7 +8,8 @@ import {createStore} from './store.mjs';
 import {createPersistentWorkspaceStore} from '../../../core/workspace-persistence.mjs';
 import {download} from './ui.mjs';
 import {homeView,editorView,templatesView,checkView,jobsView,exportAs} from './views.mjs';
-const ROUTES=[['home','Home','home'],['editor','Edit','edit'],['templates','Templates','grid'],['check','Check','check'],['jobs','Jobs','board']];
+import {careerJourneyView} from './career-journey-view.mjs';
+const ROUTES=[['home','Home','home'],['editor','Edit','edit'],['templates','Templates','grid'],['check','Check','check'],['jobs','Jobs','board'],['career','Career tools','check']];
 const DRAFT_KEY='ledger_workspace_preview_draft_v1';
 export async function mountWorkspace(root,{storage=globalThis.localStorage,sample=false,profileRepository,applicationRepository}={}){
  let store;
@@ -57,7 +58,7 @@ export async function mountWorkspace(root,{storage=globalThis.localStorage,sampl
  for(const [id,label,ic] of ROUTES){const a=el('a',{href:'#/'+id},icon(ic),label);links[id]=a;ul.append(el('li',{},a));}
  const ctx={store,draftStore,toast:m=>toaster.show(m),go:h=>{location.hash=h;},goField:path=>{current.id!=='editor'?(pending=path,location.hash='#/editor'):current.view.focusPath?.(path);}};
  let current={id:null,view:null},pending=null;
- const views={home:homeView,editor:editorView,templates:templatesView,check:checkView,jobs:jobsView};
+ const views={home:homeView,editor:editorView,templates:templatesView,check:checkView,jobs:jobsView,career:careerJourneyView};
  function render(){
   const id=(location.hash.match(/^#\/(\w+)/)||[])[1],route=views[id]?id:'home';
   current.view?.destroy?.();main.replaceChildren();
@@ -76,7 +77,8 @@ export async function mountWorkspace(root,{storage=globalThis.localStorage,sampl
   {label:'Download PDF',hint:'PDF',run:()=>exportAs(ctx,'pdf')},{label:'Download Word document',hint:'DOCX',run:()=>exportAs(ctx,'docx')},
   {label:'Undo last change',run:()=>store.editor.undo()},{label:'Redo',run:()=>store.editor.redo()},
   {label:root.dataset.theme==='dark'?'Switch to light mode':'Switch to dark mode',run:()=>{store.setTheme(root.dataset.theme==='dark'?'light':'dark');applyTheme();}},
-  {label:'Add an application',run:()=>{ctx.go('#/jobs');setTimeout(()=>main.querySelector('.lw-page-head .primary')?.click(),60);}}];
+  {label:'Add an application',run:()=>{ctx.go('#/jobs');setTimeout(()=>main.querySelector('.lw-page-head .primary')?.click(),60);}},
+  {label:'Analyse a vacancy',run:()=>ctx.go('#/career')}];
  let shown=[],sel=0;
  const drawList=()=>{const q=input.value.trim().toLowerCase();shown=cmds().filter(c=>!q||c.label.toLowerCase().includes(q));sel=Math.min(sel,Math.max(shown.length-1,0));list.replaceChildren();
   shown.forEach((c,i)=>list.append(el('li',{role:'option',id:'pal-'+i,'aria-selected':String(i===sel),on:{click:()=>choose(i),mousemove:()=>{sel=i;mark();}}},c.label,c.hint?el('kbd',{},c.hint):null)));
