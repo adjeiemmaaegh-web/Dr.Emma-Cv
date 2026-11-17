@@ -60,7 +60,20 @@ try{
  await page.getByLabel('First name').fill('Ada');
  await page.getByLabel('Last name').fill('Example');
  await page.getByLabel('Professional title').fill('F20 Retail Manager');
- await page.waitForFunction(()=>document.querySelector('.lw-toolbar [role=status]')?.textContent.includes('Saved on this device'));
+ try{
+  await page.waitForFunction(()=>document.querySelector('.lw-toolbar [role=status]')?.textContent.includes('Saved on this device'),null,{timeout:12000});
+ }catch(e){
+  const state=await page.evaluate(()=>({
+   toolbar:document.querySelector('.lw-toolbar')?.innerText?.slice(0,700),
+   status:document.querySelector('.lw-toolbar [role=status]')?.textContent,
+   warning:document.querySelector('.lw-storage-warning')?.innerText?.slice(0,600),
+   firstName:document.querySelector('input[aria-label="First name"]')?.value,
+   lastName:document.querySelector('input[aria-label="Last name"]')?.value,
+   title:document.querySelector('input[aria-label="Professional title"]')?.value,
+   notifications:[...document.querySelectorAll('[role="alert"]')].map(x=>x.textContent).slice(0,5)
+  }));
+  throw new Error('F20 master autosave timeout '+JSON.stringify(state),{cause:e});
+ }
  await page.reload();
  await page.getByRole('link',{name:'Edit',exact:true}).click();
  assert.equal(await page.getByLabel('Professional title').inputValue(),'F20 Retail Manager');
