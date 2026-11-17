@@ -30,6 +30,14 @@ for(const rel of ['src/features/experience/workspace/workspace.mjs','src/feature
  'src/features/accessibility/a11y.css','favicon.svg','site.webmanifest']){
  assert(fs.statSync(path.join(site,rel)).isFile(),'Missing hosted module: '+rel);
 }
+for(const name of ['pdf.mjs','pdf.worker.mjs','LICENSE.txt']){
+ const expected=path.join('node_modules/pdfjs-dist',name==='LICENSE.txt'?'LICENSE':'legacy/build/'+name);
+ const published=path.join(site,'pdf-engine',name);
+ assert.equal(hash(fs.readFileSync(published)),hash(fs.readFileSync(expected)),
+  'Offline bundled PDF engine source/license checksum mismatch: '+name);
+ assert(sw.includes('/pdf-engine/'+name),'Offline service-worker cache must include '+name);
+}
+assert.equal(meta.bundledPdfEngine,true);
 const config=JSON.parse(fs.readFileSync('vercel.json','utf8'));
 assert.equal(config.buildCommand,'node tools/build-workspace-vercel.mjs');
 assert.equal(config.outputDirectory,'site');
