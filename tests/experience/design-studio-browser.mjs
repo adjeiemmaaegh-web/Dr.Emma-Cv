@@ -28,7 +28,7 @@ try{
   el.value='12';el.dispatchEvent(new Event('input',{bubbles:true}));
  });
  await page.waitForFunction(()=>JSON.parse(localStorage.getItem('ledger_workspace_preview_v1')).appearance.bodySize===12);
- assert.equal(await page.locator('.lw-page [data-path="summary"]').first().evaluate(el=>el.style.fontSize),'12px');
+ await page.waitForFunction(()=>document.querySelector('.lw-page [data-path="summary"]')?.style.fontSize==='12px');
  // Hide/show is reversible and does not delete the saved CV experience records.
  const sections=page.locator('details.lw-sec',{has:page.locator('summary',{hasText:/Sections and order/})});
  await sections.locator('summary').click();
