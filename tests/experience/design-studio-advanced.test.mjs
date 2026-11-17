@@ -4,7 +4,7 @@ import {createEditor} from '../../src/features/editor/editor-state.mjs';
 import {SAMPLE_DOC} from '../../src/features/experience/workspace/store.mjs';
 import {fieldAtPath} from '../../src/features/experience/workspace/design-studio.mjs';
 import {normalizeAppearance,resolveStyle} from '../../src/features/templates/registry.mjs';
-import {layoutDocument,decorationGeometry} from '../../src/features/documents/layout.mjs';
+import {layoutDocument,decorationGeometry,pageDecorations} from '../../src/features/documents/layout.mjs';
 import {renderPreview,renderDocumentArtifact} from '../../src/features/export/export-service.mjs';
 import {saveDesign,readDesigns,exportDesigns,previewDesignImport,importDesigns,DESIGN_KEY} from '../../src/features/templates/design-library.mjs';
 const newEditor=()=>createEditor({document:SAMPLE_DOC(),appearance:{template:'modern'}});
@@ -93,4 +93,32 @@ test('untrusted import with CV data, duplicate names or oversized files fails cl
  assert.throws(()=>previewDesignImport('x'.repeat(128001)),/128 KB/);
  assert.throws(()=>importDesigns(mem,JSON.stringify(valid),{confirmed:false}),/confirmation/);
  assert.equal(mem.getItem(DESIGN_KEY),null);
+});
+
+test('seven template families use differentiated printable page accents without affecting text flow',()=>{
+ const doc=SAMPLE_DOC(),styles=['modern','executive','creative','ats-classic','academic','minimal','professional'];
+ const signatures=new Set();
+ for(const template of styles){
+  const a={template},layout=layoutDocument(doc,a),decor=pageDecorations(layout.style,layout.paper);
+  signatures.add(layout.style.family+':'+layout.style.pageAccent);
+  for(const d of decor){
+   assert.ok(d.x>=0&&d.y>=0&&d.x+d.width<=layout.paper.width);
+   assert.ok(d.y+d.height<=layout.paper.height);
+  }
+  const baseline=layoutDocument(doc,{template,pageAccent:'none'});
+  assert.deepEqual(layout.pages.map(pg=>pg.map(l=>[l.text,l.x,l.y])),
+   baseline.pages.map(pg=>pg.map(l=>[l.text,l.x,l.y])));
+ }
+ assert.equal(signatures.size,7);
+ const creative=layoutDocument(doc,{template:'creative'});
+ assert.equal(creative.style.pageAccent,'side-rail');
+ assert.ok(pageDecorations(creative.style,creative.paper).length>0);
+ const technical=layoutDocument(doc,{template:'ats-classic'});
+ assert.equal(technical.style.pageAccent,'corner-marks');
+ assert.equal(pageDecorations(technical.style,technical.paper).length,8);
+ const word=renderDocumentArtifact({id:'x',revision:1,name:'test',document:doc,appearance:{template:'modern'}},'docx');
+ assert.equal(word.warnings.length,0);
+ assert.ok(new TextDecoder().decode(word.bytes).includes('w:pgBorders'));
+ const corners=renderDocumentArtifact({id:'y',revision:1,name:'test',document:doc,appearance:{template:'ats-classic'}},'docx');
+ assert.ok(corners.warnings.some(w=>w.includes('PDF-only')));
 });
