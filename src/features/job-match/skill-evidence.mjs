@@ -58,7 +58,7 @@ const DEFINITIONS=[
  ['soft','Organization','organizational skills|organisational skills|organized workflows|organised workflows']
 ];
 export const SKILL_TAXONOMY=Object.freeze(DEFINITIONS.map(([kind,name,aliases])=>Object.freeze({
- id:name.toLowerCase().replace(/[^a-z0-9]+/g,'-')||'dot-net',kind,name,
+ id:name.toLowerCase().replace(/\+\+/g,'-plus-plus').replace(/#/g,'-sharp').replace(/^\./,'dot-').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,''),kind,name,
  aliases:Object.freeze(aliases.split('|'))
 })));
 const rxEscape=s=>s.replace(/[.*+?^$\x7b\x7d()|[\]\\]/g,'\\$&');
