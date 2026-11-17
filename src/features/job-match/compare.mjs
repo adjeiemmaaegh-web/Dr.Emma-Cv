@@ -56,6 +56,7 @@ function numericEvidence(constraint,units,requiredSkills=[]){
 }
 export function compareToDocument(job,document){
  if(!job||!Array.isArray(job.requirements)||!document)throw Object.assign(new Error('job requirements and CV document required'),{code:'INVALID'});
+ if(job.requirements.length>180)throw Object.assign(new Error('Too many requirements for local comparison (limit 180).'),{code:'INVALID'});
  const units=documentUnits(document).filter(u=>typeof u.text==='string').map(u=>({
   ...u,positive:positiveEvidenceText(u.text),
   stems:new Set(stems(positiveEvidenceText(u.text)))
