@@ -195,7 +195,7 @@
 .lw-design-item{display:flex;align-items:center;flex-wrap:wrap;gap:var(--s-2);padding:8px;border:1px solid var(--border);border-radius:var(--r-1)}
 .lw-design-item strong{flex:1 1 130px;overflow-wrap:anywhere}
 .lw-design-swatch{width:28px;height:28px;flex:none;border-radius:50%;border:2px solid var(--surface);box-shadow:0 0 0 1px var(--border)}
-.lw-page .lw-page-edit{cursor:text;border-radius:1px;outline-offset:2px}
+.lw-page .lw-page-edit{display:inline-block;min-width:var(--lw-edit-target,26px);min-height:var(--lw-edit-target,26px);cursor:text;border-radius:1px;outline-offset:2px}
 .lw-page .lw-page-edit:hover{background:rgba(11,107,114,.1);outline:1px dashed #0b6b72}
 .lw-page .lw-page-edit:focus-visible{outline:2px solid #0b57d0;background:rgba(11,87,208,.10)}
 .lw-inline-editor{position:absolute;z-index:15;display:grid;gap:8px;min-width:0;padding:12px;border:2px solid var(--accent);border-radius:var(--r-2);background:var(--surface);color:var(--ink);box-shadow:var(--shadow-2);text-align:left}
