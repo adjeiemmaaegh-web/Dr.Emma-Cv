@@ -51,7 +51,7 @@ function numericEvidence(constraint,units,requiredSkills=[]){
  return {...constraint,status:highest===null?'not-shown':highest<constraint.minimum?'possible-conflict':'text-supported',
   observed:highest,citations:candidates.sort((a,b)=>b.value-a.value).slice(0,2),
   note:highest===null?'No directly stated matching number was found; experience duration is not inferred from job dates.':
-   highest<constraint.minimum?'The CV states a smaller figure in related wording; review the actual requirement and context.':
+   highest<constraint.minimum?'A smaller numeric claim appears in CV wording; this is not proof of insufficient experience or team size. Verify its context.':
    'The CV states a sufficiently large figure, but the underlying claim has not been verified.'};
 }
 export function compareToDocument(job,document){
@@ -83,7 +83,10 @@ export function compareToDocument(job,document){
   }
   cites.sort((a,b)=>b.overlap-a.overlap||b.matched.length-a.matched.length);
   const coverage=anyHit.size/tokenTerms.length;
-  const maxCoLocated=cites[0]?.overlap||0;
+  // A summary, skill list, header or job title alone is not work/project evidence.
+  // Structured education/certification rows can support those distinct requirements.
+  const substantive=cites.filter(c=>/^(?:experience\[[^\]]+\]\.description\[|projects\[|education\[|certifications\[)/.test(c.path));
+  const maxCoLocated=substantive[0]?.overlap||0;
   const skillsDescribed=relatedSkills.every(x=>x.status==='described');
   const unresolvedScopes=scopes.filter(x=>x.status!=='text-supported');
   const hasText=coverage>0;
