@@ -161,9 +161,9 @@ test('writing checks work offline and propose conservative rewrites only',()=>{
 });
 test('AI port: nothing is sent without exact one-time consent; key never leaks',async()=>{
  const sent=[];const KEY='sk-test-1234567890';
- const port=createAiPort({provider:'example',endpointHost:'api.example.test',send:async x=>{sent.push(x);if(x.body.task==='fail')throw new Error('bad key '+x.key);return {text:'Managed a team of 12.'};}});
+ const port=createAiPort({provider:'example',endpointHost:'https://api.example.test/',allowedHosts:['api.example.test'],send:async x=>{sent.push(x);if(x.body.task==='fail')throw new Error('bad key '+x.key);return {text:'Managed a team of 12.'};}});
  const req=port.prepare({task:'rewrite',text:'Managed a team of 12.'});
- assert(req.disclosure.willSend.includes('Managed a team of 12.'));assert.equal(req.disclosure.host,'api.example.test');
+ assert(req.disclosure.willSend.includes('Managed a team of 12.'));assert.equal(req.disclosure.host,'https://api.example.test/');
  await assert.rejects(()=>port.execute(req,{}),e=>e.code==='UNCONFIRMED');
  await assert.rejects(()=>port.execute(req,{consent:{acknowledged:true,requestId:'other'}}),e=>e.code==='UNCONFIRMED');
  await assert.rejects(()=>port.execute(req,{consent:{acknowledged:true,requestId:req.id}}),e=>e.code==='UNAVAILABLE','needs a key');
@@ -178,4 +178,34 @@ test('AI port: nothing is sent without exact one-time consent; key never leaks',
  port.clearKey();assert.equal(port.hasKey(),false);
  const s=port.toSuggestion({path:'summary',before:'Managed a team of 12.',after:'Managed a team of 300 at Globex.',sourceText:'Managed a team of 12.'});
  assert.equal(s.unsupportedFact,true);assert.equal(s.status,'proposed');assert.equal(s.source,'ai');
+});
+
+test('approved tailoring cannot sneak invented edited claims into an originally safe summary',()=>{
+ const {job,profile}=setup();
+ const sg={id:'sg-safe-edit',path:'summary',before:profile.master.document.summary,
+  after:'Original approved text',unsupportedFact:false,status:'proposed',
+  operation:{type:'set-summary',text:'Original approved text'}};
+ const r=applyApprovedSuggestions(profile,{job,suggestions:[sg],
+  decisions:{'sg-safe-edit':{status:'approved',after:'Led 999999 people at Fictional Corp'}},
+  expectedRevision:0,now:NOW});
+ assert.equal(r.applied.length,0);assert.match(r.skipped[0].reason,/unsupported-fact/);
+});
+test('forged reorder HTML cannot inject data, and duplicate skills are not silently lost',()=>{
+ const {job,profile}=setup();
+ const d=profile.master.document;const e=d.experience[0];const lines=e.description.match(/<li>/g)||[];
+ const bad={id:'forged-lines',path:'experience[0].description',
+  before:['Managed staff'].join('\n'),after:'Made up',unsupportedFact:false,status:'proposed',
+  operation:{type:'reorder-lines',experienceKey:e.id??0,order:[0],rebuilt:'<li>Led 999999 people</li>'}};
+ const r=applyApprovedSuggestions(profile,{job,suggestions:[bad],decisions:{'forged-lines':'approved'},expectedRevision:0,now:NOW});
+ assert.equal(r.applied.length,0,'stale/forged input should not be accepted');
+ assert(!JSON.stringify(r.profile).includes('999999'));
+});
+test('AI transport refuses insecure, credentialed or unauthorized host configuration',()=>{
+ for(const host of ['http://api.example.test','https://user:pass@api.example.test','https://evil.test/',
+  'https://api.example.test/other','https://127.0.0.1/']){
+  assert.throws(()=>createAiPort({provider:'example',endpointHost:host,
+   allowedHosts:['api.example.test'],send:async()=>({})}),e=>e.code==='INVALID',host);
+ }
+ assert.throws(()=>createAiPort({provider:'example',endpointHost:'https://api.example.test',
+  send:async()=>({})}),e=>e.code==='INVALID');
 });

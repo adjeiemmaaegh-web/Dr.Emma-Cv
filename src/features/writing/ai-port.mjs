@@ -7,8 +7,16 @@
 import {detectUnsupportedClaims} from '../intelligence/claims.mjs';
 import {contractError} from '../../contracts/platform.mjs';
 let n=0;
-export function createAiPort({provider,endpointHost,send}){
- if(!provider||!endpointHost||typeof send!=='function')throw new TypeError('provider, endpointHost and send are required');
+export function createAiPort({provider,endpointHost,allowedHosts,send}){
+ if(!provider||typeof send!=='function'||!Array.isArray(allowedHosts)||!allowedHosts.length)
+  throw contractError('INVALID','Provider, transport and explicit HTTPS host allowlist required');
+ let url;
+ try{url=new URL(endpointHost)}catch{throw contractError('INVALID','AI endpoint must be an absolute HTTPS URL')}
+ const accepted=allowedHosts.every(h=>typeof h==='string'&&/^[a-z0-9.-]+(?::443)?$/i.test(h))&&
+  allowedHosts.some(h=>url.host.toLowerCase()===h.toLowerCase());
+ if(url.protocol!=='https:'||url.username||url.password||url.pathname!=='/'||url.search||url.hash||
+   !accepted||url.hostname==='localhost'||/^(127\\.|10\\.|192\\.168\\.|169\\.254\\.|172\\.(?:1[6-9]|2\\d|3[01])\\.)/.test(url.hostname))
+  throw contractError('INVALID','AI endpoint is not an explicitly permitted public HTTPS host');
  let key=null;const used=new Set(),prepared=new Map();
  const redact=t=>key?String(t).split(key).join('[redacted]'):String(t);
  const api={

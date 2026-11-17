@@ -73,15 +73,42 @@ export function applyApprovedSuggestions(profile,{name='Tailored CV',job,suggest
   const d=decisions?.[sg.id],status=typeof d==='string'?d:d?.status;
   if(status!=='approved'){skipped.push({id:sg.id,reason:status==='rejected'?'rejected':'no decision'});continue;}
   const edited=typeof d==='object'&&typeof d.after==='string'?d.after:null;
-  if(sg.unsupportedFact&&(edited===null||detectUnsupportedClaims(edited,plainText(variant.document)).length)){
-   skipped.push({id:sg.id,reason:'unsupported-fact: edit the text so every number and name comes from your CV'});continue;}
   const op=sg.operation;
-  if(op.type==='set-summary'||edited!==null&&op.type==='set-summary'){doc.summary=edited??op.text;applied.push(sg.id);}
-  else if(op.type==='reorder-skills'){const by=new Map(doc.skills.map(x=>[s(x.name),x]));
-   if(op.order.every(n=>by.has(n))&&op.order.length===doc.skills.length){doc.skills=op.order.map(n=>by.get(n));applied.push(sg.id);}else skipped.push({id:sg.id,reason:'CV changed since suggestion'});}
-  else if(op.type==='reorder-lines'){const e=findExp(doc,op.experienceKey);
-   if(e&&descriptionLines(e.description).length===op.order.length){e.description=op.rebuilt;applied.push(sg.id);}else skipped.push({id:sg.id,reason:'CV changed since suggestion'});}
-  else skipped.push({id:sg.id,reason:'unknown operation'});
+  if(!op||typeof op.type!=='string'){skipped.push({id:sg.id,reason:'unknown operation'});continue;}
+  if(op.type==='set-summary'){
+   // Even proposals that were originally supported become untrusted after
+   // applicant edits. Never rely on a cached unsupportedFact flag.
+   const proposed=edited??op.text;
+   if(typeof proposed!=='string'||sg.before!==s(doc.summary)){
+    skipped.push({id:sg.id,reason:'CV changed since suggestion'});continue;
+   }
+   if((sg.unsupportedFact&&edited===null)||detectUnsupportedClaims(proposed,plainText(variant.document)).length){
+    skipped.push({id:sg.id,reason:'unsupported-fact: verify every new number/name/credential against the CV'});continue;
+   }
+   doc.summary=proposed;applied.push(sg.id);
+  }else if(op.type==='reorder-skills'){
+   const current=doc.skills.map(x=>s(x.name));
+   const counts=new Map();for(const n of current)counts.set(n,(counts.get(n)||0)+1);
+   const valid=Array.isArray(op.order)&&op.order.length===current.length&&
+    sg.before===current.join(', ')&&op.order.every(n=>{
+     const count=counts.get(n)||0;if(count<=0)return false;counts.set(n,count-1);return true;
+    });
+   if(valid){
+    const available=doc.skills.map(x=>({name:s(x.name),record:x,used:false}));
+    doc.skills=op.order.map(n=>{const f=available.find(x=>!x.used&&x.name===n);f.used=true;return f.record;});
+    applied.push(sg.id);
+   }else skipped.push({id:sg.id,reason:'CV changed since suggestion'});
+  }else if(op.type==='reorder-lines'){
+   const e=findExp(doc,op.experienceKey),lines=e?descriptionLines(e.description):[];
+   const original=lines.map(l=>l.text).join('\n');
+   const valid=e&&sg.before===original&&Array.isArray(op.order)&&op.order.length===lines.length&&
+    op.order.every(n=>Number.isInteger(n)&&n>=0&&n<lines.length)&&new Set(op.order).size===lines.length;
+   if(valid){
+    // Rebuild exclusively from the current CV. Never trust a supplied
+    // operation.rebuilt HTML string (which may contain invented claims).
+    e.description=rebuildDescription(lines,op.order);applied.push(sg.id);
+   }else skipped.push({id:sg.id,reason:'CV changed since suggestion'});
+  }else skipped.push({id:sg.id,reason:'unknown operation'});
  }
  const saved=updateCVVariant(withVariant,{variantId:variant.id,document:doc,expectedRevision:withVariant.revision,...(now?{now}:{})});
  return {profile:saved,variantId:variant.id,applied,skipped};
