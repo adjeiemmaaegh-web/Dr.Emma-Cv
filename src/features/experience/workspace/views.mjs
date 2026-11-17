@@ -197,6 +197,7 @@ export function editorView(ctx){
     if(strong&&strong.textContent!==text)strong.textContent=text;
    }
   }
+  quick.sync(snap.document);
   for(const row of form.querySelectorAll('.lw-section-row[data-section-key^="custom:"]')){
    const id=row.dataset.sectionKey.slice('custom:'.length);
    const item=snap.document.customSections.find(x=>x.id===id);
