@@ -183,3 +183,35 @@ test('numeric requirements cite the matching figure but never claim a person is 
  assert.equal(result.status,'partial');
  assert.match(result.scopes[0].note,/not proof|context/i);
 });
+
+
+test('explicit OR skills are alternatives rather than simultaneous compulsory requirements',()=>{
+ const d=withRole('<ul><li>Used Python to automate monthly reports.</li></ul>');
+ d.skills=[];
+ const j=job(role('Experience with Python or SQL'));
+ const skills=analyzeJobSkills(j,d);
+ const py=skills.items.find(x=>x.skill==='Python');
+ const sql=skills.items.find(x=>x.skill==='SQL');
+ assert.equal(py.status,'described');
+ assert.equal(sql.status,'alternative-covered');
+ assert.equal(skills.summary.requiredMissing,0);
+ assert.equal(skills.alternatives.length,1);
+ const review=analyzeResumeReadiness({...ctx(d),job:j});
+ assert.equal(issues(review,'skill-sql').length,0,'must not urge adding unnecessary skill');
+});
+test('a missing OR pair counts as one uncovered alternative requirement',()=>{
+ const d=withRole('<ul><li>Trained staff on safety procedures.</li></ul>');
+ d.skills=[];
+ const skills=analyzeJobSkills(job(role('Python or SQL')),d);
+ assert.equal(skills.items.filter(x=>x.status==='not-found').length,2);
+ assert.equal(skills.summary.requiredMissing,1);
+ assert.equal(skills.alternatives.length,1);
+});
+test('explicit AND skills remain separate required competencies',()=>{
+ const d=withRole('<ul><li>Used Python to automate monthly reports.</li></ul>');
+ d.skills=[];
+ const skills=analyzeJobSkills(job(role('Python and SQL')),d);
+ assert.equal(skills.alternatives.length,0);
+ assert.equal(skills.items.find(x=>x.skill==='SQL').status,'not-found');
+ assert.equal(skills.summary.requiredMissing,1);
+});
