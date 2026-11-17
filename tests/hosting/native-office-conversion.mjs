@@ -44,7 +44,7 @@ try{
    const content=await page.getTextContent();
    parts.push(content.items.map(i=>i.str||'').join(' '));
   }
- }finally{await pages.destroy();}
+ }finally{await pages?.cleanup?.();await task?.destroy?.();}
  const flattened=parts.join(' ').replace(/\s+/g,' ');
  for(const term of ['Ada Example','Acme Retail','Bolt Stores','Publications'])
   assert(flattened.includes(term),'LibreOffice PDF lost text '+term);
