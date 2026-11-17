@@ -1,0 +1,56 @@
+name: CV import and consented LinkedIn cross-browser release gate (NO DEPLOY)
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/features/import/**'
+      - 'src/features/linkedin-coach/**'
+      - 'src/features/documents/zip.mjs'
+      - 'src/features/experience/workspace/**'
+      - 'tools/build-workspace-vercel.mjs'
+      - 'tests/documents/**'
+      - 'tests/career/**'
+      - 'tests/hosting/cv-import-cross-browser.mjs'
+      - '.github/workflows/cv-import-cross-browser.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  import-cross-browser:
+    name: Local CV and LinkedIn imports — ${{ matrix.browser }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chromium, firefox, webkit]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install build-only PDF.js and test browser
+        run: npm install --no-save --ignore-scripts --no-audit --no-fund playwright@1.57.0
+      - name: Validate source modules and local golden reconstruction corpus
+        run: |
+          node --check src/features/import/local-file.mjs
+          node --check src/features/experience/workspace/cv-import-panel.mjs
+          node --check src/features/experience/workspace/career-journey-view.mjs
+          node --test tests/documents/import-corpus.test.mjs tests/documents/import-fidelity.test.mjs tests/career/linkedin-depth.test.mjs
+      - name: Build real offline-first hosted workspace and verify frozen legacy
+        run: |
+          npm run build
+          npm run audit:hosted
+      - name: Install test browser with system libraries
+        run: npx playwright install --with-deps ${{ matrix.browser }}
+      - name: Exercise no-upload, human-consented import in the real browser
+        run: node tests/hosting/cv-import-cross-browser.mjs ${{ matrix.browser }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cv-import-cross-browser-${{ matrix.browser }}-evidence
+          path: |
+            site/site-integrity.json
+            site/legacy/site-integrity.json
+          retention-days: 14
+          if-no-files-found: ignore
