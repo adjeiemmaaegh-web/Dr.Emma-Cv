@@ -1,5 +1,7 @@
 // Test the final site/ output itself over a browser origin, not source URLs.
 import assert from 'node:assert/strict';
+import {renderDocumentArtifact} from '../../src/features/export/export-service.mjs';
+import {SYNTH_DOC} from '../documents/fixtures.mjs';
 import fs from 'node:fs';import path from 'node:path';import http from 'node:http';
 import {createRequire} from 'node:module';import {fileURLToPath} from 'node:url';
 const require=createRequire(import.meta.url),{chromium}=require('playwright');
@@ -27,6 +29,23 @@ try{
  await page.goto(origin+'/');
  try{await page.getByRole('link',{name:'Career tools'}).waitFor({timeout:15000});}
  catch(e){throw new Error('Workspace navigation did not mount: '+e.message+'; pageErrors='+JSON.stringify(errors)+'; missing='+JSON.stringify(missing)+'; remote='+JSON.stringify(remote));}
+
+ // Real local selectable-PDF import through the exact built PDF.js/worker assets.
+ const samplePdf=renderDocumentArtifact({id:'importPDFfixture',name:'PDF',revision:0,
+  document:SYNTH_DOC(),appearance:{template:'modern'}},'pdf').bytes;
+ await page.getByLabel('Select existing CV PDF DOCX TXT or HTML').setInputFiles({
+  name:'existing-cv.pdf',mimeType:'application/pdf',buffer:Buffer.from(samplePdf)
+ });
+ await page.getByRole('button',{name:'Extract selected CV for review'}).click();
+ await page.waitForFunction(()=>document.body.textContent.includes('Extracted locally.')||
+  document.body.textContent.includes('Import is blocked')||
+  document.body.textContent.includes('Not completed:'),null,{timeout:20000});
+ assert(!((await page.locator('section[aria-label="Import an existing CV"] [role="status"]').innerText()).includes('Not completed:')),
+  'Bundled PDF extraction must actually work in the hosted app');
+ const pdfText=await page.getByLabel('Original extracted CV text for comparison').inputValue();
+ assert.match(pdfText,/Acme Retail|Operations Manager/,'Selectable PDF must yield actual CV content');
+ assert((await page.locator('section[aria-label="Import an existing CV"]').innerText()).includes('Source text'));
+
  assert.equal(await page.locator('nav[aria-label="Main"] a').count(),6);
  assert.match(await page.title(),/Ledger CV Studio/);
  await page.getByRole('link',{name:'Career tools'}).click();
