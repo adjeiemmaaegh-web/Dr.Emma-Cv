@@ -46,8 +46,8 @@ try{
   }
  }finally{await pages.destroy();}
  const flattened=parts.join(' ').replace(/\s+/g,' ');
- for(const term of ['Ada Example','Acme Retail','Bolt Stores','Publications','Warehouse'])
-  if(term==='Warehouse')continue;else assert(flattened.includes(term),'LibreOffice PDF lost text '+term);
+ for(const term of ['Ada Example','Acme Retail','Bolt Stores','Publications'])
+  assert(flattened.includes(term),'LibreOffice PDF lost text '+term);
  console.log('PASS native LibreOffice DOCX opening and PDF text fidelity',{
   convertedBytes:data.byteLength,pages:parts.length,sourceDocxBytes:artifact.bytes.length,
   note:'Synthetic nonpersonal fixture; Microsoft Word visual acceptance still open'
