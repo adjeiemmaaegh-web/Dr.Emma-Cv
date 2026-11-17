@@ -122,7 +122,8 @@ try{
  await page.reload();
  await page.waitForFunction(()=>!!navigator.serviceWorker.controller);
  await context.setOffline(true);
- await page.goto(origin+'/#/home',{waitUntil:'domcontentloaded'});
+ // Offline hard reload of the already-open app origin; a hash change is not a network test.
+ await page.reload({waitUntil:'domcontentloaded'});
  await page.getByRole('link',{name:'Career tools'}).waitFor();
  await page.getByRole('link',{name:'Career tools'}).click();
  await page.waitForFunction(()=>document.querySelector('.lw-career')?.textContent.includes('Example Stores'));
