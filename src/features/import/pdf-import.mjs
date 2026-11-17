@@ -54,21 +54,19 @@ export async function pdfToImportText(bytes,{getDocument,ocrPage,allowOcr=false,
     throw contractError('INVALID','PDF text layer exceeds per-page limits');
    let extracted=sourceLines(content.items).join('\n'),method='selectable-text',confidence=null;
    if(hasLayoutAmbiguity(content.items))warnings.push('Page '+pageNumber+' has ambiguous multi-column or out-of-order content; compare it with the original PDF.');
-   if(!extracted.trim()){
-    warnings.push('Page '+pageNumber+' has no selectable text. It may require offline OCR.');
+   // A scanned PDF may still expose only a small page-number overlay. Offer
+   // optional trained OCR for both blank and suspiciously sparse text layers.
+   const sparse=!!extracted.trim()&&extracted.replace(/\s/g,'').length<PDF_IMPORT_LIMITS.minUsefulCharacters;
+   if(sparse)warnings.push('Page '+pageNumber+' has only a sparse text layer and may hide image-only CV content.');
+   if(!extracted.trim()||sparse){
+    if(!extracted.trim())warnings.push('Page '+pageNumber+' has no selectable text. It may require offline OCR.');
     if(allowOcr&&typeof ocrPage==='function'){
      const result=await ocrPage({page,pageNumber});
      extracted=text(result?.text).trim();confidence=Number.isFinite(result?.confidence)?result.confidence:null;
-     method=extracted?'opt-in-offline-ocr':'no-text';
-     warnings.push('Page '+pageNumber+' OCR needs human verification'+(confidence===null?' (confidence not supplied).':'; reported confidence '+confidence+'.'));
-    }else method='no-text';
-   }
-   // A scanned CV can contain a tiny selectable page-number overlay while the
-   // substantive qualifications are raster images. Do not mark that page as
-   // faithfully extracted merely because its text layer is nonempty.
-   if(extracted.trim()&&extracted.replace(/\s/g,'').length<PDF_IMPORT_LIMITS.minUsefulCharacters){
-    warnings.push('Page '+pageNumber+' has only a sparse text layer. It might hide an image-only CV page; manually transcribe the complete page or supply verified local OCR.');
-    method='sparse-text';
+     method=extracted.replace(/\s/g,'').length>=PDF_IMPORT_LIMITS.minUsefulCharacters?
+      'opt-in-offline-ocr':sparse?'sparse-text':'no-text';
+     warnings.push('Page '+pageNumber+' used user-authorized English OCR, NOT independently verified; compare all CV facts with the original PDF.');
+    }else method=sparse?'sparse-text':'no-text';
    }
    totalChars+=extracted.length;
    lines+=extracted.split('\n').length;
