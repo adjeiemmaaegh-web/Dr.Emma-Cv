@@ -7,7 +7,7 @@ import {createFeatureRegistry} from '/src/core/feature-registry.mjs';
 import {editorFeature} from '/src/features/editor/editor-module.mjs';
 import {SYNTH_DOC} from '/tests/documents/fixtures.mjs';
 const reg=createFeatureRegistry();reg.register(editorFeature);
-await reg.mount('cv-editor',{host:{element:document.getElementById('app')},services:{documentSource:{load:()=>({document:SYNTH_DOC(),appearance:{}}),save:async()=>{}}}});
+await reg.mount('cv-editor',{host:document.getElementById('app'),services:{documentSource:{load:()=>({document:SYNTH_DOC(),appearance:{}}),save:async()=>{}}}});
 window.ready=true;`);
 const {port,close}=serve({'/':page_html});
 const browser=await chromium.launch();let failed=false;
