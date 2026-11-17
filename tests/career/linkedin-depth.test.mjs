@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {zipStore,utf8} from '../../src/features/documents/zip.mjs';
-import {fromOfficialExport,fromOfficialZip,compareLinkedInDetails,linkedinActionPlan,coachLinkedIn} from '../../src/features/linkedin-coach/linkedin.mjs';
+import {fromOfficialExport,fromOfficialZip,fromPastedText,compareLinkedInDetails,compareWithCv,linkedinActionPlan,coachLinkedIn} from '../../src/features/linkedin-coach/linkedin.mjs';
 import {linkedinToCvReview} from '../../src/features/linkedin-coach/to-cv.mjs';
 import {approveImportReview} from '../../src/features/import/text-import.mjs';
 const doc=()=>({
@@ -96,4 +96,46 @@ test('repeated employers are matched by role rather than export ordering in ever
  assert(!result.findings.some(x=>x.kind==='title-differs'||x.kind==='start-differs'),
   JSON.stringify(result.findings.filter(x=>x.kind==='title-differs'||x.kind==='start-differs')));
  assert(result.findings.some(x=>x.kind==='end-differs'&&x.citations[0].includes('roleABC2')));
+});
+
+test('ambiguous same-employer roles are not forcibly matched or reported as absent',()=>{
+ const linkedin={source:'official-export',headline:'',about:'',coverage:{positions:true,skills:false,education:false,certifications:false,projects:false},
+  positions:[{title:'Shift Coordinator',company:'Atlas Retail',start:'',end:''}]};
+ const findings=compareWithCv(linkedin,doc());
+ assert(findings.some(x=>x.kind==='role-ambiguous'),JSON.stringify(findings));
+ assert(!findings.some(x=>x.kind==='title-differs'||x.kind==='cv-only'||x.kind==='linkedin-only'),
+  'ambiguity must not create fabricated role mismatch or absence');
+});
+test('month dates produce specific differences without inventing month for year-only dates',()=>{
+ const cv=doc();cv.experience=[{...cv.experience[0],start:'Feb 2018',end:'Nov 2020'}];
+ const linkedin={source:'pasted',coverage:{positions:true},positions:[{title:'Store Manager',company:'Atlas Retail',
+  start:'Jan 2018',end:'Oct 2020',description:''}]};
+ const c=coachLinkedIn(linkedin,cv);
+ assert(c.findings.some(x=>x.kind==='start-month-differs'));
+ assert(c.findings.some(x=>x.kind==='end-month-differs'));
+ linkedin.positions[0].start='2018';linkedin.positions[0].end='2020';
+ const yearly=coachLinkedIn(linkedin,cv);
+ assert(!yearly.findings.some(x=>/month-differs/.test(x.kind)));
+});
+test('partial paste text does not manufacture missing positions or skills comparisons',()=>{
+ const li=fromPastedText('Retail Operations\nAbout\nResponsible for busy retail stores.');
+ assert.equal(li.coverage.positions,false);
+ assert.equal(li.coverage.skills,false);
+ const result=coachLinkedIn(li,doc());
+ assert(!result.findings.some(f=>f.kind==='cv-only'||f.kind==='skill-cv-only'));
+ const withSkills=fromPastedText('Retail Operations\nSkills\nScheduling\n• Customer service\nExperience\n');
+ assert.equal(withSkills.coverage.skills,true);
+ assert.deepEqual(withSkills.skills,['Scheduling','Customer service']);
+});
+test('education dates, certifications and project differences are surfaced with provenance',()=>{
+ const linkedin=fromOfficialExport(rows),cv=doc();
+ const issues=compareLinkedInDetails(linkedin,cv);
+ assert(issues.some(x=>x.kind==='certification-linkedin-only'));
+ assert(issues.some(x=>x.kind==='project-linkedin-only'));
+ linkedin.education[0].start='2012';
+ cv.education[0].start='2011';
+ assert(compareLinkedInDetails(linkedin,cv).some(x=>x.kind==='education-start-differs'));
+});
+test('duplicate important CSV columns are rejected rather than silently discarding a value',()=>{
+ assert.throws(()=>fromOfficialExport({profileCsv:'Headline,Headline,Summary\none,two,some\n'}),e=>e.code==='INVALID');
 });
