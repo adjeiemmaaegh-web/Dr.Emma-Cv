@@ -60,6 +60,8 @@ jobs:
         run: python tests/platform/platform_browser.py
       - name: New persistent workspace origin two-tab and migration test
         run: node tests/platform/workspace-browser.mjs
+      - name: Actual offline service-worker update consent and restart
+        run: node tests/platform/sw-browser.mjs
       - name: Group E responsive five-view UI and accessibility
         run: node tests/experience/workspace-browser.mjs
       - name: Group E onboarding and PWA accessibility
