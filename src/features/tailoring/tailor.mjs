@@ -5,7 +5,7 @@
 import {descriptionLines,documentUnits,plainText,stems} from '../intelligence/text.mjs';
 import {detectUnsupportedClaims} from '../intelligence/claims.mjs';
 import {requirementTerms} from '../job-match/compare.mjs';
-import {createCVVariant,updateCVVariant} from '../../domain/profile/career-profile.mjs';
+import {createCVVariant,updateCVVariant,validateCareerProfile} from '../../domain/profile/career-profile.mjs';
 import {contractError} from '../../contracts/platform.mjs';
 const s=v=>typeof v==='string'?v.trim():'';
 const esc=t=>t.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -111,6 +111,11 @@ export function applyApprovedSuggestions(profile,{name='Tailored CV',job,suggest
   }else skipped.push({id:sg.id,reason:'unknown operation'});
  }
  const saved=updateCVVariant(withVariant,{variantId:variant.id,document:doc,expectedRevision:withVariant.revision,...(now?{now}:{})});
+ // Creation plus approved tailoring is ONE atomic profile command, not two
+ // separate repository writes. Preserve the edited variant revision but bump
+ // the aggregate CAS counter exactly once for LocalRepositoryPort.save().
+ saved.revision=withVariant.revision;
+ validateCareerProfile(saved);
  return {profile:saved,variantId:variant.id,applied,skipped};
 }
 const isSafeJobId=v=>typeof v==='string'&&/^[A-Za-z][A-Za-z0-9_-]{5,79}$/.test(v);

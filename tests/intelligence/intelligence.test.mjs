@@ -209,3 +209,15 @@ test('AI transport refuses insecure, credentialed or unauthorized host configura
  assert.throws(()=>createAiPort({provider:'example',endpointHost:'https://api.example.test',
   send:async()=>({})}),e=>e.code==='INVALID');
 });
+
+test('one approved tailoring command advances the profile repository CAS revision only once',async()=>{
+ const {job,profile,suggestions}=setup();
+ const {createMemoryRevisionStore}=await import('../../src/domain/storage/revision-store.mjs');
+ const repository=createMemoryRevisionStore();
+ await repository.save(profile.id,profile,null);
+ const changed=applyApprovedSuggestions(profile,{job,suggestions,decisions:{},expectedRevision:0,now:NOW});
+ assert.equal(changed.profile.revision,1,'one atomic command must have one aggregate revision');
+ const saved=await repository.save(profile.id,changed.profile,0);
+ assert.equal(saved.revision,1);
+ assert.equal(saved.value.variants.length,1);
+});
