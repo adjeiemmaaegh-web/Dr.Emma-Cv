@@ -136,13 +136,17 @@ export function approveImportReview(review,{accepted,confirmed=false,idFactory,n
   else if(it.path.startsWith('personalInfo.'))personal[it.path.split('.')[1]]=src.personalInfo[it.path.split('.')[1]];
   else if(['summary','hobbies','references'].includes(it.path))doc[it.path]=src[it.path];
   else if(['skills','certifications','languages','projects','accomplishments'].includes(it.path))doc[it.path]=cloneData(src[it.path]);
-  else{const m=it.path.match(/^(experience|education)\[(\d+)\]$/);if(m)doc[m[1]].push(cloneData(src[m[1]][+m[2]]));}
+  else{const m=it.path.match(/^(experience|education)\[(\d+)\]$/);if(m){const revised=cloneData(src[m[1]][+m[2]]);doc[m[1]].push(revised);keep[keep.length-1]={...it,approvedValue:revised};}}
  }
  doc.personalInfo=personal;
  const profile=createCareerProfile({displayName:review.proposed.name,document:doc,now,...(idFactory?{idFactory}:{})});
  const mkId=idFactory||(()=> 'ledger_'+globalThis.crypto.randomUUID().replace(/-/g,''));
- profile.evidence=keep.filter(i=>i.path.startsWith('experience')||i.path.startsWith('education')).map(i=>({
-  id:mkId(),source:'document',claim:(i.value.title||i.value.degree||'Entry')+' '+(i.value.employer||i.value.school||'')+' ('+(i.value.start||'?')+')',
-  sourceRef:i.sourceRef||(review.sourceName||'import')+':line '+i.sourceLine,path:i.path,capturedAt:now,verifiedByUser:false}));
+ profile.evidence=keep.filter(i=>i.approvedValue).map(i=>{
+  const v=i.approvedValue;
+  return {id:mkId(),source:'document',
+   claim:(v.title||v.degree||'Entry')+' '+(v.employer||v.school||'')+' ('+(v.start||'?')+')',
+   sourceRef:i.sourceRef||(review.sourceName||'import')+':line '+i.sourceLine,
+   path:i.path,capturedAt:now,verifiedByUser:false};
+ });
  return profile;
 }
