@@ -20,7 +20,7 @@ const textField=(label,value,change,{multiline=false}={})=>{
  input.addEventListener('input',()=>change(input.value));
  return el('label',{class:'lw-field'},el('span',{},label),input);
 };
-function itemEditors(item,doc){
+export function reviewFieldEditors(item,doc){
  const path=item.path,parts=[];
  if(path==='personalInfo.name'){
   parts.push(textField('First name — check spelling',doc.personalInfo.firstName,v=>{doc.personalInfo.firstName=v;}));
@@ -35,7 +35,7 @@ function itemEditors(item,doc){
   if(m){
    const itemDoc=doc[m[1]][Number(m[2])];
    for(const key of m[1]==='experience'?['title','employer','location','start','end']:['degree','school','start','end']){
-    parts.push(textField(key,itemDoc[key],v=>{itemDoc[key]=v;}));
+    parts.push(textField(key,itemDoc[key],v=>{itemDoc[key]=v;if(key==='end'&&m[1]==='experience')itemDoc.current=!v.trim()&&!!String(itemDoc.start||'').trim();}));
    }
    parts.push(textField('Description / evidence — edit only if source is wrong',fromHtml(itemDoc.description),v=>{itemDoc.description=toParagraphs(v);},{multiline:true}));
   }else if(['skills','languages','certifications','projects','accomplishments'].includes(path)){
@@ -66,6 +66,7 @@ export function createWorkspaceCvImportPanel(ctx){
   loading=true;reset();
   try{
    const r=await createLocalFileImportReview(f);
+   if(f!==picker.files?.[0])throw Error('The selected file changed during extraction. Choose the file again.');
    current=r;sourceFile=f;
    if(r.format==='pdf')sourceUrl=URL.createObjectURL(f);
    tell(r.status==='blocked'?'Import is blocked; inspect the extraction warnings and use a complete readable source.':
@@ -84,7 +85,7 @@ export function createWorkspaceCvImportPanel(ctx){
   if(candidate&&review.status==='review-required'){
    for(const it of review.items){
     const control=el('input',{type:'checkbox','aria-label':'Accept imported '+it.path});
-    const editors=itemEditors(it,candidate);
+    const editors=reviewFieldEditors(it,candidate);
     choices.push({path:it.path,control});
     editable.append(el('details',{class:'lw-sec'},el('summary',{},
      control,title(' '+it.path+(it.uncertain?' — uncertain':'')+
