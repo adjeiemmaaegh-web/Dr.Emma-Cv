@@ -5,7 +5,7 @@
  */
 import {parseResumeText,createImportReview,IMPORT_LIMITS} from './text-import.mjs';
 import {contractError} from '../../contracts/platform.mjs';
-export const PDF_IMPORT_LIMITS=Object.freeze({maxBytes:24*1024*1024,maxPages:40,maxItemsPerPage:60000});
+export const PDF_IMPORT_LIMITS=Object.freeze({maxBytes:24*1024*1024,maxPages:40,maxItemsPerPage:60000,minUsefulCharacters:16});
 
 const text=v=>typeof v==='string'?v:'';
 const checkBytes=bytes=>{
@@ -63,6 +63,13 @@ export async function pdfToImportText(bytes,{getDocument,ocrPage,allowOcr=false,
      warnings.push('Page '+pageNumber+' OCR needs human verification'+(confidence===null?' (confidence not supplied).':'; reported confidence '+confidence+'.'));
     }else method='no-text';
    }
+   // A scanned CV can contain a tiny selectable page-number overlay while the
+   // substantive qualifications are raster images. Do not mark that page as
+   // faithfully extracted merely because its text layer is nonempty.
+   if(extracted.trim()&&extracted.replace(/\s/g,'').length<PDF_IMPORT_LIMITS.minUsefulCharacters){
+    warnings.push('Page '+pageNumber+' has only a sparse text layer. It might hide an image-only CV page; manually transcribe the complete page or supply verified local OCR.');
+    method='sparse-text';
+   }
    totalChars+=extracted.length;
    lines+=extracted.split('\n').length;
    if(totalChars>IMPORT_LIMITS.maxChars||lines>IMPORT_LIMITS.maxLines)
@@ -74,8 +81,8 @@ export async function pdfToImportText(bytes,{getDocument,ocrPage,allowOcr=false,
   }
   const sourceText=pages.map(p=>p.text).join('\n').trim();
   if(!sourceText)warnings.push('No PDF text was recoverable. Nothing can be imported without a local OCR review.');
-  const missingPages=pages.filter(p=>!p.text.trim()).map(p=>p.page);
-  if(missingPages.length)warnings.push('Import blocked: PDF page(s) '+missingPages.join(', ')+' had no recoverable text; importing the partial CV would lose information.');
+  const missingPages=pages.filter(p=>!p.text.trim()||p.method==='sparse-text').map(p=>p.page);
+  if(missingPages.length)warnings.push('Import blocked: PDF page(s) '+missingPages.join(', ')+' had missing or suspiciously sparse text; importing the partial CV could lose information.');
   return {text:sourceText,pages,warnings,missingPages,complete:missingPages.length===0,requiresUserConfirmation:true};
  }finally{
   await pdf?.destroy?.();
