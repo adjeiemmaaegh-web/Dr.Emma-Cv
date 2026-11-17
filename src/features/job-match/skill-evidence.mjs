@@ -63,6 +63,7 @@ export const SKILL_TAXONOMY=Object.freeze(DEFINITIONS.map(([kind,name,aliases])=
 })));
 const rxEscape=s=>s.replace(/[.*+?^$\x7b\x7d()|[\]\\]/g,'\\$&');
 const boundary=alias=>new RegExp('(^|[^a-z0-9])('+rxEscape(alias).replace(/\s+/g,'\\s+')+')(?![a-z0-9])','gi');
+const NOT_REQUIRED=/^\s+(?:(?:is|are)\s+)?(?:not\s+(?:required|used|needed|expected)|no\s+longer\s+used)\b/i;
 /* Suppress explicitly negative/learning clauses; preserve positive claims after but/however. */
 const NEGATED=/\b(?:no\s+(?:hands-on\s+)?(?:experience|knowledge)\s+(?:with|in|of)|not\s+(?:proficient|experienced|familiar)\s+(?:with|in)|do\s+not\s+(?:know|use)|have\s+not\s+(?:used|worked\s+with)|never\s+(?:used|worked\s+with)|without\s+(?:using|knowledge\s+of|experience\s+with)?|lack(?:ing)?\s+(?:experience|knowledge)\s+(?:with|of|in)?|learning|currently\s+learning|studying|want\s+to\s+learn|need\s+to\s+learn|plan\s+to\s+learn|interested\s+in\s+learning)\b[^.;!?\n]*?(?=\s+\b(?:but|however|although)\b|[.;!?\n]|$)/gi;
 export function positiveEvidenceText(text){
@@ -74,8 +75,10 @@ export function findPositiveMention(text,aliases){
  const safe=positiveEvidenceText(text);
  for(const alias of [...aliases].sort((a,b)=>b.length-a.length)){
   if(typeof alias!=='string'||alias.length<2)continue;
-  const m=boundary(alias).exec(safe);
-  if(m)return {term:m[2],index:m.index+m[1].length};
+  for(const m of safe.matchAll(boundary(alias))){
+   const after=safe.slice(m.index+m[0].length);
+   if(!NOT_REQUIRED.test(after))return {term:m[2],index:m.index+m[1].length};
+  }
  }
  return null;
 }
