@@ -76,7 +76,7 @@ try{
  await page.waitForFunction(()=>document.querySelector('section[aria-label="Import an existing CV"] [role="status"]')?.textContent.includes('Extracted locally'));
  assert.match(await importPanel.getByLabel('Original extracted CV text for comparison').inputValue(),/Acme/);
  await importPanel.getByLabel('Accept imported experience[0]').check();
- const rolePanel=importPanel.locator('details').filter({has:importPanel.getByLabel('Accept imported experience[0]')});
+ const rolePanel=importPanel.locator('details').filter({has:page.locator('input[aria-label="Accept imported experience[0]"]')});
  await rolePanel.evaluate(n=>{n.open=true});
  await rolePanel.getByLabel('title',{exact:true}).fill('Retail Excellence Lead');
  page.once('dialog',d=>d.accept());
