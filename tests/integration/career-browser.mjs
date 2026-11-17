@@ -57,9 +57,11 @@ try{
  await page.waitForFunction(()=>location.hash==='#/editor');
  const importedId=await page.evaluate(()=>localStorage.getItem('ledger_workspace_active_profile_v1'));
  assert(importedId&&importedId!==originalId,'a new local profile must be created, not an overwrite');
- assert.match(await page.locator('.lw-editor').innerText(),/Store Director/);
+ await page.locator('details[data-sec="experience"] summary').click();
+ assert.match(await page.locator('details[data-sec="experience"]').innerText(),/Store Director/);
  await page.reload();await page.getByRole('link',{name:'Edit'}).click();
- assert.match(await page.locator('.lw-editor').innerText(),/New Store/,'approved LinkedIn fields must survive a real browser restart');
+ await page.locator('details[data-sec="experience"] summary').click();
+ assert.match(await page.locator('details[data-sec="experience"]').innerText(),/New Store/,'approved LinkedIn fields must survive a real browser restart');
 
  assert.deepEqual(errors,[]);assert.deepEqual(external,[],'no external requests');
  console.log('PASS real persisted A-D career journey vacancy, letter, interview, LinkedIn and application linking');
