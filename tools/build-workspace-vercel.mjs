@@ -97,7 +97,10 @@ assert(publicShell.includes('/src/features/experience/workspace/workspace.mjs'))
 assert(publicShell.includes('/src/domain/storage/career-journey-store.mjs'));
 const swTemplate=fs.readFileSync(at('hosting/sw.workspace.template.js'),'utf8');
 assert(swTemplate.includes('WORKSPACE_CACHE_KEY')&&swTemplate.includes('WORKSPACE_PUBLIC_ASSETS'));
-const cache='ledger-workspace-'+sha(rootHtml).slice(0,14);
+// Include every actual public asset in the offline cache identity, not merely the
+// unchanged HTML shell. Otherwise a newer importer/PDF worker can be served stale.
+const assetHashes=publicShell.filter(u=>u!=='/').map(u=>[u,sha(fs.readFileSync(path.join(target,u.slice(1))))]);
+const cache='ledger-workspace-'+sha(JSON.stringify(assetHashes)).slice(0,14);
 const sw=swTemplate.replaceAll('WORKSPACE_CACHE_KEY',cache)
  .replace('WORKSPACE_PUBLIC_ASSETS',JSON.stringify(publicShell));
 fs.writeFileSync(path.join(target,'sw.js'),sw);
