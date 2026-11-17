@@ -135,10 +135,11 @@ export function fieldAtPath(ed,path,doc=ed.snapshot().document){
  * Its inputs are NOT rerendered on keystrokes, preserving focus and selection while preview updates.
  */
 export function quickEditOnPage(host,ed,ctx){
- let panel=null;const close=()=>{panel?.remove();panel=null};
+ let panel=null,activePath=null,controls=[];
+ const close=()=>{panel?.remove();panel=null;activePath=null;controls=[]};
  function open(path,anchor){
   const field=fieldAtPath(ed,path);if(!field){close();return}
-  close();
+  close();activePath=path;
   const fields=field.fields||[field];
   panel=el('div',{class:'lw-inline-editor',role:'group','aria-label':'Edit text directly on CV'},
    el('strong',{},'Edit '+field.label));
@@ -149,7 +150,7 @@ export function quickEditOnPage(host,ed,ctx){
    control.value=item.value??'';
    control.setAttribute('aria-label','Edit '+item.label);
    control.addEventListener('input',()=>safe(ctx,()=>item.update(control.value)));
-   panel.append(label(item.label,control));
+   panel.append(label(item.label,control));controls.push(control);
    first??=control;
   }
   panel.append(el('button',{type:'button',class:'lw-btn sm primary',on:{click:()=>{close();host.focus()}}},'Done'));
@@ -161,5 +162,14 @@ export function quickEditOnPage(host,ed,ctx){
   panel.addEventListener('keydown',e=>{if(e.key==='Escape'){e.preventDefault();close();host.focus()}});
   host.append(panel);first?.focus();first?.select?.();
  }
- return {open,close,destroy:close};
+ function sync(doc){
+  if(!panel||!activePath)return;
+  const state=fieldAtPath(ed,activePath,doc),next=state?.fields||[state];
+  if(!state||next.length!==controls.length){close();return}
+  next.forEach((item,i)=>{
+   if(item&&controls[i]&&document.activeElement!==controls[i]&&controls[i].value!==(item.value??''))
+    controls[i].value=item.value??'';
+  });
+ }
+ return {open,close,sync,destroy:close};
 }
