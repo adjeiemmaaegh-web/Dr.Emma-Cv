@@ -1,0 +1,38 @@
+name: Native Office DOCX compatibility release evidence (NO DEPLOY)
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/features/documents/**'
+      - 'src/features/import/**'
+      - 'src/features/export/**'
+      - 'src/features/templates/**'
+      - 'src/features/experience/workspace/cv-import-panel.mjs'
+      - 'tests/hosting/native-office-conversion.mjs'
+      - 'tests/documents/**'
+      - '.github/workflows/cv-native-office.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  native-office-conversion:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install pinned renderer for local PDF verification
+        run: npm install --no-save --ignore-scripts --no-audit --no-fund
+      - name: Ensure native LibreOffice Writer is available
+        run: |
+          if ! command -v libreoffice >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y --no-install-recommends libreoffice-writer
+          fi
+          libreoffice --version
+      - name: Verify generated DOCX opens in a native Office engine with retained content
+        run: node tests/hosting/native-office-conversion.mjs
+      - name: Re-run local review corpus without private CV data
+        run: node --test tests/documents/import-corpus.test.mjs tests/documents/import-fidelity.test.mjs
