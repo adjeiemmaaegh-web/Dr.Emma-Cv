@@ -1,7 +1,7 @@
 /** Fine-grained visual controls and on-document editing for the workspace. */
-import {el,icon} from './ui.mjs';
+import {el,icon,download} from './ui.mjs';
 import {SECTION_KEYS,NUMERIC_OPTIONS,OPTIONS,resolveStyle} from '../../templates/registry.mjs';
-import {readDesigns,saveDesign,removeDesign} from '../../templates/design-library.mjs';
+import {readDesigns,saveDesign,removeDesign,exportDesigns,previewDesignImport,importDesigns} from '../../templates/design-library.mjs';
 import {htmlToLines} from '../../documents/layout.mjs';
 const NAMES={summary:'Summary',experience:'Experience',education:'Education',skills:'Skills',certifications:'Certifications',languages:'Languages',projects:'Projects',accomplishments:'Accomplishments',hobbies:'Interests',references:'References'};
 const PRECISION=[['Body size','bodySize',0.5,' pt'],['Line height','leading',0.05,'×'],['Section spacing','sectionGap',1,' pt'],['Page margin','marginSize',2,' pt'],
@@ -72,7 +72,26 @@ export function savedDesignGallery(ctx,storage=globalThis.localStorage){
    el('button',{type:'button',class:'lw-btn sm',on:{click:()=>safe(ctx,()=>{ctx.store.editor.replaceAppearance(d.appearance);ctx.toast('Applied “'+d.name+'”. Undo restores the previous look.');ctx.go('#/editor');})}},'Apply'),
    el('button',{type:'button',class:'lw-btn sm ghost danger','aria-label':'Delete '+d.name,on:{click:()=>{if(!confirm('Delete design “'+d.name+'”? CV content stays unchanged.'))return;safe(ctx,()=>{removeDesign(storage,d.id);draw()});}}},'Delete')));
  }
- root.append(el('h2',{},'My saved designs'),el('p',{class:'lw-help'},'Reuse appearance presets on this device without copying personal CV content.'),list);draw();return root;
+ const file=el('input',{type:'file',accept:'.json,application/json','aria-label':'Import saved designs JSON',on:{change:async e=>{
+  const selected=e.target.files?.[0];if(!selected)return;
+  try{
+   if(selected.size>128000)throw Error('Design export is too large (128 KB maximum)');
+   const json=await selected.text(),preview=previewDesignImport(json);
+   if(!confirm('Import '+preview.count+' reviewed appearance preset'+(preview.count===1?'':'s')+'? Existing designs will not be overwritten.'))return;
+   importDesigns(storage,json,{confirmed:true});
+   draw();ctx.toast('Imported '+preview.count+' appearance preset'+(preview.count===1?'':'s')+'.');
+  }catch(error){ctx.toast('Import blocked: '+(error?.message||'invalid file'))}
+  finally{e.target.value=''}
+ }}});
+ const actions=el('div',{class:'lw-design-library-actions'},
+  el('button',{type:'button',class:'lw-btn sm',on:{click:()=>safe(ctx,()=>{
+   if(!readDesigns(storage).length)throw Error('Save a design before exporting');
+   download(exportDesigns(storage),'ledger-cv-appearance-designs.json','application/json');
+   ctx.toast('Exported appearance presets only — no CV content.');
+  })}},'Export designs'),
+  label('Import designs (JSON)',file));
+ root.append(el('h2',{},'My saved designs'),el('p',{class:'lw-help'},'Reusable local appearance presets. Export them for a different device or import a reviewed design-only JSON file. Your CV content is never included.'),actions,list);
+ draw();return root;
 }
 const lines=html=>htmlToLines(html||'').map(l=>l.text).join('\n');
 const escapeHtml=x=>String(x).replace(/[&<>]/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[ch]));
