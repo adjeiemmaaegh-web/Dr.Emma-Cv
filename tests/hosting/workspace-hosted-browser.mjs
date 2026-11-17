@@ -45,10 +45,11 @@ try{
  await page.getByLabel('Result — what happened (only true outcomes)?').fill('The ledger was corrected.');
  await page.getByRole('button',{name:'Save STAR story'}).click();
  await page.waitForFunction(()=>document.body.textContent.includes('STAR story Saved locally'));
+ await page.waitForTimeout(120); // Let the parent mutation lock release after the visible save status.
  await page.getByLabel('Your answer to the selected question').fill('We delivered 777% improvement.');
  await page.getByRole('button',{name:'Check my answer'}).click();
  try{await page.waitForFunction(()=>document.body.textContent.includes('Check this claim'),null,{timeout:8000});}
- catch(e){throw new Error('Coaching feedback did not render: '+e.message+'; careerText='+(await page.locator('.lw-career').innerText()).slice(-2800)+'; pageErrors='+JSON.stringify(errors));}
+ catch(e){throw new Error('Coaching feedback did not render: '+e.message+'; careerText='+(await page.locator('.lw-career').innerText()).slice(-2800)+'; feedbackStatus='+(await page.locator('.lw-career [role="status"]').first().textContent())+'; pageErrors='+JSON.stringify(errors));}
  await page.getByRole('button',{name:'Save answer and coaching review'}).click();
  await page.waitForFunction(()=>document.body.textContent.includes('1 saved practice answer reviews'));
  await page.getByLabel('Source title').fill('Example corporate news');
