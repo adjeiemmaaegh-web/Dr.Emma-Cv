@@ -43,7 +43,7 @@ try{
  await printPage.close();
  const page=await ctx.newPage(),errors=[],unexpected=[];
  page.on('pageerror',error=>errors.push(String(error)));
- page.on('request',request=>{if(!request.url().startsWith(origin))unexpected.push(request.url())});
+ page.on('request',request=>{const u=request.url();if(!u.startsWith(origin)&&!(u.startsWith('blob:')&&new URL(u).origin===origin))unexpected.push(u)});
  await page.goto(origin+'/');
  const panel=page.locator('section[aria-label="Import an existing CV"]');
  await panel.getByLabel('Select existing CV PDF DOCX TXT or HTML').setInputFiles({
