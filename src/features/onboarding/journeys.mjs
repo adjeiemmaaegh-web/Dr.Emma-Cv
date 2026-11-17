@@ -147,8 +147,8 @@ export function getView(state,ctx={}){
   }
   const {job}=parseJobText(state.answers.job.jobText,{role:s(state.answers.job.jobRole)||undefined,employer:s(state.answers.job.jobEmployer)||undefined});
   const c=compareToDocument(job,ctx.document);
-  const rows=c.results.map(r=>({status:r.status,priority:r.priority,text:r.requirement,why:r.note||(r.citations[0]?'Found in your CV: "'+r.citations[0].excerpt+'"':'')})).concat(c.skillEvidence.items.filter(x=>x.status!=='described').map(x=>({status:x.status,priority:x.priority,text:x.kind+' skill: '+x.skill,why:x.correction})));
-  return {...base,rows,summary:c.summary,disclaimer:c.disclaimer,empty:rows.length?'':'We could not find requirement lines. Go back and paste the requirements, one per line.'};
+  const rows=c.results.map(r=>({status:r.status,priority:r.priority,text:r.requirement,why:r.note||(r.citations[0]?'Found in your CV: "'+r.citations[0].excerpt+'"':'')}));
+  return {...base,rows,skillEvidence:c.skillEvidence,summary:c.summary,disclaimer:c.disclaimer,empty:rows.length?'':'We could not find requirement lines. Go back and paste the requirements, one per line.'};
  }
  return base;
 }
