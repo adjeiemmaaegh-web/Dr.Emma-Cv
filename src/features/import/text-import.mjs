@@ -70,6 +70,7 @@ export function parseResumeText(raw){
     cur={...dates,headline:rest,desc:[],line:n};out.push(cur);continue;
    }
    const nextIsDate=k+1<rows.length&&RANGE.test(rows[k+1][0])&&!BULLET.test(rows[k+1][0]);
+   if(!isBullet&&cur&&!cur.headline&&cur.desc.length)cur=null; // preserve orphan bullets separately; do not attach a subsequent role heading to them
    if(!isBullet&&nextIsDate&&cur&&!cur.start&&!cur.second&&!cur.desc.length){cur.second=l;continue;}
    if(!isBullet&&(!cur||nextIsDate&&l.length<100)){cur={start:'',end:'',current:false,headline:l,desc:[],line:n};out.push(cur);continue;}
    if(isBullet){if(!cur){cur={start:'',end:'',current:false,headline:'',desc:[],line:n};out.push(cur);}cur.desc.push({b:true,t:l.replace(BULLET,'')});}
