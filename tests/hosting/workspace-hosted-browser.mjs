@@ -47,7 +47,8 @@ try{
  await page.waitForFunction(()=>document.body.textContent.includes('STAR story Saved locally'));
  await page.getByLabel('Your answer to the selected question').fill('We delivered 777% improvement.');
  await page.getByRole('button',{name:'Check my answer'}).click();
- await page.waitForFunction(()=>document.body.textContent.includes('Check this claim'));
+ try{await page.waitForFunction(()=>document.body.textContent.includes('Check this claim'),null,{timeout:8000});}
+ catch(e){throw new Error('Coaching feedback did not render: '+e.message+'; careerText='+(await page.locator('.lw-career').innerText()).slice(-2800)+'; pageErrors='+JSON.stringify(errors));}
  await page.getByRole('button',{name:'Save answer and coaching review'}).click();
  await page.waitForFunction(()=>document.body.textContent.includes('1 saved practice answer reviews'));
  await page.getByLabel('Source title').fill('Example corporate news');
