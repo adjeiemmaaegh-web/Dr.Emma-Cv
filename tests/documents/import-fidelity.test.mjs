@@ -5,6 +5,7 @@ import {docxToImportText} from '../../src/features/import/html-import.mjs';
 import {parseResumeText,createImportReview,approveImportReview} from '../../src/features/import/text-import.mjs';
 import {pdfToImportText,createPdfImportReview,reviewPdfManualTranscription} from '../../src/features/import/pdf-import.mjs';
 import {createLocalFileImportReview,loadBundledPdfEngine} from '../../src/features/import/local-file.mjs';
+import {createCollectionReviewModel} from '../../src/features/experience/workspace/cv-import-panel.mjs';
 const ID=()=> 'testId123456789';
 const xml=t=>'<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>'+t+'</w:body></w:document>';
 const para=t=>'<w:p><w:r><w:t>'+t+'</w:t></w:r></w:p>';
@@ -140,4 +141,31 @@ test('DOCX paragraph-level hidden text is omitted even when its runs are otherwi
  assert(!result.text.includes('CONFIDENTIAL'));
  assert(result.text.includes('Visible facts'));
  assert(result.warnings.some(w=>/hidden paragraph/.test(w)));
+});
+
+
+test('editing one certification or project field preserves other metadata and independent items',()=>{
+ const doc={certifications:[
+  {name:'Cloud Administrator',issuer:'Trusted Guild',date:'2020-05',url:'https://example.org/certificate',credentialId:'CRED-123'},
+  {name:'Security Review',issuer:'Security Org',date:'2022'}],
+ projects:[
+  {name:'Warehouse Automation',title:'Warehouse Automation',description:'<p>Built prototype.</p>',
+    url:'https://example.org/work',role:'Lead'}]
+ };
+ const cert=createCollectionReviewModel(doc,'certifications');
+ cert.set(cert.rows[0],'name','Cloud Architecture');
+ assert.equal(doc.certifications[0].issuer,'Trusted Guild');
+ assert.equal(doc.certifications[0].date,'2020-05');
+ assert.equal(doc.certifications[0].url,'https://example.org/certificate');
+ assert.equal(doc.certifications[0].credentialId,'CRED-123');
+ assert.equal(doc.certifications[1].name,'Security Review');
+ cert.include(cert.rows[1],false);
+ assert.equal(doc.certifications.length,1);
+ cert.include(cert.rows[1],true);
+ assert.equal(doc.certifications.length,2);
+ const project=createCollectionReviewModel(doc,'projects');
+ project.set(project.rows[0],'name','Warehouse Systems');
+ assert.equal(doc.projects[0].description,'<p>Built prototype.</p>');
+ assert.equal(doc.projects[0].url,'https://example.org/work');
+ assert.equal(doc.projects[0].role,'Lead');
 });
