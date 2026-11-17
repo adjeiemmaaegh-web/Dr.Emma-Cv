@@ -4,7 +4,7 @@
  * All processing runs locally without CV data leaving the browser.
  */
 import {documentUnits} from '../intelligence/text.mjs';
-export const SKILL_LEXICON_VERSION='2026-11-17-r2';
+export const SKILL_LEXICON_VERSION='2026-11-17-r3';
 // Avoid single-letter / common-verb aliases (R, C, Go).
 const DEFINITIONS=[
  ['hard','JavaScript','javascript|js|ecmascript'],['hard','TypeScript','typescript'],
@@ -30,7 +30,7 @@ const DEFINITIONS=[
  ['hard','Budget management','budget management|budgeting|budget planning|managed budgets'],
  ['hard','Financial reporting','financial reporting|financial statements|prepared financial reports'],
  ['hard','Bookkeeping','bookkeeping|account reconciliation|accounts reconciliation'],
- ['hard','Customer relationship management','customer relationship management|crm system|crm software|salesforce crm|salesforce'],
+ ['hard','Customer relationship management','customer relationship management|crm system|crm software|salesforce crm|salesforce|crm'],
  ['hard','Customer service','customer service|customer support|customer complaints'],
  ['hard','Sales forecasting','sales forecasting|revenue forecasting|sales projections'],
  ['hard','Quality assurance','quality assurance|quality control|qa testing|quality inspections'],
@@ -41,7 +41,7 @@ const DEFINITIONS=[
  ['hard','PLC programming','plc programming|ladder logic|programmable logic controllers'],
  ['hard','First aid','first aid|cpr certification|cpr training|aed training'],
  ['hard','Graphic design','graphic design|adobe illustrator|adobe photoshop'],
- ['soft','Communication','communication skills|written communication|communicated findings|presented findings|stakeholder communication'],
+ ['soft','Communication','communication|communication skills|written communication|communicated findings|presented findings|stakeholder communication'],
  ['soft','Leadership','leadership|led a team|lead a team|managed a team|managing a team|supervised staff|team leadership|led teams'],
  ['soft','Teamwork','teamwork|cross-functional collaboration|cross functional collaboration|collaborated with colleagues|collaborated across teams'],
  ['soft','Problem solving','problem solving|problem-solving|resolved complex problems|troubleshooting|root cause analysis'],
@@ -63,7 +63,8 @@ export const SKILL_TAXONOMY=Object.freeze(DEFINITIONS.map(([kind,name,aliases])=
 })));
 const rxEscape=s=>s.replace(/[.*+?^$\x7b\x7d()|[\]\\]/g,'\\$&');
 const boundary=alias=>new RegExp('(^|[^a-z0-9])('+rxEscape(alias).replace(/\s+/g,'\\s+')+')(?![a-z0-9])','gi');
-const NOT_REQUIRED=/^\s+(?:(?:is|are)\s+)?(?:not\s+(?:required|used|needed|expected)|no\s+longer\s+used)\b/i;
+const NOT_REQUIRED=/^\s+(?:(?:is|are)\s+)?(?:not\s+(?:required|used|needed|expected)|no\s+longer\s+used|not\s+(?:a\s+)?requirement)\b/i;
+const DENIAL_BEFORE=/\b(?:no|without|not|lacking?|never\s+used|no\s+prior|does\s+not\s+have|do\s+not\s+have)\s*$/i;
 /* Suppress explicitly negative/learning clauses; preserve positive claims after but/however. */
 const NEGATED=/\b(?:no\s+(?:hands-on\s+)?(?:experience|knowledge)\s+(?:with|in|of)|not\s+(?:proficient|experienced|familiar)\s+(?:with|in)|do\s+not\s+(?:know|use)|have\s+not\s+(?:used|worked\s+with)|never\s+(?:used|worked\s+with)|without\s+(?:using|knowledge\s+of|experience\s+with)?|lack(?:ing)?\s+(?:experience|knowledge)\s+(?:with|of|in)?|learning|currently\s+learning|studying|want\s+to\s+learn|need\s+to\s+learn|plan\s+to\s+learn|interested\s+in\s+learning)\b[^.;!?\n]*?(?=\s+\b(?:but|however|although)\b|[.;!?\n]|$)/gi;
 export function positiveEvidenceText(text){
@@ -76,8 +77,11 @@ export function findPositiveMention(text,aliases){
  for(const alias of [...aliases].sort((a,b)=>b.length-a.length)){
   if(typeof alias!=='string'||alias.length<2)continue;
   for(const m of safe.matchAll(boundary(alias))){
+   const index=m.index+m[1].length;
+   const before=safe.slice(Math.max(0,index-85),index);
    const after=safe.slice(m.index+m[0].length);
-   if(!NOT_REQUIRED.test(after))return {term:m[2],index:m.index+m[1].length};
+   // Handle reverse-scope negatives: “no SQL experience”, “no Python”, “not C#”.
+   if(!DENIAL_BEFORE.test(before)&&!NOT_REQUIRED.test(after))return {term:m[2],index};
   }
  }
  return null;
@@ -98,9 +102,12 @@ function unitKind(path){
  if(path.startsWith('skills['))return 'skills';
  return 'other';
 }
-function meaningfulExample(unit){
+function meaningfulExample(unit,aliases){
  if(unit.source!=='experience'&&unit.source!=='projects')return false;
- return unit.excerpt.trim().split(/\s+/).filter(Boolean).length>=4&&ACTION.test(positiveEvidenceText(unit.excerpt));
+ // Actions must occur in the same sentence/clause as the actual skill phrase.
+ // “Managed cashflow. Learning Python” must not count as demonstrated Python.
+ return positiveEvidenceText(unit.excerpt).split(/[.;!?\n]+/).some(part=>
+  part.trim().split(/\s+/).filter(Boolean).length>=4&&ACTION.test(part)&&!!findPositiveMention(part,aliases));
 }
 /** Skill results stay per requirement; duplicate requested skills can have different priorities. */
 export function analyzeJobSkills(job,document){
@@ -117,7 +124,7 @@ export function analyzeJobSkills(job,document){
    const mention=findPositiveMention(u.text,skill.aliases);
    return mention?[{path:u.path,excerpt:u.text.slice(0,200),term:mention.term,source:unitKind(u.path)}]:[];
   }).sort((a,b)=>EVIDENCE_RANK[a.source]-EVIDENCE_RANK[b.source]).slice(0,5);
-  const hasExample=evidence.some(meaningfulExample);
+  const hasExample=evidence.some(x=>meaningfulExample(x,skill.aliases));
   const status=hasExample?'described':evidence.length?'mentioned':'not-found';
   const correction=status==='not-found'?'If you have used this skill, add a truthful example and the actual context in a relevant role or project.':
    status==='mentioned'?'The wording appears without a specific work example. Add one only if you can substantiate it.':
