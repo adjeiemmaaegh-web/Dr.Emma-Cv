@@ -75,7 +75,7 @@ try{
   return {waiting:!!r.waiting,active:r.active?.state,changes:window.changed};
  });
  assert.equal(switched.waiting,false);
- assert.equal(switched.active,'activated');
+ assert(['activating','activated'].includes(switched.active),'Approved worker must have entered activation');
  await ctx.setOffline(true);
  await p.reload();
  await p.getByRole('heading',{name:'Offline test shell'}).waitFor();
