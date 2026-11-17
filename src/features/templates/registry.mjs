@@ -8,15 +8,15 @@ export const FAMILIES=Object.freeze(['classic','executive','graduate','academic'
 const T=(id,name,family,tokens,color)=>Object.freeze({id,name,family,tokens:Object.freeze({
  layout:'single',header:'left',caps:false,rules:'under-title',font:'sans',density:'standard',...tokens}),color});
 export const TEMPLATES=Object.freeze([
- T('modern','Modern','modern',{header:'left'}),
+ T('modern','Modern','modern',{header:'left',rules:'under-title'}),
  T('modern-navy','Modern Navy','modern',{header:'left'},'#1e3a5f'),
  T('modern-coral','Modern Coral','modern',{header:'left'},'#C85A34'),
- T('professional','Professional','classic',{header:'band'}),
+ T('professional','Professional','classic',{header:'band',rules:'double'}),
  T('professional-slate','Professional Slate','classic',{header:'band'},'#4A4A4A'),
- T('executive','Executive','executive',{header:'centered',caps:true,font:'serif'}),
+ T('executive','Executive','executive',{header:'centered',caps:true,font:'serif',rules:'double'}),
  T('minimal','Minimal','graduate',{rules:'none'}),
  T('minimal-ink','Minimal Ink','graduate',{rules:'none'},'#111111'),
- T('creative','Creative','creative',{layout:'sidebar',header:'left'}),
+ T('creative','Creative','creative',{layout:'sidebar',header:'left',rules:'left-bar'}),
  T('creative-forest','Creative Forest','creative',{layout:'sidebar',header:'left'},'#1F5651'),
  T('simple','Simple','classic',{rules:'none',density:'compact'}),
  T('ats-classic','ATS Classic','technical',{rules:'under-title'}),
@@ -25,7 +25,7 @@ export const TEMPLATES=Object.freeze([
  T('trades','Trades','technical',{caps:true,rules:'bar'}),
  T('construction','Construction','technical',{caps:true,rules:'bar'},'#D9531E'),
  T('electrical','Electrical Trades','technical',{rules:'bar'},'#1F4E8C'),
- T('academic','Academic','academic',{font:'serif',rules:'under-title'}),
+ T('academic','Academic','academic',{font:'serif',rules:'under-title',density:'relaxed'}),
  T('prestige','Prestige','executive',{header:'centered',caps:true,font:'serif',rules:'double'}),
  T('prestige-gold','Prestige Gold','executive',{header:'centered',caps:true,font:'serif',rules:'double'},'#B0793A'),
  T('monogram','Monogram','executive',{header:'badge',font:'serif'}),
@@ -47,11 +47,13 @@ export const OPTIONS=Object.freeze({
  fontSize:['small','medium','large'],spacing:['compact','standard','relaxed'],
  margins:['narrow','standard','wide'],paper:['A4','Letter'],
  font:['template','sans','serif'],headerStyle:['template','left','centered','band','badge'],
- columns:['template','single','sidebar']
+ columns:['template','single','sidebar'],ruleStyle:['template','none','under-title','double','bar','left-bar','timeline']
 });
 export const DEFAULT_APPEARANCE=Object.freeze({template:'modern',color:'#2B6F68',font:'template',fontSize:'medium',
  spacing:'standard',margins:'standard',paper:'A4',headerStyle:'template',columns:'template',photo:false});
 const COLOR=/^#[0-9a-fA-F]{6}$/;
+export const SECTION_KEYS=Object.freeze(['summary','experience','education','skills','certifications','languages','projects','accomplishments','hobbies','references']);
+export const NUMERIC_OPTIONS=Object.freeze({bodySize:[8,14],leading:[1.1,1.9],sectionGap:[3,24],marginSize:[24,90],headerScale:[1.7,3.1]});
 /** Returns {appearance,errors}. Unknown legacy values degrade to defaults; nothing throws. */
 export function normalizeAppearance(input={}){
  const out={...input},errors=[];
@@ -68,6 +70,25 @@ export function normalizeAppearance(input={}){
   out.template='modern';
  }
  for(const [k,list] of Object.entries(OPTIONS))pick(k,list);
+ for(const [k,[min,max]] of Object.entries(NUMERIC_OPTIONS)){
+  if(out[k]===undefined)continue;
+  if(out[k]===null){delete out[k];continue}
+  if(typeof out[k]!=='number'||!Number.isFinite(out[k])||out[k]<min||out[k]>max){
+   errors.push('Unsupported '+k);delete out[k];
+  }else out[k]=Math.round(out[k]*100)/100;
+ }
+ if(out.sectionOrder!==undefined){
+  if(!Array.isArray(out.sectionOrder)){errors.push('Invalid section order');delete out.sectionOrder}
+  else out.sectionOrder=[...new Set(out.sectionOrder.filter(k=>SECTION_KEYS.includes(k)))];
+ }
+ if(out.enabledSections!==undefined){
+  if(!out.enabledSections||typeof out.enabledSections!=='object'||Array.isArray(out.enabledSections)){
+   errors.push('Invalid section visibility');delete out.enabledSections;
+  }else{
+   const safe={};for(const k of SECTION_KEYS)if(typeof out.enabledSections[k]==='boolean')safe[k]=out.enabledSections[k];
+   out.enabledSections=safe;
+  }
+ }
  if(out.color!==undefined&&!COLOR.test(out.color)){errors.push('Invalid accent colour');out.color=getTemplate(out.template).color||DEFAULT_APPEARANCE.color;}
  if(out.photo!==undefined&&typeof out.photo!=='boolean')out.photo=Boolean(out.photo);
  for(const [k,v] of Object.entries(DEFAULT_APPEARANCE))if(out[k]===undefined)out[k]=v;
@@ -86,12 +107,13 @@ export function resolveStyle(appearance){
  const font=a.font==='template'?t.tokens.font:a.font;
  return Object.freeze({
   template:t.id,family:t.family,color:a.color,font,paper:a.paper,
-  size:{small:9.5,medium:10.5,large:11.5}[a.fontSize],
-  lineHeight:{compact:1.22,standard:1.35,relaxed:1.5}[a.spacing==='standard'?t.tokens.density==='compact'?'compact':t.tokens.density==='relaxed'?'relaxed':'standard':a.spacing],
-  margin:{narrow:36,standard:54,wide:72}[a.margins],
+  size:a.bodySize??{small:9.5,medium:10.5,large:11.5}[a.fontSize],
+  lineHeight:a.leading??{compact:1.22,standard:1.35,relaxed:1.5}[a.spacing==='standard'?t.tokens.density==='compact'?'compact':t.tokens.density==='relaxed'?'relaxed':'standard':a.spacing],
+  margin:a.marginSize??{narrow:36,standard:54,wide:72}[a.margins],
+  headerScale:a.headerScale??2.2,sectionGap:a.sectionGap??10,
   header:a.headerStyle==='template'?t.tokens.header:a.headerStyle,
   columns:a.columns==='template'?t.tokens.layout:a.columns==='sidebar'?'sidebar':'single',
-  caps:t.tokens.caps,rules:t.tokens.rules,photo:a.photo,
+  caps:t.tokens.caps,rules:a.ruleStyle&&a.ruleStyle!=='template'?a.ruleStyle:t.tokens.rules,photo:a.photo,
   sectionOrder:Array.isArray(a.sectionOrder)?a.sectionOrder.filter(x=>typeof x==='string'):undefined,
   enabledSections:a.enabledSections&&typeof a.enabledSections==='object'?a.enabledSections:undefined
  });
