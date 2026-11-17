@@ -38,10 +38,11 @@ export async function unzipEntries(bytes,{want=()=>true,inflate=defaultInflate,l
  const out=new Map();let total=0;
  for(let i=0;i<count;i++){
   if(p+46>bytes.length||v.getUint32(p,true)!==0x02014b50)throw new Error('Corrupt ZIP directory');
-  const flags=v.getUint16(p+8,true),method=v.getUint16(p+10,true),csize=v.getUint32(p+20,true),usize=v.getUint32(p+24,true);
+  const flags=v.getUint16(p+8,true),method=v.getUint16(p+10,true),declaredCrc=v.getUint32(p+16,true),csize=v.getUint32(p+20,true),usize=v.getUint32(p+24,true);
   const nlen=v.getUint16(p+28,true),xlen=v.getUint16(p+30,true),clen=v.getUint16(p+32,true),lho=v.getUint32(p+42,true);
   const name=dec.decode(bytes.subarray(p+46,p+46+nlen));p+=46+nlen+xlen+clen;
   if(!want(name))continue;
+  if(out.has(name))throw new Error('Duplicate ZIP entry: '+name);
   if(flags&1)throw new Error('Encrypted archives are not supported');
   if(usize>limits.maxEntryBytes||(total+=usize)>limits.maxTotalBytes)throw new Error('Archive entry too large');
   if(lho+30>bytes.length||v.getUint32(lho,true)!==0x04034b50)throw new Error('Corrupt ZIP entry');
@@ -51,6 +52,7 @@ export async function unzipEntries(bytes,{want=()=>true,inflate=defaultInflate,l
   const data=method===0?raw:method===8?await inflate(raw):null;
   if(!data)throw new Error('Unsupported compression');
   if(data.length!==usize||data.length>limits.maxEntryBytes)throw new Error('Archive size mismatch');
+  if(crc32(data)!==declaredCrc)throw new Error('Archive CRC32 mismatch: '+name);
   out.set(name,data);
  }
  return out;
