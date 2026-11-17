@@ -53,7 +53,9 @@ export const DEFAULT_APPEARANCE=Object.freeze({template:'modern',color:'#2B6F68'
  spacing:'standard',margins:'standard',paper:'A4',headerStyle:'template',columns:'template',photo:false});
 const COLOR=/^#[0-9a-fA-F]{6}$/;
 export const SECTION_KEYS=Object.freeze(['summary','experience','education','skills','certifications','languages','projects','accomplishments','hobbies','references']);
-export const NUMERIC_OPTIONS=Object.freeze({bodySize:[8,14],leading:[1.1,1.9],sectionGap:[3,24],marginSize:[24,90],headerScale:[1.7,3.1]});
+export const NUMERIC_OPTIONS=Object.freeze({bodySize:[8,14],leading:[1.1,1.9],sectionGap:[3,24],marginSize:[24,90],headerScale:[1.7,3.1],
+ headingScale:[0.9,1.65],entryGap:[0,15],paragraphGap:[0,7],ruleWeight:[0.4,3]});
+const safeSectionKey=k=>typeof k==='string'&&(SECTION_KEYS.includes(k)||/^custom:[a-zA-Z0-9_-]{1,72}$/.test(k));
 /** Returns {appearance,errors}. Unknown legacy values degrade to defaults; nothing throws. */
 export function normalizeAppearance(input={}){
  const out={...input},errors=[];
@@ -79,13 +81,14 @@ export function normalizeAppearance(input={}){
  }
  if(out.sectionOrder!==undefined){
   if(!Array.isArray(out.sectionOrder)){errors.push('Invalid section order');delete out.sectionOrder}
-  else out.sectionOrder=[...new Set(out.sectionOrder.filter(k=>SECTION_KEYS.includes(k)))];
+  else out.sectionOrder=[...new Set(out.sectionOrder.slice(0,100).filter(safeSectionKey))];
  }
  if(out.enabledSections!==undefined){
   if(!out.enabledSections||typeof out.enabledSections!=='object'||Array.isArray(out.enabledSections)){
    errors.push('Invalid section visibility');delete out.enabledSections;
   }else{
-   const safe={};for(const k of SECTION_KEYS)if(typeof out.enabledSections[k]==='boolean')safe[k]=out.enabledSections[k];
+   const safe={};for(const k of Object.keys(out.enabledSections).slice(0,100))
+    if(safeSectionKey(k)&&typeof out.enabledSections[k]==='boolean')safe[k]=out.enabledSections[k];
    out.enabledSections=safe;
   }
  }
@@ -111,6 +114,7 @@ export function resolveStyle(appearance){
   lineHeight:a.leading??{compact:1.22,standard:1.35,relaxed:1.5}[a.spacing==='standard'?t.tokens.density==='compact'?'compact':t.tokens.density==='relaxed'?'relaxed':'standard':a.spacing],
   margin:a.marginSize??{narrow:36,standard:54,wide:72}[a.margins],
   headerScale:a.headerScale??2.2,sectionGap:a.sectionGap??10,
+  headingScale:a.headingScale??1.15,entryGap:a.entryGap??5,paragraphGap:a.paragraphGap??1,ruleWeight:a.ruleWeight??0.6,
   header:a.headerStyle==='template'?t.tokens.header:a.headerStyle,
   columns:a.columns==='template'?t.tokens.layout:a.columns==='sidebar'?'sidebar':'single',
   caps:t.tokens.caps,rules:a.ruleStyle&&a.ruleStyle!=='template'?a.ruleStyle:t.tokens.rules,photo:a.photo,
