@@ -77,38 +77,69 @@ export function savedDesignGallery(ctx,storage=globalThis.localStorage){
 const lines=html=>htmlToLines(html||'').map(l=>l.text).join('\n');
 const escapeHtml=x=>String(x).replace(/[&<>]/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[ch]));
 const toList=t=>'<ul>'+t.split(/\n/).map(x=>x.trim()).filter(Boolean).map(x=>'<li>'+escapeHtml(x.replace(/^[•*-]\s*/,''))+'</li>').join('')+'</ul>';
-export function fieldAtPath(ed,path){
- const doc=ed.snapshot().document;
+/** Read a field without copying the full document for every control refresh. */
+export function fieldAtPath(ed,path,doc=ed.snapshot().document){
+ if(path==='personalInfo.name')return {label:'Full name',fields:['firstName','lastName'].map(k=>fieldAtPath(ed,'personalInfo.'+k,doc))};
+ if(path==='personalInfo.contact')return {label:'Contact information',fields:['email','phone','city','linkedin','website'].map(k=>fieldAtPath(ed,'personalInfo.'+k,doc))};
  if(path.startsWith('personalInfo.')){
-  const k=path.slice(13);if(!['firstName','lastName','title','email','phone','city','linkedin','website'].includes(k))return null;
-  return {label:k,value:doc.personalInfo[k]||'',update:v=>ed.setPersonal(k,v)};
+  const k=path.slice('personalInfo.'.length);
+  if(!['firstName','lastName','title','email','phone','city','linkedin','website','postcode'].includes(k))return null;
+  return {label:k.replace(/([A-Z])/g,' $1'),value:doc.personalInfo[k]||'',update:v=>ed.setPersonal(k,v)};
  }
  if(['summary','hobbies','references'].includes(path))return {label:NAMES[path],value:doc[path]||'',area:true,update:v=>ed.setText(path,v)};
- const m=/^(experience|education|customSections)\[([^\]]+)\]\.(\w+)$/.exec(path);
+ if(path==='skills'){
+  return {label:'Skills',fields:(doc.skills||[]).map((it,i)=>({label:'Skill '+(i+1),value:it.name||'',update:v=>ed.updateItem('skills',it.id,{name:v})}))};
+ }
+ const m=/^(experience|education|skills|customSections)\[([^\]]+)\]\.(\w+)$/.exec(path);
  if(!m)return null;
  const [,section,id,k]=m,item=doc[section]?.find(it=>it.id===id);
- if(!item||!['title','degree','location','description','content'].includes(k))return null;
+ if(!item)return null;
+ if(k==='meta'){
+  const fields=section==='experience'?['title','employer','start','end','location']:
+   section==='education'?['degree','school','start','end']:[];
+  return fields.length?{label:section==='experience'?'Role and dates':'Qualification and dates',
+   fields:fields.map(key=>fieldAtPath(ed,section+'['+id+'].'+key,doc))}:null;
+ }
+ const valid={
+  experience:['title','employer','start','end','location','description'],
+  education:['degree','school','start','end','description'],
+  skills:['name'],
+  customSections:['title','content','name','description']
+ };
+ if(!valid[section].includes(k))return null;
  const rich=k==='description'||k==='content';
- return {label:(NAMES[section]||'Custom section')+' — '+k,value:rich?lines(item[k]):item[k]||'',area:rich,update:v=>ed.updateItem(section,id,{[k]:rich?toList(v):v})};
+ return {label:(NAMES[section]||'Custom section')+' — '+k,value:rich?lines(item[k]):item[k]||'',
+  area:rich,update:v=>ed.updateItem(section,id,{[k]:rich?toList(v):v})};
 }
-/** A transient context field stays anchored to the actual document page, not a separate form. */
+/** On-document contextual editor. A field group corresponds to the text visible on the page.
+ * Its inputs are NOT rerendered on keystrokes, preserving focus and selection while preview updates.
+ */
 export function quickEditOnPage(host,ed,ctx){
  let panel=null;const close=()=>{panel?.remove();panel=null};
  function open(path,anchor){
   const field=fieldAtPath(ed,path);if(!field){close();return}
   close();
-  const control=field.area?el('textarea',{rows:'4'}):el('input',{type:'text'});
-  control.value=field.value;control.setAttribute('aria-label','Edit '+field.label);
-  control.addEventListener('input',()=>safe(ctx,()=>field.update(control.value)));
+  const fields=field.fields||[field];
   panel=el('div',{class:'lw-inline-editor',role:'group','aria-label':'Edit text directly on CV'},
-   el('strong',{},'Edit '+field.label),control,
-   el('button',{type:'button',class:'lw-btn sm primary',on:{click:()=>{close();host.focus()}}},'Done'));
-  const a=anchor.getBoundingClientRect(),b=host.getBoundingClientRect(),width=Math.min(340,Math.max(230,host.clientWidth-24));
+   el('strong',{},'Edit '+field.label));
+  let first=null;
+  for(const item of fields){
+   if(!item)continue;
+   const control=item.area?el('textarea',{rows:'4'}):el('input',{type:'text'});
+   control.value=item.value??'';
+   control.setAttribute('aria-label','Edit '+item.label);
+   control.addEventListener('input',()=>safe(ctx,()=>item.update(control.value)));
+   panel.append(label(item.label,control));
+   first??=control;
+  }
+  panel.append(el('button',{type:'button',class:'lw-btn sm primary',on:{click:()=>{close();host.focus()}}},'Done'));
+  const a=anchor.getBoundingClientRect(),b=host.getBoundingClientRect();
+  const width=Math.min(360,Math.max(220,host.clientWidth-24));
   const left=Math.max(8,Math.min(host.clientWidth-width-8,a.left-b.left+host.scrollLeft));
   panel.style.width=width+'px';panel.style.left=left+'px';
   panel.style.top=Math.max(8,a.top-b.top+host.scrollTop+20)+'px';
   panel.addEventListener('keydown',e=>{if(e.key==='Escape'){e.preventDefault();close();host.focus()}});
-  host.append(panel);control.focus();control.select?.();
+  host.append(panel);first?.focus();first?.select?.();
  }
  return {open,close,destroy:close};
 }
