@@ -13,7 +13,11 @@
     "build:e30-frozen": "node tools/build-e30-ui.mjs",
     "audit:e31": "node tools/audit-e31-e30-preservation.mjs && node tools/audit-e31-candidate.mjs",
     "test:platform": "node --test tests/platform/*.test.mjs",
-    "verify:platform": "node tools/audit-platform.mjs && npm run test:platform"
+    "verify:platform": "node tools/audit-platform.mjs && npm run test:platform",
+    "test:documents": "node --test tests/documents/*.test.mjs",
+    "test:intelligence": "node --test tests/intelligence/*.test.mjs",
+    "test:career": "node --test tests/career/*.test.mjs",
+    "test:ad-integration": "node --test tests/platform/*.test.mjs tests/documents/*.test.mjs tests/intelligence/*.test.mjs tests/career/*.test.mjs tests/integration/*.test.mjs"
   },
   "devDependencies": {
     "pdfjs-dist": "6.5.438",
