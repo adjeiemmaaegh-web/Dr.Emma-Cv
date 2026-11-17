@@ -72,7 +72,7 @@ export function parseResumeText(raw){
    const nextIsDate=k+1<rows.length&&RANGE.test(rows[k+1][0])&&!BULLET.test(rows[k+1][0]);
    if(!isBullet&&nextIsDate&&cur&&!cur.start&&!cur.second&&!cur.desc.length){cur.second=l;continue;}
    if(!isBullet&&(!cur||nextIsDate&&l.length<100)){cur={start:'',end:'',current:false,headline:l,desc:[],line:n};out.push(cur);continue;}
-   if(isBullet){if(!cur){cur={start:'',end:'',current:false,headline:'',desc:[],line:n};out.push(cur);}cur.desc.push({b:true,t:l.replace(BULLET,''));}
+   if(isBullet){if(!cur){cur={start:'',end:'',current:false,headline:'',desc:[],line:n};out.push(cur);}cur.desc.push({b:true,t:l.replace(BULLET,'')});}
    else if(!cur.headline)cur.headline=l;
    else if(kind==='experience'&&!cur.second&&!cur.desc.length&&l.length<80)cur.second=l;
    else cur.desc.push({b:false,t:l});
