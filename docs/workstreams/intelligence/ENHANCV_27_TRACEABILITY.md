@@ -44,6 +44,19 @@ Implemented source: src/features/intelligence/expanded-review.mjs. The original 
 3. compareToDocument retains its established lexical results and now includes skillEvidence. Older consumers remain compatible. The career journey UI displays the skill findings and the CV check UI displays prioritized corrections and the full 27-row scope register.
 4. No function returns a job match percentage, ATS pass likelihood, hiring probability, peer ranking, or validated score. A score needs a versioned, consented, independently labelled corpus, representative roles/markets/languages, blinded human annotation, calibrated error thresholds, per-subgroup monitoring, and repeatable external ATS parsing tests. No such evidence is present.
 
+## Second review: evidence integrity and stronger feedback (17 November 2026)
+
+The second review explicitly corrected false-positive paths and a browser-visibility regression:
+
+- **Evidence threshold:** A requirement is not marked `evidenced` solely because a headline, summary, or skills list shares its terms. Stronger textual coverage must occur together in an experience/project bullet or relevant structured education/certification entry; even then, the claims remain self-reported and require human review. Other cases are `partial`, `no-evidence`, or `not-assessable`. This intentionally downgrades an earlier inventory example that combined a skills-list mention with a stock-count bullet.
+- **Negated skill language:** Phrases such as `No SQL experience`, `Learning Python`, and `SQL is not required` are not positive proof. The lexicon distinguishes `C++`, `C#`, and `.NET` by unique IDs, adds further technical and business skills, and demands an action in the same clause as a role/project skill phrase for `described` status.
+- **Alternative skills:** A simple, explicit `Python or SQL` is analyzed as an alternative group; the unselected option is not treated as a second mandatory missing skill when another is present in the CV. `Python and SQL` remains two separate requirements. Long, ambiguous job-advert wording is **not** interpreted as a complete Boolean skills grammar.
+- **Numerical scope:** Team-size and years-of-experience wording is surfaced with source text and a caution; a smaller figure does **not** prove that the applicant fails the threshold. Dates are not silently converted to years of relevant experience.
+- **Chronology and leadership:** Definite future start/end dates and conflicting `current`/end-date metadata are flagged; partial-year dates and overlapping roles are treated conservatively. Same-employer title changes are inferred as possible progression only for readable ordered periods without substantial overlap, not as validated promotions.
+- **Practical corrections:** New English typo hints (e.g., `managment`, `experiance`, `recieved`) remain review-only. Prioritized corrections are visible before collapsible technical detail; the interface explicitly states that the result **is not a score**.
+
+The 27-row matrix remains a *scope and limitations register*, not a claim that 27 independently validated checker engines exist. Genuine exported PDF/DOCX parsing, third-party ATS benchmark evidence, calibrated ranking, demographic fairness, real candidate feedback and multilingual grammar accuracy remain unverified.
+
 ## Regression and acceptance
 
 Run node --test tests/intelligence/*.test.mjs, node --test tests/career/*.test.mjs and node --test tests/experience/journeys.test.mjs. CI: .github/workflows/ats-diagnostics.yml.
