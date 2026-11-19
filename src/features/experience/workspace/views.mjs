@@ -1,6 +1,6 @@
 /** Workspace views. Each returns {node, destroy?}. They only use other workstreams' public APIs. */
 import {el,icon,download,debounceFrame} from './ui.mjs';
-import {occupationContent,addUniqueSkill,appendUniqueDuty} from '../../occupation/occupation-content.mjs';
+import {occupationContent,addUniqueSkill,appendUniqueDuty,mergeSummary} from '../../occupation/occupation-content.mjs';
 import {occupationPicker,suggestionList} from '../../occupation/occupation-ui.mjs';
 import {layoutFor,drawPages,thumbnail} from './preview.mjs';
 import {listTemplates,FAMILIES,applyTemplate,getTemplate,OPTIONS,TEMPLATES,resolveStyle} from '../../templates/registry.mjs';
@@ -74,7 +74,7 @@ const SECS={experience:{label:'Experience',fields:[['title','Job title'],['emplo
  education:{label:'Education',fields:[['degree','Qualification'],['school','School'],['start','Start'],['end','End']],add:'Add education',name:i=>[i.degree,i.school].filter(Boolean).join(', ')||'New qualification'}};
 export function editorView(ctx){
  const {store}=ctx;let ed=store.editor;
- let contentCategory='',contentRole=''; // UI-only selection; never changes CV without explicit insertion.
+ let contentCategory='',contentRole='',appendSummarySelection=false; // UI-only selection; no CV change without explicit insertion.
  const root=el('div'),status=el('span',{class:'lw-chip',role:'status'});
  const undo=el('button',{type:'button',class:'lw-btn icon','aria-label':'Undo',on:{click:()=>ed.undo()}},icon('undo')),redo=el('button',{type:'button',class:'lw-btn icon','aria-label':'Redo',on:{click:()=>ed.redo()}},icon('redo'));
  const seg=(label,key,opts,fmt=x=>x)=>{const g=el('div',{class:'lw-seg',role:'group','aria-label':label});
@@ -123,10 +123,17 @@ export function editorView(ctx){
    contentRole?el('button',{type:'button',class:'lw-btn sm',on:{click:()=>{
     ed.endCoalescing();ed.setPersonal('title',contentRole);ed.endCoalescing();ctx.toast('Job title updated; Undo is available.');
    }}},'Use selected job title in my CV'):null));
+  const appendBox=el('input',{type:'checkbox','aria-label':'Add selected summary to existing text instead of replacing',
+   checked:appendSummarySelection||undefined,on:{change:e=>{appendSummarySelection=e.target.checked;}}});
   form.append(sec('summary','Summary',field('Summary',snap.document.summary,'summary','summary',v=>ed.setText('summary',v),{area:true}),
+   chosen?el('label',{class:'lw-help'},appendBox,' Add the next example to my existing summary (otherwise replace it)'):null,
    chosen?suggestionList({kind:'summary',heading:'Choose a professional summary',items:chosen.summaries,expanded:true,actionText:'Use summary',
-    onChoose:value=>{ed.endCoalescing();ed.setText('summary',value);ed.endCoalescing();ctx.toast('Summary inserted. Check all claims; Undo is available.');}}):
-   el('p',{class:'lw-help'},'Select an occupation above to see professional summary examples.')));
+    onChoose:value=>{
+     const merged=mergeSummary(ed.snapshot().document.summary,value,{append:appendSummarySelection});
+     if(merged===null){ctx.toast('Already included, or over the 800-character summary limit. Edit before adding more.');return;}
+     ed.endCoalescing();ed.setText('summary',merged);ed.endCoalescing();
+     ctx.toast('Summary inserted. Check all claims; Undo is available.');
+    }}):el('p',{class:'lw-help'},'Select an occupation above to see professional summary examples.')));
   for(const [name,def] of Object.entries(SECS)){
    const items=snap.document[name],body=[];
    if(!items.length)body.push(el('p',{class:'lw-help',style:'margin-bottom:var(--s-3)'},'Nothing here yet.'));
