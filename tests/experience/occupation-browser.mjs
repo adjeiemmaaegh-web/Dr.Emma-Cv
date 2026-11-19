@@ -39,7 +39,9 @@ try{
  await skillsSection.locator('[data-suggestion-kind="skills"] .lw-suggestion-choice').first().click();
  await p.waitForFunction(()=>[...document.querySelectorAll('.lw-chip')].some(x=>x.textContent.includes('Commercial Cleaning')));
  await p.getByRole('button',{name:'Undo',exact:true}).click();
- await p.locator('details[data-sec="experience"] summary').first().click();
+ const expSection=p.locator('details[data-sec="experience"]');
+ if(!(await expSection.evaluate(node=>node.open)))await expSection.locator('summary').click();
+ assert(await expSection.evaluate(node=>node.open),'work experience is expanded before changing its category');
  const card=p.locator('.lw-item[data-entry-section="experience"]').first();
  assert.equal(await card.locator('[data-suggestion-kind="duties"] .lw-suggestion-choice').count(),0,
   'unknown work role must not inherit a different target occupation');
