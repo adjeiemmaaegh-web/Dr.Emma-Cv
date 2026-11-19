@@ -150,7 +150,7 @@ export function editorView(ctx){
     if(name==='experience'){
      const workContent=suggestionsFor(snap,it.title);
      if(workContent)card.append(suggestionList({kind:'duties',heading:'Suggested duties for '+workContent.groupLabel,
-      items:workContent.duties,actionText:'Add duty',onChoose:bullet=>{
+      items:workContent.duties,actionText:'Add duty',expanded:true,onChoose:bullet=>{
        const row=ed.snapshot().document.experience.find(x=>x.id===it.id);
        if(!row)return;
        const next=appendUniqueDuty(plain(row.description||''),bullet);
@@ -169,7 +169,7 @@ export function editorView(ctx){
   const addSkill=()=>{const v=sk.value.trim();if(v){open.add('skills');ed.addItem('skills',{name:v,level:3});}};
   form.append(sec('skills','Skills'+(snap.document.skills.length?' ('+snap.document.skills.length+')':''),chips,el('div',{class:'lw-field'},el('label',{for:'f-newskill'},'Add a skill'),el('div',{class:'lw-row'},sk,el('button',{type:'button',class:'lw-btn',on:{click:addSkill}},'Add')),el('p',{id:'skill-help',class:'lw-help'},'Press Enter to add. Only list skills you really have.')),
    chosen?suggestionList({kind:'skills',heading:'Suggested '+chosen.groupLabel+' skills',
-    items:chosen.skills.filter(name=>addUniqueSkill(snap.document.skills,name)),actionText:'Add skill',
+    items:chosen.skills.filter(name=>addUniqueSkill(snap.document.skills,name)),actionText:'Add skill',expanded:true,
     onChoose:name=>{
      const skill=addUniqueSkill(ed.snapshot().document.skills,name);
      if(!skill){ctx.toast('Skill already added.');return;}
