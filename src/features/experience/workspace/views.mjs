@@ -1,6 +1,6 @@
 /** Workspace views. Each returns {node, destroy?}. They only use other workstreams' public APIs. */
 import {el,icon,download,debounceFrame} from './ui.mjs';
-import {occupationContent,addUniqueSkill,appendUniqueDuty,mergeSummary} from '../../occupation/occupation-content.mjs';
+import {OCCUPATION_CATEGORIES,resolveOccupation,occupationContent,addUniqueSkill,appendUniqueDuty,mergeSummary} from '../../occupation/occupation-content.mjs';
 import {occupationPicker,suggestionList} from '../../occupation/occupation-ui.mjs';
 import {layoutFor,drawPages,thumbnail} from './preview.mjs';
 import {listTemplates,FAMILIES,applyTemplate,getTemplate,OPTIONS,TEMPLATES,resolveStyle} from '../../templates/registry.mjs';
@@ -75,6 +75,7 @@ const SECS={experience:{label:'Experience',fields:[['title','Job title'],['emplo
 export function editorView(ctx){
  const {store}=ctx;let ed=store.editor;
  let contentCategory='',contentRole='',appendSummarySelection=false; // UI-only selection; no CV change without explicit insertion.
+ const workCategories=new Map(); // Explicit category override only for the corresponding work entry.
  const root=el('div'),status=el('span',{class:'lw-chip',role:'status'});
  const undo=el('button',{type:'button',class:'lw-btn icon','aria-label':'Undo',on:{click:()=>ed.undo()}},icon('undo')),redo=el('button',{type:'button',class:'lw-btn icon','aria-label':'Redo',on:{click:()=>ed.redo()}},icon('redo'));
  const seg=(label,key,opts,fmt=x=>x)=>{const g=el('div',{class:'lw-seg',role:'group','aria-label':label});
@@ -104,7 +105,7 @@ export function editorView(ctx){
  const field=(label,value,key,path,onInput,{area,auto}={})=>{const id='f-'+key.replace(/\W+/g,'-'),c=area?el('textarea',{id,rows:'4'}):el('input',{id,type:'text'});
   c.value=value||'';c.dataset.key=key;c.dataset.path=path;if(auto)c.setAttribute('autocomplete',auto);c.addEventListener('input',()=>onInput(c.value));if(key==='p-title')c.addEventListener('change',()=>{if(!contentCategory)build(ed.snapshot());});return el('div',{class:'lw-field'},el('label',{for:id},label),c);};
  const open=new Set(['personal','look','occupation']);
- const suggestionsFor=(snap,role='')=>role?(occupationContent({role})||occupationContent({role:contentRole,category:contentCategory})):occupationContent({role:contentRole||snap.document.personalInfo.title,category:contentCategory});
+ const suggestionsFor=snap=>occupationContent({role:contentRole||snap.document.personalInfo.title,category:contentCategory});
  const sec=(id,title,...kids)=>{const d=el('details',{class:'lw-sec','data-sec':id},el('summary',{},title),el('div',{class:'lw-sec-body'},...kids));if(open.has(id))d.open=true;d.addEventListener('toggle',()=>{d.open?open.add(id):open.delete(id);});return d;};
  const plain=h=>(h||'').replace(/<li[^>]*>/gi,'\n').replace(/<[^>]*>/g,'').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').trim();
  const toHtml=t=>{const ls=t.split(/\n/).map(x=>x.replace(/^[\s•*-]+/,'').trim()).filter(Boolean);return ls.length?'<ul>'+ls.map(l=>'<li>'+l.replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]))+'</li>').join('')+'</ul>':'';};
@@ -113,10 +114,12 @@ export function editorView(ctx){
   form.append(sec('personal','Personal details',...PERSONAL.map(([k,l,a])=>field(l,snap.document.personalInfo[k],'p-'+k,'personalInfo.'+k,v=>ed.setPersonal(k,v),{auto:a}))));
   const chosen=suggestionsFor(snap);
   const picker=occupationPicker({title:snap.document.personalInfo.title,category:contentCategory,role:contentRole,
-   onChange:({category,role})=>{
+   onChange:({category,role,source})=>{
     contentCategory=category;contentRole=role;
     open.add('occupation');open.add('summary');open.add('skills');
     build(ed.snapshot());
+    const fieldName=source==='category'?'Occupation category':'Occupation or job title';
+    form.querySelector('.lw-occupation-picker select[aria-label="'+fieldName+'"]')?.focus();
    }});
   form.append(sec('occupation','Smart content library',picker,
    el('p',{class:'lw-help'},'Choose an occupation to browse ready-made examples. This does not change your CV until you select a suggestion.'),
@@ -131,6 +134,9 @@ export function editorView(ctx){
     onChoose:value=>{
      const merged=mergeSummary(ed.snapshot().document.summary,value,{append:appendSummarySelection});
      if(merged===null){ctx.toast('Already included, or over the 800-character summary limit. Edit before adding more.');return;}
+     const existing=ed.snapshot().document.summary;
+     if(!appendSummarySelection&&existing&&existing!==merged&&
+      !confirm('Replace your existing professional summary with this example? You can Undo afterwards.'))return;
      ed.endCoalescing();ed.setText('summary',merged);ed.endCoalescing();
      ctx.toast('Summary inserted. Check all claims; Undo is available.');
     }}):el('p',{class:'lw-help'},'Select an occupation above to see professional summary examples.')));
@@ -145,10 +151,28 @@ export function editorView(ctx){
      el('button',{type:'button',class:'lw-btn sm icon danger','aria-label':'Remove '+def.name(it)+' (you can undo)',on:{click:()=>{ed.removeItem(name,it.id);ctx.toast(def.label+' entry removed. Press Undo to bring it back.');}}},icon('trash',{size:16}))));
     for(const [k,l,t] of def.fields){
      if(t==='area')card.append(field(l,plain(it[k]),it.id+k,name+'['+it.id+'].'+k,v=>ed.updateItem(name,it.id,{[k]:toHtml(v)}),{area:true}));
-     else card.append(field(l,it[k],it.id+k,name+'['+it.id+'].'+k,v=>ed.updateItem(name,it.id,{[k]:v})));
+     else{
+      const control=field(l,it[k],it.id+k,name+'['+it.id+'].'+k,v=>ed.updateItem(name,it.id,{[k]:v}));
+      if(name==='experience'&&k==='title')control.querySelector('input')?.addEventListener('change',()=>{
+       workCategories.delete(it.id);build(ed.snapshot()); // Update suggestions after typing, not per keystroke.
+      });
+      card.append(control);
+     }
     }
     if(name==='experience'){
-     const workContent=suggestionsFor(snap,it.title);
+     const workCategory=workCategories.get(it.id)||resolveOccupation(it.title)?.group||'';
+     const select=el('select',{'aria-label':'Responsibility category for '+(it.title||'this job'),'data-work-category':it.id,
+      on:{change:e=>{
+       if(e.target.value)workCategories.set(it.id,e.target.value);
+       else workCategories.delete(it.id);
+       build(ed.snapshot());
+       [...form.querySelectorAll('[data-work-category]')].find(n=>n.dataset.workCategory===it.id)?.focus();
+      }}},el('option',{value:''},'Choose an occupation'));
+     for(const group of OCCUPATION_CATEGORIES)select.append(el('option',{value:group.id},group.label));
+     select.value=workCategory;
+     card.append(el('div',{class:'lw-field'},
+      el('label',{},'Responsibility examples for this job'),select));
+     const workContent=occupationContent({role:it.title,category:workCategory});
      if(workContent)card.append(suggestionList({kind:'duties',heading:'Suggested duties for '+workContent.groupLabel,
       items:workContent.duties,actionText:'Add duty',expanded:true,onChoose:bullet=>{
        const row=ed.snapshot().document.experience.find(x=>x.id===it.id);
@@ -158,6 +182,7 @@ export function editorView(ctx){
        ed.endCoalescing();ed.updateItem('experience',it.id,{description:toHtml(next)});ed.endCoalescing();
        ctx.toast('Responsibility added. Verify it matches your experience; Undo is available.');
       }}));
+     else card.append(el('p',{class:'lw-help'},'Choose the actual job category above to see responsibilities for this experience. Your target CV occupation does not automatically change past work duties.'));
     }
     body.push(card);
    });
