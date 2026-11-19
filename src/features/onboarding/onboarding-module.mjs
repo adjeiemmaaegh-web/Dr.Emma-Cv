@@ -83,7 +83,7 @@ export const onboardingFeature=Object.freeze({
          if(input.value&&input.value!==text&&!confirm('Replace your current summary with this example?'))return;
          input.value=text;
         }else if(type==='skills'){
-         const have=input.value.split(/[,;\\n]/).map(v=>v.trim()).filter(Boolean);
+         const have=input.value.split(/[,;\n]/).map(v=>v.trim()).filter(Boolean);
          const next=addUniqueSkill(have,text);
          if(!next){feedback.textContent='This skill is already included.';return;}
          input.value=[...have,next].join(', ');
