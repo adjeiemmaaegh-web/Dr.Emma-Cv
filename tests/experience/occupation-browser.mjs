@@ -45,7 +45,17 @@ try{
  const card=p.locator('.lw-item[data-entry-section="experience"]').first();
  assert.equal(await card.locator('[data-suggestion-kind="duties"] .lw-suggestion-choice').count(),0,
   'unknown work role must not inherit a different target occupation');
- await card.locator('[data-work-category]').selectOption('cleaning');
+ const roleSelect=card.locator('[data-work-category]');
+ if(!(await roleSelect.isVisible())){
+  const ancestors=await roleSelect.evaluate(el=>{
+   const out=[];for(let n=el;n&&out.length<12;n=n.parentElement){
+    const st=getComputedStyle(n);
+    out.push({tag:n.tagName,class:n.className,open:n.open||false,display:st.display,visibility:st.visibility,hidden:n.hidden||false});
+   }return out;
+  });
+  throw new Error('Work category must be visible before selection; ancestors='+JSON.stringify(ancestors));
+ }
+ await roleSelect.selectOption('cleaning');
  assert.equal(await card.locator('[data-suggestion-kind="duties"] .lw-suggestion-choice').count(),24,
   'explicit category enables examples for an otherwise unknown work title');
  await card.locator('[data-work-category]').selectOption('');
