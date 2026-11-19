@@ -412,7 +412,7 @@ const NOUNS = Object.freeze({
 });
 const CLEANING_ROLES = Object.freeze([
  'Domestic Cleaner','Office Cleaner','Hotel Cleaner','Hospital Cleaner',
- 'Housekeeper','Cleaning Operative','Facilities Cleaner','Cleaning Supervisor'
+ 'Domestic Housekeeper','Cleaning Operative','Facilities Cleaner','Cleaning Supervisor'
 ]);
 const CLEANING_SUMMARY_EXTRAS = Object.freeze([
  'Conscientious cleaning professional focused on safe, consistent standards across offices, washrooms and shared spaces. Takes care to select suitable supplies and follow site instructions.',
@@ -523,4 +523,14 @@ export function appendUniqueDuty(existingText,bullet){
  const old=String(existingText||'').trim(),value=String(bullet||'').trim();
  if(!value||old.split(/\r?\n/).some(line=>normal(line.replace(/^[-•]\s*/,''))===normal(value)))return null;
  return old?(old+'\n'+value):value;
+}
+
+/** Optional combine-two mode; bounded, duplicate-safe and always review-first. */
+export function mergeSummary(existing,suggestion,{append=false,max=800}={}){
+ const old=String(existing||'').trim(),fresh=String(suggestion||'').trim();
+ if(!fresh)return null;
+ if(!append||!old)return fresh.length<=max?fresh:null;
+ if(normal(old).includes(normal(fresh)))return null;
+ const combined=old+' '+fresh;
+ return combined.length<=max?combined:null;
 }
