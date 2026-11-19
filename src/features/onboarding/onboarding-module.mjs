@@ -7,7 +7,7 @@
  */
 import {JOURNEYS,availability,startJourney,getView,submit,skip,back,finish,serializeDraft,restoreDraft} from './journeys.mjs';
 import {createAnnouncer,focusHeading,el,uniqueId} from '../accessibility/a11y.mjs';
-import {occupationContent,addUniqueSkill,appendUniqueDuty} from '../occupation/occupation-content.mjs';
+import {occupationContent,addUniqueSkill,appendUniqueDuty,mergeSummary} from '../occupation/occupation-content.mjs';
 import {occupationPicker,suggestionList} from '../occupation/occupation-ui.mjs';
 export const onboardingFeature=Object.freeze({
  id:'onboarding',dependencies:[],
@@ -76,12 +76,18 @@ export const onboardingFeature=Object.freeze({
       const fieldName=type==='duties'?'achievements':type==='skills'?'skills':'summary';
       const input=form.querySelector('[name="'+fieldName+'"]');
       const feedback=el('p',{class:'ledger-help',role:'status','aria-live':'polite'});
+      const appendChoice=type==='summary'?el('input',{type:'checkbox',
+       'aria-label':'Add selected summary to existing text instead of replacing'}):null;
+      if(appendChoice)form.append(el('label',{class:'ledger-help'},appendChoice,
+       ' Add another chosen summary to the existing text (otherwise replace it)'));
       form.append(suggestionList({kind:type,heading:'Choose '+occupation.groupLabel+' '+(type==='duties'?'responsibilities':type),
        items,expanded:true,actionText:type==='summary'?'Use summary':'Add',
        onChoose:text=>{
         if(type==='summary'){
-         if(input.value&&input.value!==text&&!confirm('Replace your current summary with this example?'))return;
-         input.value=text;
+         const updated=mergeSummary(input.value,text,{append:!!appendChoice.checked});
+         if(updated===null){feedback.textContent='Already included or over 800 characters. Edit before adding more.';return;}
+         if(input.value&&input.value!==updated&&!appendChoice.checked&&!confirm('Replace your current summary with this example?'))return;
+         input.value=updated;
         }else if(type==='skills'){
          const have=input.value.split(/[,;\n]/).map(v=>v.trim()).filter(Boolean);
          const next=addUniqueSkill(have,text);
