@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
  OCCUPATION_CATEGORIES,categoryRoles,resolveOccupation,occupationContent,
- addUniqueSkill,appendUniqueDuty
+ addUniqueSkill,appendUniqueDuty,mergeSummary
 } from '../../src/features/occupation/occupation-content.mjs';
 
 test('all historic job categories and original occupation titles survive migration',()=>{
@@ -57,4 +57,12 @@ test('duplicate skill and responsibility insertions refuse rather than repeat co
  assert.equal(appendUniqueDuty('Prepared supplies.','Cleaned washrooms.'),'Prepared supplies.\nCleaned washrooms.');
  assert.equal(appendUniqueDuty('','Completed cleaning checklist.'),'Completed cleaning checklist.');
  assert.equal(appendUniqueDuty('Prepared supplies.',''),null);
+});
+
+test('summary selection can replace or combine up to the reviewed length limit',()=>{
+ assert.equal(mergeSummary('Draft','A verified example.'),'A verified example.');
+ assert.equal(mergeSummary('Draft','A verified example.',{append:true}),'Draft A verified example.');
+ assert.equal(mergeSummary('Draft A verified example.','A verified example.',{append:true}),null);
+ assert.equal(mergeSummary('x'.repeat(790),'a'.repeat(30),{append:true}),null);
+ assert.equal(mergeSummary('','  '),null);
 });
