@@ -8,14 +8,21 @@ const browser=await chromium.launch();
 const origin='http://localhost:'+port+'/src/features/experience/workspace/index.html?sample=1';
 const p=await browser.newPage({viewport:{width:1280,height:900}});
 const errors=[];p.on('pageerror',e=>errors.push(String(e)));
+let allowReplace=false,replaceDialogs=0;
+p.on('dialog',async d=>{replaceDialogs++;if(allowReplace)await d.accept();else await d.dismiss();});
 try{
  await p.goto(origin);
  await p.getByRole('link',{name:'Edit',exact:true}).click();
  await p.locator('.lw-occupation-picker select[aria-label="Occupation category"]').selectOption('cleaning');
+ assert.equal(await p.evaluate(()=>document.activeElement?.getAttribute('aria-label')),'Occupation category','picker retains keyboard focus after change');
  await p.waitForFunction(()=>document.querySelector('[data-suggestion-kind="summary"] .lw-suggestion-list')?.children.length===25);
  assert.equal(await p.locator('[data-suggestion-kind="summary"] .lw-suggestion-choice').count(),25);
  const summary=p.locator('[data-path="summary"]').first();
  const original=await summary.inputValue();
+ await p.locator('[data-suggestion-kind="summary"] .lw-suggestion-choice').first().click();
+ assert.equal(await summary.inputValue(),original,'cancelling replacement must preserve the user summary');
+ assert.equal(replaceDialogs,1,'existing summary requires explicit confirmation');
+ allowReplace=true;
  await p.locator('[data-suggestion-kind="summary"] .lw-suggestion-choice').first().click();
  assert.match(await summary.inputValue(),/Reliable cleaning professional/);
  await p.getByRole('button',{name:'Undo',exact:true}).click();
@@ -34,6 +41,12 @@ try{
  await p.getByRole('button',{name:'Undo',exact:true}).click();
  await p.locator('details[data-sec="experience"] summary').first().click();
  const card=p.locator('.lw-item[data-entry-section="experience"]').first();
+ assert.equal(await card.locator('[data-suggestion-kind="duties"] .lw-suggestion-choice').count(),0,
+  'unknown work role must not inherit a different target occupation');
+ await card.locator('input[data-path$=".title"]').fill('Cleaner');
+ await card.locator('input[data-path$=".title"]').press('Tab');
+ assert.equal(await card.locator('[data-work-category]').inputValue(),'cleaning',
+  'work-specific title selects the right duties category');
  const descriptions=card.locator('textarea[data-path$=".description"]');
  const before=await descriptions.inputValue();
  await card.locator('[data-suggestion-kind="duties"] .lw-suggestion-choice').first().click();
