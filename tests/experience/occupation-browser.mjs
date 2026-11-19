@@ -27,7 +27,9 @@ try{
  await p.getByRole('button',{name:'Undo',exact:true}).click();
  await p.getByRole('button',{name:'Undo',exact:true}).click();
  assert.equal(await summary.inputValue(),original,'two appended summaries are undoable independently');
- await p.locator('[data-suggestion-kind="skills"] .lw-suggestion-choice').first().click();
+ const skillsSection=p.locator('details[data-sec="skills"]');
+ if(!(await skillsSection.evaluate(node=>node.open)))await skillsSection.locator('summary').click();
+ await skillsSection.locator('[data-suggestion-kind="skills"] .lw-suggestion-choice').first().click();
  await p.waitForFunction(()=>[...document.querySelectorAll('.lw-chip')].some(x=>x.textContent.includes('Commercial Cleaning')));
  await p.getByRole('button',{name:'Undo',exact:true}).click();
  await p.locator('details[data-sec="experience"] summary').first().click();
