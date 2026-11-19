@@ -20,15 +20,15 @@ export function occupationPicker({title='',category='',role='',onChange}={}){
   roleInput.disabled=!group;
  }
  updateRoles(selected,chosenRole);
- const changed=()=>{
+ const changed=source=>{
   const group=groupInput.value,choice=roleInput.value;
-  onChange?.({category:group,role:choice});
+  onChange?.({category:group,role:choice,source});
  };
  groupInput.addEventListener('change',()=>{
   updateRoles(groupInput.value);
-  changed();
+  changed('category');
  });
- roleInput.addEventListener('change',changed);
+ roleInput.addEventListener('change',()=>changed('role'));
  return el('div',{class:'lw-occupation-picker'},
   el('div',{class:'lw-field'},el('label',{},'Occupation category'),groupInput),
   el('div',{class:'lw-field'},el('label',{},'Specific job title (optional)'),roleInput));
