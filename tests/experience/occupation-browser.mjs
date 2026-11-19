@@ -43,6 +43,12 @@ try{
  const card=p.locator('.lw-item[data-entry-section="experience"]').first();
  assert.equal(await card.locator('[data-suggestion-kind="duties"] .lw-suggestion-choice').count(),0,
   'unknown work role must not inherit a different target occupation');
+ await card.locator('[data-work-category]').selectOption('cleaning');
+ assert.equal(await card.locator('[data-suggestion-kind="duties"] .lw-suggestion-choice').count(),24,
+  'explicit category enables examples for an otherwise unknown work title');
+ await card.locator('[data-work-category]').selectOption('');
+ assert.equal(await card.locator('[data-suggestion-kind="duties"] .lw-suggestion-choice').count(),0,
+  'clearing the category removes unrelated suggestions');
  await card.locator('input[data-path$=".title"]').fill('Cleaner');
  await card.locator('input[data-path$=".title"]').press('Tab');
  assert.equal(await card.locator('[data-work-category]').inputValue(),'cleaning',
