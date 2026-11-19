@@ -20,6 +20,13 @@ try{
  assert.match(await summary.inputValue(),/Reliable cleaning professional/);
  await p.getByRole('button',{name:'Undo',exact:true}).click();
  assert.equal(await summary.inputValue(),original,'summary selection must be undoable');
+ await p.locator('input[aria-label="Add selected summary to existing text instead of replacing"]').check();
+ await p.locator('[data-suggestion-kind="summary"] .lw-suggestion-choice').first().click();
+ await p.locator('[data-suggestion-kind="summary"] .lw-suggestion-choice').nth(1).click();
+ assert.match(await summary.inputValue(),/Detail-focused cleaner/,'second selected summary appended');
+ await p.getByRole('button',{name:'Undo',exact:true}).click();
+ await p.getByRole('button',{name:'Undo',exact:true}).click();
+ assert.equal(await summary.inputValue(),original,'two appended summaries are undoable independently');
  await p.locator('[data-suggestion-kind="skills"] .lw-suggestion-choice').first().click();
  await p.waitForFunction(()=>[...document.querySelectorAll('.lw-chip')].some(x=>x.textContent.includes('Commercial Cleaning')));
  await p.getByRole('button',{name:'Undo',exact:true}).click();
