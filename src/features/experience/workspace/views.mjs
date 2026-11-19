@@ -106,10 +106,15 @@ export function editorView(ctx){
   c.value=value||'';c.dataset.key=key;c.dataset.path=path;if(auto)c.setAttribute('autocomplete',auto);c.addEventListener('input',()=>onInput(c.value));if(key==='p-title')c.addEventListener('change',()=>{if(!contentCategory)build(ed.snapshot());});return el('div',{class:'lw-field'},el('label',{for:id},label),c);};
  const open=new Set(['personal','look','occupation']);
  const suggestionsFor=snap=>occupationContent({role:contentRole||snap.document.personalInfo.title,category:contentCategory});
- const sec=(id,title,...kids)=>{const d=el('details',{class:'lw-sec','data-sec':id},el('summary',{},title),el('div',{class:'lw-sec-body'},...kids));if(open.has(id))d.open=true;d.addEventListener('toggle',()=>{d.open?open.add(id):open.delete(id);});return d;};
+ const sec=(id,title,...kids)=>{const d=el('details',{class:'lw-sec','data-sec':id},el('summary',{},title),el('div',{class:'lw-sec-body'},...kids));if(open.has(id))d.open=true;d.addEventListener('toggle',()=>{if(!d.isConnected)return;d.open?open.add(id):open.delete(id);});return d;};
  const plain=h=>(h||'').replace(/<li[^>]*>/gi,'\n').replace(/<[^>]*>/g,'').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').trim();
  const toHtml=t=>{const ls=t.split(/\n/).map(x=>x.replace(/^[\s•*-]+/,'').trim()).filter(Boolean);return ls.length?'<ul>'+ls.map(l=>'<li>'+l.replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]))+'</li>').join('')+'</ul>':'';};
  function build(snap){
+  // The browser dispatches details "toggle" asynchronously. Read the live open
+  // states before rebuilding and ignore late toggle events from detached trees.
+  for(const d of form.querySelectorAll('details.lw-sec[data-sec]')){
+   if(d.open)open.add(d.dataset.sec);else open.delete(d.dataset.sec);
+  }
   const act=document.activeElement?.dataset?.key;form.replaceChildren();
   form.append(sec('personal','Personal details',...PERSONAL.map(([k,l,a])=>field(l,snap.document.personalInfo[k],'p-'+k,'personalInfo.'+k,v=>ed.setPersonal(k,v),{auto:a}))));
   const chosen=suggestionsFor(snap);
