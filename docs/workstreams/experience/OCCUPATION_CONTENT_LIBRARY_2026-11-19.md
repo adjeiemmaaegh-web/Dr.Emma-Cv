@@ -16,6 +16,12 @@ The new module `src/features/occupation/occupation-content.mjs` preserves the ac
 
 Unknown occupation titles do **not** silently default to office suggestions. The user can choose a category explicitly. All content is local, deterministic and labeled an unverified example. Particular regulatory requirements (e.g. COSHH) must be verified for the user's actual region and employment history. No metrics or achievements are generated automatically.
 
+## Review refinements — 20 November 2026
+- **Replace-summary consent:** existing text stays unchanged unless the user approves replacement. Append mode remains opt-in, bounded to 800 characters and fully reversible.
+- **Past-role matching:** suggestions within a work-experience card use its own occupation category. An unknown role never silently inherits the target occupation's duties. Users can explicitly select or clear the category for that particular job; changing the job title refreshes the suggestions after the input is committed, avoiding typing disruption.
+- **Keyboard focus:** changing the main occupation/category selector restores focus to the corresponding recreated select. Suggestions are revealed within opened Skills and Experience sections, with search and keyboard-operable choices.
+- **Limits:** source-provided statements can contain jurisdiction-specific language (including UK COSHH). Every example requires human fact and location review; 251 job titles do not imply 251 individually authored suggestion libraries.
+
 ## Implementation and safety
 - Source: `src/features/occupation/occupation-content.mjs` and `occupation-ui.mjs`.
 - New workspace integration: `src/features/experience/workspace/views.mjs`; guided journey: `src/features/onboarding/onboarding-module.mjs`.
