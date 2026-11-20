@@ -50,3 +50,6 @@
 .lw[data-theme=dark] .lw-hero-paper{background:#fff;color:#233b36}
 .lw[data-theme=dark] .lw-hero-paper-label{color:#233b36}
 @media(max-width:860px){.lw-editor{grid-template-columns:minmax(0,1fr)}}
+
+/* Keep editorial hero support text readable on the dark gradient. */
+.lw[data-theme=dark] .lw-hero p{color:#f3f1e9}
