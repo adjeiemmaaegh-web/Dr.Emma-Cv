@@ -380,7 +380,7 @@ export function templatesView(ctx){
   }}},f==='All'?f:f[0].toUpperCase()+f.slice(1))));
  root.append(el('header',{class:'lw-page-head'},el('div',{},
   el('h1',{id:'page-title',tabindex:'-1'},'Choose a template'),
-  el('p',{},'38 editable templates, including eight new screenshot-inspired styles. Previews show your own CV. Switching a design never rewrites your words.')));
+  el('p',{},'38 editable templates, including eight new screenshot-inspired styles. Previews show your own CV. Switching a design never rewrites your words.'))));
  root.append(el('div',{class:'lw-template-tools'},search,filter,resultCount),savedDesignGallery(ctx,ctx.designStorage??globalThis.localStorage),grid);
  function draw(){
   const s=store.editor.snapshot(),doc=store.hasContent()?s.document:SAMPLE_DOC();
