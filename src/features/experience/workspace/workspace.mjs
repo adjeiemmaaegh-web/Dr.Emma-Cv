@@ -69,7 +69,14 @@ export async function mountWorkspace(root,{storage=globalThis.localStorage,sampl
  const ul=el('ul',{});nav.append(ul);
  const links={};
  for(const [id,label,ic] of ROUTES){const a=el('a',{href:'#/'+id},icon(ic),label);links[id]=a;ul.append(el('li',{},a));}
- const ctx={store,draftStore,privateSession,toast:m=>toaster.show(m),go:h=>{location.hash=h;},goField:path=>{current.id!=='editor'?(pending=path,location.hash='#/editor'):current.view.focusPath?.(path);}};
+ // Reusable design presets use the same in-memory isolation in private mode.
+ const designMemory=new Map();
+ const designStorage=privateSession?{
+  getItem:k=>designMemory.get(k)??null,
+  setItem:(k,v)=>{designMemory.set(k,String(v))},
+  removeItem:k=>{designMemory.delete(k)}
+ }:undefined;
+ const ctx={store,draftStore,designStorage,privateSession,toast:m=>toaster.show(m),go:h=>{location.hash=h;},goField:path=>{current.id!=='editor'?(pending=path,location.hash='#/editor'):current.view.focusPath?.(path);}};
  let current={id:null,view:null},pending=null;
  const views={home:homeView,editor:editorView,templates:templatesView,check:checkView,jobs:jobsView,career:careerJourneyView};
  function render(){

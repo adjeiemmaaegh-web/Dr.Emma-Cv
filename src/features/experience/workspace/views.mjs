@@ -70,7 +70,7 @@ export function homeView(ctx){
      store.confirmMasterEditing(true);
      await store.replaceDocument(out.document);
     }else store.replaceDocument(out.document);
-    ctx.toast('Saved to this device.');ctx.go('#/editor');
+    ctx.toast(ctx.privateSession?'CV created for this private session. Download it before leaving.':'Saved to this device.');ctx.go('#/editor');
    }},
   draftStore:ctx.draftStore,autoFocus:false}}).then(c=>{cleanup=c;});
  return {node:root,destroy:()=>{cleanup?.();cleanups.forEach(f=>f());}};
@@ -91,7 +91,7 @@ export function editorView(ctx){
  const paperSeg=seg('Paper size','paper',OPTIONS.paper),zoomMode={fit:true};
  const zoomSeg=el('div',{class:'lw-seg',role:'group','aria-label':'Preview zoom'},['Fit','100%'].map(z=>el('button',{type:'button','aria-pressed':String(z==='Fit'),on:{click:()=>{zoomMode.fit=z==='Fit';for(const b of zoomSeg.children)b.setAttribute('aria-pressed',String(b.textContent===z));redraw();}}},z)));
  const tabs=el('div',{class:'lw-seg lw-tabs',role:'group','aria-label':'Show'},['Edit','Preview'].map(t=>el('button',{type:'button','aria-pressed':String(t==='Edit'),on:{click:()=>{wrap.dataset.tab=t.toLowerCase();for(const b of tabs.children)b.setAttribute('aria-pressed',String(b.textContent===t));redraw();}}},t)));
- root.append(el('header',{class:'lw-page-head'},el('div',{},el('h1',{id:'page-title',tabindex:'-1'},'Edit your CV'),el('p',{},'Changes save locally. The live preview uses the same pagination and decoration geometry as the PDF; verify the final file’s fonts before sending.')),
+ root.append(el('header',{class:'lw-page-head'},el('div',{},el('h1',{id:'page-title',tabindex:'-1'},'Edit your CV'),el('p',{},ctx.privateSession?'Private session: changes are NOT saved. Download PDF or Word before leaving. Verify the file before sending.':'Changes save locally. The live preview uses the same pagination and decoration geometry as the PDF; verify the final file’s fonts before sending.')),
   el('div',{class:'lw-row'},el('button',{type:'button',class:'lw-btn',on:{click:()=>exportAs(ctx,'docx')}},icon('download'),'Word'),el('button',{type:'button',class:'lw-btn primary',on:{click:()=>exportAs(ctx,'pdf')}},icon('download'),'PDF'))));
  if(store.mode==='persistent'){
    const cv=store.selectedCV,master=cv.id===store.profile.master.id;
@@ -264,7 +264,7 @@ export function editorView(ctx){
   const ap=sec('look','Look and layout',el('p',{style:'margin-bottom:var(--s-3)'},'Template: ',el('strong',{},tpl.name),' ',el('a',{class:'lw-btn sm',href:'#/templates'},'Change')),
    el('div',{class:'lw-field'},el('span',{class:'lw-help'},'Accent colour'),sw),
    ...[['Text size','fontSize',OPTIONS.fontSize],['Spacing','spacing',OPTIONS.spacing],['Margins','margins',OPTIONS.margins]].map(([l,k,o])=>el('div',{class:'lw-field'},el('span',{class:'lw-help'},l),seg(l,k,o,x=>x[0].toUpperCase()+x.slice(1)))));
-  ap.querySelector('.lw-sec-body').append(designControls(ed,ctx),saveDesignControls(ed,ctx));
+  ap.querySelector('.lw-sec-body').append(designControls(ed,ctx),saveDesignControls(ed,ctx,ctx.designStorage??globalThis.localStorage));
   form.append(ap);
   form.append(sec('section-layout','Sections and order',sectionsControls(ed,ctx)));
   const custom=snap.document.customSections||[];
@@ -312,8 +312,8 @@ export function editorView(ctx){
   undo.disabled=!snap.canUndo;redo.disabled=!snap.canRedo;
   for(const b of paperSeg.children)b.setAttribute('aria-pressed',String(b.dataset.v===snap.appearance.paper));
   for(const g of form.querySelectorAll('.lw-seg[aria-label="Text size"] button,.lw-seg[aria-label="Spacing"] button,.lw-seg[aria-label="Margins"] button')){const k={'Text size':'fontSize',Spacing:'spacing',Margins:'margins'}[g.parentElement.getAttribute('aria-label')];g.setAttribute('aria-pressed',String(g.dataset.v===snap.appearance[k]));}
-  const st=store.status;status.className='lw-chip '+(st.state==='error'?'err':st.state==='saved'?'ok':'');
-  status.textContent=st.state==='error'?'✖ Not saved: '+(st.detail||(
+  const st=store.status;status.className='lw-chip '+(ctx.privateSession?'warn':st.state==='error'?'err':st.state==='saved'?'ok':'');
+  status.textContent=ctx.privateSession?'Not saved — private session. Download before closing.':st.state==='error'?'✖ Not saved: '+(st.detail||(
     st.error==='QUOTA'?'browser storage is full':st.error==='CONFLICT'?'another tab changed this CV':st.error==='UNCONFIRMED'?'confirm master editing first':'storage unavailable'))+'. Download an unsaved draft.':st.state==='saving'?'Saving…':'✓ Saved on this device';
   if(shape(snap)!==last){last=shape(snap);build(snap);}
   const effective=resolveStyle(snap.appearance);
@@ -372,7 +372,7 @@ export function templatesView(ctx){
  const {store}=ctx,root=el('div'),grid=el('div',{class:'lw-gallery'});let family='All';
  const filter=el('div',{class:'lw-seg',role:'group','aria-label':'Filter by style',style:'flex-wrap:wrap'},['All',...FAMILIES].map(f=>el('button',{type:'button','aria-pressed':String(f==='All'),on:{click:()=>{family=f;for(const b of filter.children)b.setAttribute('aria-pressed',String(b.textContent===f));draw();}}},f==='All'?f:f[0].toUpperCase()+f.slice(1))));
  root.append(el('header',{class:'lw-page-head'},el('div',{},el('h1',{id:'page-title',tabindex:'-1'},'Choose a template'),el('p',{},'Previews show your own CV. Switching never changes your words.')),filter));
- root.append(savedDesignGallery(ctx),grid);
+ root.append(savedDesignGallery(ctx,ctx.designStorage??globalThis.localStorage),grid);
  function draw(){
   const s=store.editor.snapshot(),doc=store.hasContent()?s.document:SAMPLE_DOC();grid.replaceChildren();
   for(const t of TEMPLATES.filter(x=>family==='All'||x.family===family)){
