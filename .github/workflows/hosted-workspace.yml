@@ -14,6 +14,9 @@ on:
       - 'hosting/sw.workspace.template.js'
       - 'src/features/interview/**'
       - 'src/features/experience/workspace/**'
+      - 'src/features/occupation/**'
+      - 'src/features/onboarding/**'
+      - 'tests/experience/occupation-*'
       - 'tests/career/**'
       - 'tests/hosting/**'
       - 'docs/workstreams/career/**'
@@ -54,7 +57,9 @@ jobs:
           npm install --no-save --ignore-scripts --no-audit --no-fund playwright@1.57.0
           npx playwright install --with-deps chromium
       - name: Exercise exact Vercel output in real Chromium, online/offline
-        run: node tests/hosting/workspace-hosted-browser.mjs
+        run: |
+          node tests/hosting/workspace-hosted-browser.mjs
+          node tests/experience/occupation-browser.mjs
       - name: All group A-E and real journey unit/integration regressions
         run: node --test tests/platform/*.test.mjs tests/documents/*.test.mjs tests/intelligence/*.test.mjs tests/career/*.test.mjs tests/integration/*.test.mjs tests/experience/*.test.mjs
       - uses: actions/upload-artifact@v4

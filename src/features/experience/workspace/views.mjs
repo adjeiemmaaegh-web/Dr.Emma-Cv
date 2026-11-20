@@ -1,5 +1,7 @@
 /** Workspace views. Each returns {node, destroy?}. They only use other workstreams' public APIs. */
 import {el,icon,download,debounceFrame} from './ui.mjs';
+import {OCCUPATION_CATEGORIES,resolveOccupation,occupationContent,addUniqueSkill,appendUniqueDuty,mergeSummary} from '../../occupation/occupation-content.mjs';
+import {occupationPicker,suggestionList} from '../../occupation/occupation-ui.mjs';
 import {layoutFor,drawPages,thumbnail} from './preview.mjs';
 import {listTemplates,FAMILIES,applyTemplate,getTemplate,OPTIONS,TEMPLATES,resolveStyle} from '../../templates/registry.mjs';
 import {renderDocumentArtifact} from '../../export/export-service.mjs';
@@ -72,6 +74,8 @@ const SECS={experience:{label:'Experience',fields:[['title','Job title'],['emplo
  education:{label:'Education',fields:[['degree','Qualification'],['school','School'],['start','Start'],['end','End']],add:'Add education',name:i=>[i.degree,i.school].filter(Boolean).join(', ')||'New qualification'}};
 export function editorView(ctx){
  const {store}=ctx;let ed=store.editor;
+ let contentCategory='',contentRole='',appendSummarySelection=false; // UI-only selection; no CV change without explicit insertion.
+ const workCategories=new Map(); // Explicit category override only for the corresponding work entry.
  const root=el('div'),status=el('span',{class:'lw-chip',role:'status'});
  const undo=el('button',{type:'button',class:'lw-btn icon','aria-label':'Undo',on:{click:()=>ed.undo()}},icon('undo')),redo=el('button',{type:'button',class:'lw-btn icon','aria-label':'Redo',on:{click:()=>ed.redo()}},icon('redo'));
  const seg=(label,key,opts,fmt=x=>x)=>{const g=el('div',{class:'lw-seg',role:'group','aria-label':label});
@@ -99,15 +103,52 @@ export function editorView(ctx){
  const prevWrap=el('div',{class:'lw-preview-wrap',tabindex:'0',role:'region','aria-label':'CV preview'},metrics,pages);
  const wrap=el('div',{class:'lw-editor','data-tab':'edit'},el('div',{class:'lw-form-col'},form),el('div',{class:'lw-preview-col'},prevWrap));root.append(wrap);
  const field=(label,value,key,path,onInput,{area,auto}={})=>{const id='f-'+key.replace(/\W+/g,'-'),c=area?el('textarea',{id,rows:'4'}):el('input',{id,type:'text'});
-  c.value=value||'';c.dataset.key=key;c.dataset.path=path;if(auto)c.setAttribute('autocomplete',auto);c.addEventListener('input',()=>onInput(c.value));return el('div',{class:'lw-field'},el('label',{for:id},label),c);};
- const open=new Set(['personal','look']);
- const sec=(id,title,...kids)=>{const d=el('details',{class:'lw-sec','data-sec':id},el('summary',{},title),el('div',{class:'lw-sec-body'},...kids));if(open.has(id))d.open=true;d.addEventListener('toggle',()=>{d.open?open.add(id):open.delete(id);});return d;};
+  c.value=value||'';c.dataset.key=key;c.dataset.path=path;if(auto)c.setAttribute('autocomplete',auto);c.addEventListener('input',()=>onInput(c.value));if(key==='p-title')c.addEventListener('change',()=>{if(!contentCategory)build(ed.snapshot());});return el('div',{class:'lw-field'},el('label',{for:id},label),c);};
+ const open=new Set(['personal','look','occupation']);
+ const suggestionsFor=snap=>occupationContent({role:contentRole||snap.document.personalInfo.title,category:contentCategory});
+ const sec=(id,title,...kids)=>{const d=el('details',{class:'lw-sec','data-sec':id},el('summary',{},title),el('div',{class:'lw-sec-body'},...kids));if(open.has(id))d.open=true;d.addEventListener('toggle',()=>{if(!d.isConnected)return;d.open?open.add(id):open.delete(id);});return d;};
  const plain=h=>(h||'').replace(/<li[^>]*>/gi,'\n').replace(/<[^>]*>/g,'').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').trim();
  const toHtml=t=>{const ls=t.split(/\n/).map(x=>x.replace(/^[\s•*-]+/,'').trim()).filter(Boolean);return ls.length?'<ul>'+ls.map(l=>'<li>'+l.replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]))+'</li>').join('')+'</ul>':'';};
  function build(snap){
+  // The browser dispatches details "toggle" asynchronously. Read the live open
+  // states before rebuilding and ignore late toggle events from detached trees.
+  for(const d of form.querySelectorAll('details.lw-sec[data-sec]')){
+   if(d.open)open.add(d.dataset.sec);else open.delete(d.dataset.sec);
+  }
   const act=document.activeElement?.dataset?.key;form.replaceChildren();
   form.append(sec('personal','Personal details',...PERSONAL.map(([k,l,a])=>field(l,snap.document.personalInfo[k],'p-'+k,'personalInfo.'+k,v=>ed.setPersonal(k,v),{auto:a}))));
-  form.append(sec('summary','Summary',field('Summary',snap.document.summary,'summary','summary',v=>ed.setText('summary',v),{area:true})));
+  const chosen=suggestionsFor(snap);
+  const picker=occupationPicker({title:snap.document.personalInfo.title,category:contentCategory,role:contentRole,
+   onChange:({category,role,source})=>{
+    contentCategory=category;contentRole=role;
+    build(ed.snapshot()); // Capture the previous visible state first.
+    for(const id of ['occupation','summary','skills']){
+     open.add(id);
+     const section=form.querySelector('details.lw-sec[data-sec="'+id+'"]');
+     if(section)section.open=true; // Explicit user navigation wins over prior collapsed state.
+    }
+    const fieldName=source==='category'?'Occupation category':'Occupation or job title';
+    form.querySelector('.lw-occupation-picker select[aria-label="'+fieldName+'"]')?.focus();
+   }});
+  form.append(sec('occupation','Smart content library',picker,
+   el('p',{class:'lw-help'},'Choose an occupation to browse ready-made examples. This does not change your CV until you select a suggestion.'),
+   contentRole?el('button',{type:'button',class:'lw-btn sm',on:{click:()=>{
+    ed.endCoalescing();ed.setPersonal('title',contentRole);ed.endCoalescing();ctx.toast('Job title updated; Undo is available.');
+   }}},'Use selected job title in my CV'):null));
+  const appendBox=el('input',{type:'checkbox','aria-label':'Add selected summary to existing text instead of replacing',
+   checked:appendSummarySelection||undefined,on:{change:e=>{appendSummarySelection=e.target.checked;}}});
+  form.append(sec('summary','Summary',field('Summary',snap.document.summary,'summary','summary',v=>ed.setText('summary',v),{area:true}),
+   chosen?el('label',{class:'lw-help'},appendBox,' Add the next example to my existing summary (otherwise replace it)'):null,
+   chosen?suggestionList({kind:'summary',heading:'Choose a professional summary',items:chosen.summaries,expanded:true,actionText:'Use summary',
+    onChoose:value=>{
+     const merged=mergeSummary(ed.snapshot().document.summary,value,{append:appendSummarySelection});
+     if(merged===null){ctx.toast('Already included, or over the 800-character summary limit. Edit before adding more.');return;}
+     const existing=ed.snapshot().document.summary;
+     if(!appendSummarySelection&&existing&&existing!==merged&&
+      !confirm('Replace your existing professional summary with this example? You can Undo afterwards.'))return;
+     ed.endCoalescing();ed.setText('summary',merged);ed.endCoalescing();
+     ctx.toast('Summary inserted. Check all claims; Undo is available.');
+    }}):el('p',{class:'lw-help'},'Select an occupation above to see professional summary examples.')));
   for(const [name,def] of Object.entries(SECS)){
    const items=snap.document[name],body=[];
    if(!items.length)body.push(el('p',{class:'lw-help',style:'margin-bottom:var(--s-3)'},'Nothing here yet.'));
@@ -119,7 +160,38 @@ export function editorView(ctx){
      el('button',{type:'button',class:'lw-btn sm icon danger','aria-label':'Remove '+def.name(it)+' (you can undo)',on:{click:()=>{ed.removeItem(name,it.id);ctx.toast(def.label+' entry removed. Press Undo to bring it back.');}}},icon('trash',{size:16}))));
     for(const [k,l,t] of def.fields){
      if(t==='area')card.append(field(l,plain(it[k]),it.id+k,name+'['+it.id+'].'+k,v=>ed.updateItem(name,it.id,{[k]:toHtml(v)}),{area:true}));
-     else card.append(field(l,it[k],it.id+k,name+'['+it.id+'].'+k,v=>ed.updateItem(name,it.id,{[k]:v})));
+     else{
+      const control=field(l,it[k],it.id+k,name+'['+it.id+'].'+k,v=>ed.updateItem(name,it.id,{[k]:v}));
+      if(name==='experience'&&k==='title')control.querySelector('input')?.addEventListener('change',()=>{
+       workCategories.delete(it.id);build(ed.snapshot()); // Update suggestions after typing, not per keystroke.
+      });
+      card.append(control);
+     }
+    }
+    if(name==='experience'){
+     const workCategory=workCategories.get(it.id)||resolveOccupation(it.title)?.group||'';
+     const select=el('select',{'aria-label':'Responsibility category for '+(it.title||'this job'),'data-work-category':it.id,
+      on:{change:e=>{
+       if(e.target.value)workCategories.set(it.id,e.target.value);
+       else workCategories.delete(it.id);
+       build(ed.snapshot());
+       [...form.querySelectorAll('[data-work-category]')].find(n=>n.dataset.workCategory===it.id)?.focus();
+      }}},el('option',{value:''},'Choose an occupation'));
+     for(const group of OCCUPATION_CATEGORIES)select.append(el('option',{value:group.id},group.label));
+     select.value=workCategory;
+     card.append(el('div',{class:'lw-field'},
+      el('label',{},'Responsibility examples for this job'),select));
+     const workContent=occupationContent({role:it.title,category:workCategory});
+     if(workContent)card.append(suggestionList({kind:'duties',heading:'Suggested duties for '+workContent.groupLabel,
+      items:workContent.duties,actionText:'Add duty',expanded:true,onChoose:bullet=>{
+       const row=ed.snapshot().document.experience.find(x=>x.id===it.id);
+       if(!row)return;
+       const next=appendUniqueDuty(plain(row.description||''),bullet);
+       if(next===null){ctx.toast('This responsibility is already included.');return;}
+       ed.endCoalescing();ed.updateItem('experience',it.id,{description:toHtml(next)});ed.endCoalescing();
+       ctx.toast('Responsibility added. Verify it matches your experience; Undo is available.');
+      }}));
+     else card.append(el('p',{class:'lw-help'},'Choose the actual job category above to see responsibilities for this experience. Your target CV occupation does not automatically change past work duties.'));
     }
     body.push(card);
    });
@@ -129,7 +201,14 @@ export function editorView(ctx){
   const chips=el('ul',{class:'lw-row',style:'list-style:none;padding:0;margin:0 0 var(--s-3)'},snap.document.skills.map(s=>el('li',{},el('span',{class:'lw-chip'},s.name,el('button',{type:'button','aria-label':'Remove skill '+s.name,class:'lw-btn ghost sm icon',style:'min-height:28px;min-width:28px;width:28px;padding:0',on:{click:()=>ed.removeItem('skills',s.id)}},icon('x',{size:14}))))));
   const sk=el('input',{type:'text',id:'f-newskill','data-key':'newskill','aria-describedby':'skill-help',on:{keydown:e=>{if(e.key==='Enter'){e.preventDefault();addSkill();}}}});
   const addSkill=()=>{const v=sk.value.trim();if(v){open.add('skills');ed.addItem('skills',{name:v,level:3});}};
-  form.append(sec('skills','Skills'+(snap.document.skills.length?' ('+snap.document.skills.length+')':''),chips,el('div',{class:'lw-field'},el('label',{for:'f-newskill'},'Add a skill'),el('div',{class:'lw-row'},sk,el('button',{type:'button',class:'lw-btn',on:{click:addSkill}},'Add')),el('p',{id:'skill-help',class:'lw-help'},'Press Enter to add. Only list skills you really have.'))));
+  form.append(sec('skills','Skills'+(snap.document.skills.length?' ('+snap.document.skills.length+')':''),chips,el('div',{class:'lw-field'},el('label',{for:'f-newskill'},'Add a skill'),el('div',{class:'lw-row'},sk,el('button',{type:'button',class:'lw-btn',on:{click:addSkill}},'Add')),el('p',{id:'skill-help',class:'lw-help'},'Press Enter to add. Only list skills you really have.')),
+   chosen?suggestionList({kind:'skills',heading:'Suggested '+chosen.groupLabel+' skills',
+    items:chosen.skills.filter(name=>addUniqueSkill(snap.document.skills,name)),actionText:'Add skill',expanded:true,
+    onChoose:name=>{
+     const skill=addUniqueSkill(ed.snapshot().document.skills,name);
+     if(!skill){ctx.toast('Skill already added.');return;}
+     ed.addItem('skills',{name:skill,level:3});ctx.toast('Skill added; Undo is available.');
+    }}):el('p',{class:'lw-help'},'Choose an occupation above to see suggested skills.')));
   const tpl=getTemplate(snap.appearance.template);
   const sw=el('div',{class:'lw-row',role:'group','aria-label':'Accent colour'},ACCENTS.map(c=>el('button',{type:'button',class:'lw-btn icon','aria-label':'Accent '+c,'aria-pressed':String(snap.appearance.color.toLowerCase()===c),style:`background:${c};border:3px solid ${snap.appearance.color.toLowerCase()===c?'var(--ink)':'transparent'};border-radius:50%;width:44px`,on:{click:()=>ed.setAppearance({color:c})}})));
   const ap=sec('look','Look and layout',el('p',{style:'margin-bottom:var(--s-3)'},'Template: ',el('strong',{},tpl.name),' ',el('a',{class:'lw-btn sm',href:'#/templates'},'Change')),

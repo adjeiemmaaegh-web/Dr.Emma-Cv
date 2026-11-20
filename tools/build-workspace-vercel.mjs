@@ -24,7 +24,7 @@ fs.copyFileSync(path.join(target,'site-integrity.json'),path.join(target,'legacy
 const folders=[
  'src/contracts','src/core','src/domain',
  ...['accessibility','ats','career','career-region','cover-letter','documents','editor',
- 'experience','export','import','intelligence','interview','job-match','linkedin-coach',
+ 'experience','export','import','intelligence','interview','job-match','linkedin-coach','occupation',
  'ocr','onboarding','pwa-ui','tailoring','templates','tracker','writing'].map(s=>'src/features/'+s)
 ];
 for(const folder of folders){

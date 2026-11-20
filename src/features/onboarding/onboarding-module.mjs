@@ -7,6 +7,8 @@
  */
 import {JOURNEYS,availability,startJourney,getView,submit,skip,back,finish,serializeDraft,restoreDraft} from './journeys.mjs';
 import {createAnnouncer,focusHeading,el,uniqueId} from '../accessibility/a11y.mjs';
+import {occupationContent,addUniqueSkill,appendUniqueDuty,mergeSummary} from '../occupation/occupation-content.mjs';
+import {occupationPicker,suggestionList} from '../occupation/occupation-ui.mjs';
 export const onboardingFeature=Object.freeze({
  id:'onboarding',dependencies:[],
  async mount({host,services}){
@@ -57,6 +59,50 @@ export const onboardingFeature=Object.freeze({
      form.append(el('label',{for:id},f.label+(f.required?' (required)':'')),c);
      if(f.help||f.example)form.append(el('p',{id:helpId,class:'ledger-help'},(f.help?f.help+' ':'')+(f.example?'Example only: '+f.example:'')));
      if(err)form.append(el('p',{id:errId,class:'ledger-error'},err.message));
+    }
+    if(state.kind==='create'&&view.id==='target'){
+     const input=form.querySelector('[name="title"]');
+     form.append(el('p',{class:'ledger-help'},'Or choose an occupation below to fill the job title. This only changes this draft field.'),
+      occupationPicker({title:input.value,onChange:({role})=>{
+       if(role){input.value=role;input.dispatchEvent(new Event('input',{bubbles:true}));}
+      }}));
+    }
+    if(state.kind==='create'&&['experience','skills','summary'].includes(view.id)){
+     const target=state.answers.target?.title||'';
+     const occupation=occupationContent({role:view.id==='experience'?(state.answers.experience?.jobTitle||target):target});
+     if(occupation){
+      const type=view.id==='experience'?'duties':view.id;
+      const items=type==='duties'?occupation.duties:type==='skills'?occupation.skills:occupation.summaries;
+      const fieldName=type==='duties'?'achievements':type==='skills'?'skills':'summary';
+      const input=form.querySelector('[name="'+fieldName+'"]');
+      const feedback=el('p',{class:'ledger-help',role:'status','aria-live':'polite'});
+      const appendChoice=type==='summary'?el('input',{type:'checkbox',
+       'aria-label':'Add selected summary to existing text instead of replacing'}):null;
+      if(appendChoice)form.append(el('label',{class:'ledger-help'},appendChoice,
+       ' Add another chosen summary to the existing text (otherwise replace it)'));
+      form.append(suggestionList({kind:type,heading:'Choose '+occupation.groupLabel+' '+(type==='duties'?'responsibilities':type),
+       items,expanded:true,actionText:type==='summary'?'Use summary':'Add',
+       onChoose:text=>{
+        if(type==='summary'){
+         const updated=mergeSummary(input.value,text,{append:!!appendChoice.checked});
+         if(updated===null){feedback.textContent='Already included or over 800 characters. Edit before adding more.';return;}
+         if(input.value&&input.value!==updated&&!appendChoice.checked&&!confirm('Replace your current summary with this example?'))return;
+         input.value=updated;
+        }else if(type==='skills'){
+         const have=input.value.split(/[,;\n]/).map(v=>v.trim()).filter(Boolean);
+         const next=addUniqueSkill(have,text);
+         if(!next){feedback.textContent='This skill is already included.';return;}
+         input.value=[...have,next].join(', ');
+        }else{
+         const next=appendUniqueDuty(input.value,text);
+         if(next===null){feedback.textContent='This responsibility is already included.';return;}
+         input.value=next;
+        }
+        input.dispatchEvent(new Event('input',{bubbles:true}));
+        feedback.textContent='Example added to this draft. Check the claims before you continue.';
+       }}),feedback);
+     }else form.append(el('p',{class:'ledger-help'},
+       'Choose a recognised job title in the previous step to see relevant example '+(view.id==='experience'?'duties':view.id)+'.'));
     }
    }else if(view.kind==='review'){
     const fs=el('fieldset',{},el('legend',{},'Found in your CV'));
