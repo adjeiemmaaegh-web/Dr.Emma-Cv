@@ -3,6 +3,7 @@
  * Output order == logical reading order == text-extraction order (ATS safe, single flow).
  */
 import {PAPER_SIZES,resolveStyle} from '../templates/registry.mjs';
+import {decodePassportPhoto,passportPhotoBox} from './photo.mjs';
 export const DEFAULT_SECTION_ORDER=Object.freeze(['summary','experience','education','skills','certifications','languages','projects','accomplishments','hobbies','references']);
 const TITLES={summary:'Summary',experience:'Experience',education:'Education',skills:'Skills',certifications:'Certifications',
  languages:'Languages',projects:'Projects',accomplishments:'Accomplishments',hobbies:'Interests',references:'References'};
@@ -134,7 +135,7 @@ const BLOCK_STYLE=(k,s)=>({
  bullet:{size:s.size,bold:false,before:0,after:s.paragraphGap,indent:12}
 }[k]);
 /** Paginate to pages of positioned lines. Keep-with-next groups are never split when they fit a page. */
-export function paginate(blocks,style){
+export function paginate(blocks,style,{photoBox=null}={}){
  const paper=PAPER_SIZES[style.paper]||PAPER_SIZES.A4;
  const width=paper.width-2*style.margin,usable=paper.height-2*style.margin;
  const units=[];let cur=[];
@@ -143,10 +144,12 @@ export function paginate(blocks,style){
   const indent=st.indent||0;
   const text=style.caps&&(b.kind==='section-title'||b.kind==='name')?b.text.toUpperCase():b.text;
   const rightW=b.right?textWidth(b.right,st.size,style.font,false)+12:0;
-  const lines=wrapText(text,Math.max(36,width-indent-rightW),st.size,style.font,st.bold);
+  const headerPhoto=Boolean(photoBox&&['name','title','contact'].includes(b.kind));
+  const usableWidth=width-indent-rightW-(headerPhoto?photoBox.width+14:0);
+  const lines=wrapText(text,Math.max(36,usableWidth),st.size,style.font,st.bold);
   const centered=style.header==='centered'&&(b.kind==='name'||b.kind==='title'||b.kind==='contact');
   const lh=st.size*style.lineHeight;
-  const entry={block:b,st,indent,centered,lh,lines:lines.map((t,i)=>({text:t,first:i===0}))};
+  const entry={block:b,st,indent,centered,lh,headerPhoto,lines:lines.map((t,i)=>({text:t,first:i===0}))};
   entry.height=st.before*(style.lineHeight/1.35)+lines.length*lh+st.after;
   cur.push(entry);
   if(!b.keepWithNext){units.push(cur);cur=[];}
@@ -163,11 +166,16 @@ export function paginate(blocks,style){
    page.push({kind:entry.block.kind,text:l.text,right:l.first?entry.block.right:undefined,
     size:entry.st.size,bold:entry.st.bold,muted:entry.block.muted||false,x:style.margin+entry.indent,
     y:style.margin+y-entry.lh*0.25,centered:entry.centered,bullet:entry.block.kind==='bullet'&&l.first,
-    links:l.first?(entry.block.links||[]):[],sourcePath:entry.block.sourcePath||null,paperWidth:paper.width,textWidth:width-entry.indent});
+    links:l.first?(entry.block.links||[]):[],sourcePath:entry.block.sourcePath||null,paperWidth:paper.width,textWidth:width-entry.indent-(entry.headerPhoto?photoBox.width+14:0)});
   });
   y+=entry.st.after;
  };
+ let photoClearancePlaced=false;
  for(const unit of units){
+  if(photoBox&&!photoClearancePlaced&&unit.some(e=>!['name','title','contact'].includes(e.block.kind))){
+   if(pages.length===1)y=Math.max(y,photoBox.y+photoBox.height+12-style.margin);
+   photoClearancePlaced=true;
+  }
   const h=unit.reduce((a,e)=>a+e.height,0);
   if(y+h>usable&&h<=usable&&pages[pages.length-1].length){pages.push([]);y=0;}
   unit.forEach(e=>place(e));
@@ -180,8 +188,13 @@ export function pagesToText(pages){
 }
 export function layoutDocument(doc,appearance){
  const {blocks,style,warnings}=buildBlocks(doc,appearance);
- const {pages,paper}=paginate(blocks,style);
- return {pages:pages.length?pages:[[]],paper,style,warnings,blocks};
+ const paper=PAPER_SIZES[style.paper]||PAPER_SIZES.A4;
+ const requested=Boolean(style.photo&&doc.personalInfo?.photo);
+ const photo=requested?decodePassportPhoto(doc.personalInfo.photo):null;
+ if(requested&&!photo)warnings.push('Passport photo is invalid or unsupported and was omitted.');
+ const photoBox=photo?passportPhotoBox(paper,style):null;
+ const result=paginate(blocks,style,{photoBox});
+ return {pages:result.pages.length?result.pages:[[]],paper,style,warnings,blocks,photo,photoBox};
 }
 
 /**
