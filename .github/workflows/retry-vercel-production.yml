@@ -1,0 +1,79 @@
+name: Retry Dr. CV production deployment
+on:
+  schedule:
+    - cron: '17 */6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dr-cv-vercel-production-retry
+  cancel-in-progress: false
+
+jobs:
+  retry:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check Vercel quota and deploy main only when needed
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          EXPECTED_SHA: ${{ github.sha }}
+          VERCEL_TEAM_ID: team_ppxUwl9mqh7Knwm0iyK7iDco
+          VERCEL_PROJECT_ID: prj_uTCvix5UtA4U6pi1Cr35g2qbISN2
+        run: |
+          node --input-type=module <<'NODE'
+          const { VERCEL_TOKEN: token, EXPECTED_SHA: sha, VERCEL_TEAM_ID: team, VERCEL_PROJECT_ID: project } = process.env;
+          if (!token) {
+            console.error('Set the VERCEL_TOKEN repository Actions secret to enable automatic retries.');
+            process.exitCode = 1;
+          } else {
+            const api = 'https://api.vercel.com';
+            const headers = { Authorization: `Bearer ${token}` };
+            const read = async (path) => {
+              const res = await fetch(api + path, { headers });
+              const body = await res.json();
+              if (!res.ok) throw new Error(`Vercel lookup failed: HTTP ${res.status} (${body.error?.code ?? 'unknown'})`);
+              return body;
+            };
+            try {
+              const deployments = await read(`/v6/deployments?teamId=${team}&projectId=${project}&target=production&limit=100`);
+              const items = deployments.deployments ?? [];
+              const ready = items.some(d => d.state === 'READY' && d.meta?.githubCommitSha === sha);
+              if (ready) {
+                console.log(`Production already contains main commit ${sha}; no deployment needed.`);
+              } else {
+                // Hobby quota is team-wide. Avoid submitting another build if the team
+                // already has 100 deployment records in the preceding 24 hours.
+                const all = await read(`/v6/deployments?teamId=${team}&limit=100`);
+                const recent = (all.deployments ?? []).filter(d => (d.created ?? d.createdAt ?? 0) >= Date.now() - 86400000);
+                if (recent.length >= 100) {
+                  console.log('Team has at least 100 deployments in the past 24 hours; deferring to next scheduled check.');
+                } else {
+                  const response = await fetch(`${api}/v13/deployments?teamId=${team}`, {
+                    method: 'POST',
+                    headers: { ...headers, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      name: 'ledger-cv-studio',
+                      project,
+                      target: 'production',
+                      gitSource: { type: 'github', org: 'adjeiemmaaegh-web', repo: 'Dr.Emma-Cv', ref: 'main', sha }
+                    })
+                  });
+                  const result = await response.json();
+                  if (response.status === 402 || response.status === 429) {
+                    console.log(`Vercel quota still blocks deployment (HTTP ${response.status}); next scheduled check will retry.`);
+                  } else if (!response.ok) {
+                    throw new Error(`Deployment request failed: HTTP ${response.status} (${result.error?.code ?? 'unknown'})`);
+                  } else {
+                    console.log(`Deployment accepted: ${result.id ?? 'id pending'}; Vercel is building asynchronously.`);
+                  }
+                }
+              }
+            } catch (error) {
+              console.error(error.message);
+              process.exitCode = 1;
+            }
+          }
+          NODE
