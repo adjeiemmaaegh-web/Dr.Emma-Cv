@@ -83,7 +83,7 @@ export const onboardingFeature=Object.freeze({
       const selected=text=>{
        if(type==='summary')return hasSuggestedSummary(input.value,text);
        if(type==='duties')return hasSuggestedDuty(input.value,text);
-       return input.value.split(/[,;\\n]/).some(name=>name.trim().toLowerCase()===text.trim().toLowerCase());
+       return input.value.split(/[,;\n]/).some(name=>name.trim().toLowerCase()===text.trim().toLowerCase());
       };
       const panel=suggestionList({kind:type,heading:'Choose '+occupation.groupLabel+' '+(type==='duties'?'responsibilities':type),
        items,expanded:true,isSelected:selected,
@@ -94,7 +94,7 @@ export const onboardingFeature=Object.freeze({
          if(input.value&&input.value!==updated&&!appendChoice.checked&&!confirm('Replace your current summary with this example?'))return;
          input.value=updated;
         }else if(type==='skills'){
-         const have=input.value.split(/[,;\\n]/).map(v=>v.trim()).filter(Boolean);
+         const have=input.value.split(/[,;\n]/).map(v=>v.trim()).filter(Boolean);
          const next=addUniqueSkill(have,text);
          if(!next){feedback.textContent='This skill is already included.';return;}
          input.value=[...have,next].join(', ');
@@ -112,7 +112,7 @@ export const onboardingFeature=Object.freeze({
          if(next===null){feedback.textContent='This summary has been edited. Remove it manually if needed.';return;}
          input.value=next;
         }else if(type==='skills'){
-         const have=input.value.split(/[,;\\n]/).map(v=>v.trim()).filter(Boolean);
+         const have=input.value.split(/[,;\n]/).map(v=>v.trim()).filter(Boolean);
          const index=have.findIndex(v=>v.toLowerCase()===text.trim().toLowerCase());
          if(index===-1)return;
          have.splice(index,1);input.value=have.join(', ');
