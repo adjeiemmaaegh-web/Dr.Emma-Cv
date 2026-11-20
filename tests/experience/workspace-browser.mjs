@@ -61,13 +61,35 @@ try{
  // skills
  await p.locator('summary',{hasText:/^Skills/}).click();await p.getByLabel('Add a skill').fill('Budgeting');await p.keyboard.press('Enter');
  await p.waitForFunction(()=>/Budgeting/.test(document.querySelector('.lw-page').innerText));
+ // Passport photo upload: convert locally to JPEG, show/hide, export and remove.
+ const png=await p.evaluate(()=>{
+  const canvas=document.createElement('canvas');canvas.width=70;canvas.height=90;
+  const ctx=canvas.getContext('2d');ctx.fillStyle='#809eb7';ctx.fillRect(0,0,70,90);
+  return canvas.toDataURL('image/png').split(',')[1];
+ });
+ await p.locator('#lw-passport-photo').setInputFiles({
+  name:'sample-portrait.png',mimeType:'image/png',buffer:Buffer.from(png,'base64')
+ });
+ await p.waitForFunction(()=>document.querySelector('.lw-page img.lw-passport-on-page'));
+ assert.match(await p.locator('.lw-passport-file-preview').getAttribute('src'),/^data:image\/jpeg;base64,/);
+ assert.equal(await p.locator('#lw-show-passport-photo').isChecked(),true);
+ await p.locator('#lw-show-passport-photo').uncheck();
+ await p.waitForFunction(()=>!document.querySelector('.lw-page img.lw-passport-on-page'));
+ await p.locator('#lw-show-passport-photo').check();
+ await p.waitForFunction(()=>document.querySelector('.lw-page img.lw-passport-on-page'));
+ assert.match(await p.evaluate(()=>localStorage.getItem('ledger_workspace_preview_v1')),/data:image\/jpeg;base64,/);
+
  // paper switch keeps content and changes page size
  const w0=await p.locator('.lw-pageslot').first().evaluate(e=>e.getBoundingClientRect().width);
  await p.getByRole('button',{name:'Letter'}).click();await p.waitForTimeout(150);assert.notEqual(await p.locator('.lw-pageslot').first().evaluate(e=>Math.round(e.getBoundingClientRect().width)),Math.round(w0)===0?-1:-2);
  // export downloads a real file
  const [d]=await Promise.all([p.waitForEvent('download'),p.getByRole('button',{name:'PDF'}).click()]);
- assert.match(d.suggestedFilename(),/Ada_Example_CV\.pdf/);const head=fs.readFileSync(await d.path()).subarray(0,5).toString();assert.equal(head,'%PDF-');
+ assert.match(d.suggestedFilename(),/Ada_Example_CV\.pdf/);const head=fs.readFileSync(await d.path()).subarray(0,5).toString();assert.equal(head,'%PDF-');assert(fs.readFileSync(await d.path()).toString('latin1').includes('/Subtype /Image'),'PDF contains photo');
  const [d2]=await Promise.all([p.waitForEvent('download'),p.getByRole('button',{name:'Word'}).click()]);assert.match(d2.suggestedFilename(),/\.docx$/);assert.equal(fs.readFileSync(await d2.path()).subarray(0,2).toString(),'PK');
+ assert(fs.readFileSync(await d2.path()).includes(Buffer.from('passport-photo.jpg')),'Word contains portrait');
+ await p.getByRole('button',{name:'Remove photo'}).click();
+ await p.waitForFunction(()=>!document.querySelector('.lw-page img.lw-passport-on-page'));
+ assert.equal(await p.locator('#lw-show-passport-photo').isDisabled(),true);
  // templates keep content
  await p.getByRole('link',{name:'Templates'}).click();await p.waitForSelector('.lw-thumb b');
  assert.equal(await p.locator('.lw-tpl').count(),38);
