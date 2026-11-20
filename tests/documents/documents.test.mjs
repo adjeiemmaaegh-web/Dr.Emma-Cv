@@ -20,11 +20,11 @@ const inflate=async b=>new Uint8Array(zlib.inflateRawSync(b));
 const variant=(o={})=>({id:'variantABC123',revision:2,name:'CV',document:SYNTH_DOC(),appearance:{},...o});
 
 /* ---------- Stage 6 ---------- */
-test('registry keeps all 30 legacy templates across seven families with unique ids',()=>{
- assert.equal(TEMPLATES.length,30);assert.equal(new Set(TEMPLATES.map(t=>t.id)).size,30);
+test('registry keeps all 30 legacy templates plus eight new designs across seven families',()=>{
+ assert.equal(TEMPLATES.length,38);assert.equal(new Set(TEMPLATES.map(t=>t.id)).size,38);
  for(const f of FAMILIES)assert(listTemplates({family:f}).length>0,'empty family '+f);
  const sig=new Set(TEMPLATES.map(t=>JSON.stringify([t.family,t.tokens,t.color])));
- assert.equal(sig.size,30,'every template must be visually distinguishable by tokens or accent');
+ assert.equal(sig.size,38,'every template must be visually distinguishable by tokens or accent');
 });
 test('switching template never touches the document',()=>{
  const doc=SYNTH_DOC(),before=JSON.stringify(doc);
