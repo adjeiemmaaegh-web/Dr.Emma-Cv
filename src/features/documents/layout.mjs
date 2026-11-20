@@ -211,6 +211,36 @@ export function pageDecorations(style,paper){
  const horizontal=(x,y,w)=>({kind:'line',x,y,width:w,height:weight,color});
  const rect=(x,y,w,h)=>({kind:'rect',x,y,width:w,height:h,color});
  const width=paper.width-2*m;
+ // New screenshot-inspired families use ink-safe page geometry, shared by
+ // thumbnail, live preview, and native PDF (the ATS text stream is unchanged).
+ // All decorative panels stay outside the text area and need no external images.
+ const inset=Math.max(11,Math.min(18,m*0.29)),edge=Math.max(4,weight*5);
+ const fullH=paper.height-2*inset,fullW=paper.width-2*inset;
+ switch(style.design){
+  case 'portrait-rail':
+   return [rect(inset,inset,Math.max(16,m*0.42),fullH),rect(m,inset,Math.min(96,width*0.23),Math.max(3,weight*4))];
+  case 'golden-banner':
+   return [rect(inset,inset,fullW,Math.max(14,m*0.28)),horizontal(m,paper.height-inset-4,width)];
+  case 'ink-frame':
+   return [rect(inset,inset,fullW,edge),rect(inset,paper.height-inset-edge,fullW,edge),
+    rect(inset,inset,edge,fullH),rect(paper.width-inset-edge,inset,edge,fullH)];
+  case 'slate-masthead':
+   return [rect(inset,inset,fullW,Math.max(12,m*0.26)),horizontal(m,paper.height-inset,width)];
+  case 'portrait-split':
+   return [rect(paper.width-inset-Math.max(13,m*0.36),inset,Math.max(13,m*0.36),fullH),
+    horizontal(m,inset,width*0.38)];
+  case 'stone-column':
+   return [rect(inset,inset,Math.max(12,m*0.33),fullH),horizontal(m,inset,width)];
+  case 'charcoal-rail':
+   return [rect(inset,inset,Math.max(16,m*0.42),fullH),
+    rect(m,paper.height-inset-7,width,Math.max(2,weight*3))];
+  case 'silver-outline':
+   return [rect(inset,inset,fullW,Math.max(1.2,weight*1.8)),
+    rect(inset,paper.height-inset-Math.max(1.2,weight*1.8),fullW,Math.max(1.2,weight*1.8)),
+    rect(inset,inset,Math.max(1.2,weight*1.8),fullH),
+    rect(paper.width-inset-Math.max(1.2,weight*1.8),inset,Math.max(1.2,weight*1.8),fullH),
+    horizontal(m,inset+9,width)];
+ }
  switch(style.pageAccent){
   case 'top-rule':return [horizontal(m,Math.max(12,m*0.48),width)];
   case 'side-rail':return [rect(Math.max(10,m*0.48),m,Math.max(2.2,weight*4),paper.height-2*m)];
