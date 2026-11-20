@@ -10,6 +10,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {spawnSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
+import {workspaceShellCacheKey} from './workspace-shell-cache-key.mjs';
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const at=p=>path.join(root,p),sha=v=>crypto.createHash('sha256').update(v).digest('hex');
 const run=spawnSync(process.execPath,['tools/build-e31-unified-ux.mjs'],{cwd:root,stdio:'inherit',timeout:240000});
@@ -81,7 +82,11 @@ assert(publicShell.includes('/src/features/experience/workspace/workspace.mjs'))
 assert(publicShell.includes('/src/domain/storage/career-journey-store.mjs'));
 const swTemplate=fs.readFileSync(at('hosting/sw.workspace.template.js'),'utf8');
 assert(swTemplate.includes('WORKSPACE_CACHE_KEY')&&swTemplate.includes('WORKSPACE_PUBLIC_ASSETS'));
-const cache='ledger-workspace-'+sha(rootHtml).slice(0,14);
+const cache=workspaceShellCacheKey({
+ html:rootHtml,
+ assetPaths:served,
+ readAsset:publicPath=>fs.readFileSync(path.join(target,publicPath.slice(1)))
+});
 const sw=swTemplate.replaceAll('WORKSPACE_CACHE_KEY',cache)
  .replace('WORKSPACE_PUBLIC_ASSETS',JSON.stringify(publicShell));
 fs.writeFileSync(path.join(target,'sw.js'),sw);
