@@ -37,3 +37,21 @@ test('premium editor provides keyboard focus and narrow-screen layout',()=>{
  assert.match(css,/\.lw-editor\{grid-template-columns:minmax\(0,1fr\)\}/);
  assert.match(css,/\.lw\[data-theme=dark\]/);
 });
+
+test('offline update manager rechecks waiting worker without skipping unsaved work',async()=>{
+ const {createUpdateManager}=await import('../../src/features/pwa-ui/update-manager.mjs');
+ let waiting=null,posted=0;
+ const registration={get waiting(){return waiting;},addEventListener(){}};
+ const serviceWorker={controller:{},addEventListener(){}};
+ let dirty=true;
+ const manager=createUpdateManager({registration,serviceWorker,hasUnsavedWork:()=>dirty});
+ assert.equal(manager.getState().status,'idle');
+ waiting={postMessage(){posted++;}};
+ assert.equal(manager.getState().status,'available');
+ assert.deepEqual(manager.apply(),{ok:false,reason:'unsaved'});
+ assert.equal(posted,0);
+ dirty=false;
+ assert.deepEqual(manager.apply(),{ok:true});
+ assert.equal(posted,1);
+ assert.equal(manager.getState().status,'applying');
+});
