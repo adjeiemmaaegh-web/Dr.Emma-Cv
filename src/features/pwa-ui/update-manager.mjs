@@ -6,7 +6,7 @@ export function createUpdateManager({registration,hasUnsavedWork=()=>false,onCha
  let state={status:'idle',blockedReason:null};
  const set=p=>{state={...state,...p};onChange({...state});};
  let reloading=false;
- const consider=()=>{if(state.status==='applying')return; if(registration?.waiting&&serviceWorker?.controller&&state.status!=='available')set({status:'available',blockedReason:null});};
+ const consider=()=>{if(state.status==='applying')return; if(registration?.waiting&&serviceWorker?.controller&&!['available','deferred'].includes(state.status))set({status:'available',blockedReason:null});};
  if(registration){
   consider();
   registration.addEventListener?.('updatefound',()=>{
