@@ -15,6 +15,10 @@ try{
  await p.getByRole('link',{name:'Edit',exact:true}).click();
  await p.locator('.lw-occupation-picker select[aria-label="Occupation category"]').selectOption('cleaning');
  assert.equal(await p.evaluate(()=>document.activeElement?.getAttribute('aria-label')),'Occupation category','picker retains keyboard focus after change');
+ assert(await p.locator('details[data-sec="summary"]').evaluate(node=>node.open),
+  'choosing a category must reveal summary examples');
+ assert(await p.locator('details[data-sec="skills"]').evaluate(node=>node.open),
+  'choosing a category must reveal suggested skills');
  await p.waitForFunction(()=>document.querySelector('[data-suggestion-kind="summary"] .lw-suggestion-list')?.children.length===25);
  assert.equal(await p.locator('[data-suggestion-kind="summary"] .lw-suggestion-choice').count(),25);
  const summary=p.locator('[data-path="summary"]').first();
