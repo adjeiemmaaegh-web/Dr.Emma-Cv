@@ -115,6 +115,20 @@ export function editorView(ctx){
   for(const d of form.querySelectorAll('details.lw-sec[data-sec]')){
    if(d.open)open.add(d.dataset.sec);else open.delete(d.dataset.sec);
   }
+  // Preserve search/filter, scroll and keyboard target when a skill changes the
+  // document shape and forces the editor panel to rebuild.
+  const panelKey=node=>node.dataset.suggestionKind+'|'+(node.closest('[data-entry-id]')?.dataset.entryId||'');
+  const panelStates=new Map();
+  let focusedSuggestion=null;
+  for(const panel of form.querySelectorAll('details.lw-suggestions')){
+   const key=panelKey(panel),search=panel.querySelector('input[type=search]');
+   panelStates.set(key,{query:search?.value||'',scroll:panel.querySelector('.lw-suggestion-list')?.scrollTop||0,open:panel.open});
+   if(panel.contains(document.activeElement)){
+    const active=document.activeElement;
+    focusedSuggestion={key,search:active===search,
+     body:active.closest?.('.lw-suggestion-choice')?.querySelector('.lw-suggestion-body')?.textContent||null};
+   }
+  }
   const act=document.activeElement?.dataset?.key;form.replaceChildren();
   form.append(sec('personal','Personal details',...PERSONAL.map(([k,l,a])=>field(l,snap.document.personalInfo[k],'p-'+k,'personalInfo.'+k,v=>ed.setPersonal(k,v),{auto:a}))));
   const chosen=suggestionsFor(snap);
@@ -255,7 +269,22 @@ export function editorView(ctx){
      el('button',{type:'button',class:'lw-btn sm','aria-label':'Move custom section down',disabled:i===custom.length-1||undefined,on:{click:()=>ed.moveItem('customSections',it.id,1)}},'Move down'),
      el('button',{type:'button',class:'lw-btn sm danger',on:{click:()=>ed.removeItem('customSections',it.id)}},'Remove'))));
   if(custom.length)form.append(sec('custom','Custom sections ('+custom.length+')',...customKids));
-  if(act){const n=form.querySelector('[data-key="'+act+'"]');if(n)n.focus();}
+  for(const panel of form.querySelectorAll('details.lw-suggestions')){
+   const saved=panelStates.get(panelKey(panel));
+   if(!saved)continue;
+   panel.open=saved.open;
+   const search=panel.querySelector('input[type=search]');
+   if(search&&saved.query){search.value=saved.query;search.dispatchEvent(new Event('input',{bubbles:true}));}
+   const list=panel.querySelector('.lw-suggestion-list');
+   if(list)list.scrollTop=saved.scroll;
+  }
+  if(focusedSuggestion){
+   const panel=[...form.querySelectorAll('details.lw-suggestions')].find(n=>panelKey(n)===focusedSuggestion.key);
+   const next=focusedSuggestion.search?panel?.querySelector('input[type=search]'):
+    [...(panel?.querySelectorAll('.lw-suggestion-choice')||[])].find(btn=>
+     btn.querySelector('.lw-suggestion-body')?.textContent===focusedSuggestion.body);
+   next?.focus();
+  }else if(act){const n=form.querySelector('[data-key="'+act+'"]');if(n)n.focus();}
  }
  const shape=s=>JSON.stringify([s.document.experience.map(i=>i.id),s.document.education.map(i=>i.id),
   s.document.skills.map(x=>x.id+':'+x.name),s.document.customSections.map(x=>x.id),s.appearance.template,
