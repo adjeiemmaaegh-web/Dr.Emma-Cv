@@ -39,7 +39,7 @@ export function occupationPicker({title='',category='',role='',onChange}={}){
  * not from a separate list that could drift out of sync after Undo.
  */
 export function suggestionList({kind='summary',heading,items=[],onChoose,onRemove,
- isSelected=()=>false,expanded=false}={}){
+ isSelected=()=>false,getSelectionContext=()=>undefined,expanded=false}={}){
  const root=el('details',{class:'lw-suggestions','data-suggestion-kind':kind});
  root.open=expanded;
  const title=el('summary',{},heading||'Suggestions', ' (',String(items.length),')');
@@ -50,19 +50,20 @@ export function suggestionList({kind='summary',heading,items=[],onChoose,onRemov
  const status=el('p',{class:'lw-help',role:'status','aria-live':'polite'});
  const noun=kind==='duties'?'duty':kind==='skills'?'skill':'summary';
  let shown=[];
- const cardState=(button,body,index)=>{
-  const selected=Boolean(isSelected(body));
+ const cardState=(button,body,index,context)=>{
+  const selected=Boolean(isSelected(body,context));
   button.dataset.selected=String(selected);
   button.setAttribute('aria-pressed',String(selected));
   button.setAttribute('aria-label',(selected?'Remove ':'Add ')+noun+' example '+(index+1));
   button.querySelector('.lw-suggestion-action').textContent=selected?'Remove':'Add';
  };
  const refresh=()=>{
+  const context=getSelectionContext();
   for(const button of list.querySelectorAll('.lw-suggestion-choice')){
    const index=Number(button.dataset.index);
-   cardState(button,shown[index],index);
+   cardState(button,shown[index],index,context);
   }
-  const count=shown.filter(isSelected).length;
+  const count=shown.filter(body=>isSelected(body,context)).length;
   status.textContent=shown.length+' example'+(shown.length===1?'':'s')+' available'+
    (count?' · '+count+' added':'');
  };
@@ -74,7 +75,7 @@ export function suggestionList({kind='summary',heading,items=[],onChoose,onRemov
    const ribbon=el('span',{class:'lw-suggestion-action','aria-hidden':'true'},'Add');
    const button=el('button',{type:'button',class:'lw-suggestion-choice',
     'data-index':String(i),on:{click:()=>{
-     if(isSelected(body))onRemove?.(body);
+     if(isSelected(body,getSelectionContext()))onRemove?.(body);
      else onChoose?.(body);
      if(root.isConnected)refresh();
     }}},ribbon,el('span',{class:'lw-suggestion-body'},body));
