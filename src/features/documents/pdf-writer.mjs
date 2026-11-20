@@ -16,7 +16,7 @@ export function winAnsi(s){
  return {text:out,lossy};
 }
 const num=n=>(Math.round(n*100)/100).toString();
-export function renderPdf({pages,paper,style,title='CV'}){
+export function renderPdf({pages,paper,style,title='CV',photo=null,photoBox=null}){
  const serif=style.font==='serif',F=serif?['Times-Roman','Times-Bold']:['Helvetica','Helvetica-Bold'];
  const objs=[],add=body=>{objs.push(body);return objs.length;};
  const warnings=[];let lossy=false;
@@ -24,9 +24,21 @@ export function renderPdf({pages,paper,style,title='CV'}){
  const f1=add('<< /Type /Font /Subtype /Type1 /BaseFont /'+F[0]+' /Encoding /WinAnsiEncoding >>');
  const f2=add('<< /Type /Font /Subtype /Type1 /BaseFont /'+F[1]+' /Encoding /WinAnsiEncoding >>');
  const accent=hex(style.color).join(' ');
+ let imageRef=null;
+ if(photo&&photoBox){
+  // JPEG is already validated by the shared photo decoder; keep binary bytes intact.
+  let raw='';for(const b of photo.bytes)raw+=String.fromCharCode(b);
+  imageRef=add('<< /Type /XObject /Subtype /Image /Width '+photo.width+
+   ' /Height '+photo.height+' /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length '+
+   photo.bytes.length+' >>\nstream\n'+raw+'\nendstream');
+ }
  const kids=[];
  for(const page of pages){
   let c='';const annots=[];
+  if(imageRef&&kids.length===0){
+   const p=photoBox;
+   c+='q '+num(p.width)+' 0 0 '+num(p.height)+' '+num(p.x)+' '+num(paper.height-p.y-p.height)+' cm /ImPhoto Do Q\n';
+  }
   for(const d of pageDecorations(style,paper)){
    const rgb=hex(d.color).join(' ');
    if(d.kind==='rect')c+=rgb+' rg '+num(d.x)+' '+num(paper.height-d.y-d.height)+' '+num(d.width)+' '+num(d.height)+' re f\n';
@@ -58,7 +70,7 @@ export function renderPdf({pages,paper,style,title='CV'}){
    }
   }
   const stream=add('<< /Length '+c.length+' >>\nstream\n'+c+'endstream');
-  kids.push(add('<< /Type /Page /Parent '+pagesRef+' 0 R /MediaBox [0 0 '+num(paper.width)+' '+num(paper.height)+'] /Resources << /Font << /F1 '+f1+' 0 R /F2 '+f2+' 0 R >> >> /Contents '+stream+' 0 R'+(annots.length?' /Annots ['+annots.map(a=>a+' 0 R').join(' ')+']':'')+' >>'));
+  kids.push(add('<< /Type /Page /Parent '+pagesRef+' 0 R /MediaBox [0 0 '+num(paper.width)+' '+num(paper.height)+'] /Resources << /Font << /F1 '+f1+' 0 R /F2 '+f2+' 0 R >>'+(imageRef?' /XObject << /ImPhoto '+imageRef+' 0 R >>':'')+' >> /Contents '+stream+' 0 R'+(annots.length?' /Annots ['+annots.map(a=>a+' 0 R').join(' ')+']':'')+' >>'));
  }
  const info=add('<< /Title ('+winAnsi(title).text+') /Producer (Ledger CV Studio) >>');
  objs[catalog-1]='<< /Type /Catalog /Pages '+pagesRef+' 0 R /Lang (en) >>';
@@ -77,6 +89,6 @@ const unwin=str=>[...str].map(c=>REV.get(c.charCodeAt(0))??c).join('');
 /** Verification hook: text our writer placed, per page, in content-stream (reading) order. */
 export function extractPdfText(bytes){
  let s='';for(let i=0;i<bytes.length;i++)s+=String.fromCharCode(bytes[i]);
- const pages=[...s.matchAll(/stream\n([\s\S]*?)endstream/g)].map(m=>m[1]);
+ const pages=[...s.matchAll(/stream\n([\s\S]*?)endstream/g)].map(m=>m[1]).filter(c=>c.includes('BT /F'));
  return pages.map(c=>[...c.matchAll(/\(((?:\\.|[^\\)])*)\) Tj/g)].map(m=>unwin(m[1].replace(/\\([0-7]{3})/g,(_,o)=>String.fromCharCode(parseInt(o,8))).replace(/\\(.)/g,'$1'))));
 }
