@@ -130,7 +130,8 @@ export function resolveStyle(appearance){
   header:a.headerStyle==='template'?t.tokens.header:a.headerStyle,
   columns:a.columns==='template'?t.tokens.layout:a.columns==='sidebar'?'sidebar':'single',
   caps:t.tokens.caps,rules:a.ruleStyle&&a.ruleStyle!=='template'?a.ruleStyle:t.tokens.rules,
-  pageAccent:a.pageAccent&&a.pageAccent!=='template'?a.pageAccent:t.tokens.edge,photo:a.photo,
+  pageAccent:a.pageAccent&&a.pageAccent!=='template'?a.pageAccent:t.tokens.edge,
+  decorationDisabled:a.pageAccent==='none',photo:a.photo,
   sectionOrder:Array.isArray(a.sectionOrder)?a.sectionOrder.filter(x=>typeof x==='string'):undefined,
   enabledSections:a.enabledSections&&typeof a.enabledSections==='object'?a.enabledSections:undefined
  });
