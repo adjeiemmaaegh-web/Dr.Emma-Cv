@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {workspaceShellCacheKey} from '../../tools/workspace-shell-cache-key.mjs';
 import {
  OCCUPATION_CATEGORIES,categoryRoles,resolveOccupation,occupationContent,
  addUniqueSkill,appendUniqueDuty,mergeSummary
@@ -65,4 +66,25 @@ test('summary selection can replace or combine up to the reviewed length limit',
  assert.equal(mergeSummary('Draft A verified example.','A verified example.',{append:true}),null);
  assert.equal(mergeSummary('x'.repeat(790),'a'.repeat(30),{append:true}),null);
  assert.equal(mergeSummary('','  '),null);
+});
+
+test('offline workspace cache invalidates on changed emitted JS/CSS even when index.html is identical',()=>{
+ const files={
+  '/src/features/experience/workspace/views.mjs':'export const page="old editor";',
+  '/src/features/experience/workspace/workspace.css':'.lw{color:black}'
+ };
+ const paths=Object.keys(files);
+ const build=(html='<html>unchanged shell</html>',list=paths)=>
+  workspaceShellCacheKey({html,assetPaths:list,readAsset:name=>files[name]});
+ const before=build();
+ assert.match(before,/^ledger-workspace-[a-f0-9]{14}$/);
+ assert.equal(build(undefined,[...paths].reverse()),before,'file traversal order must not affect identity');
+ files[paths[0]]='export const page="editor with Smart content library";';
+ assert.notEqual(build(),before,'a JavaScript-only release must invalidate the old cache');
+ const afterJs=build();
+ files[paths[1]]='.lw{color:teal}';
+ assert.notEqual(build(),afterJs,'CSS-only changes must also invalidate the cache');
+ assert.notEqual(build('<html>new shell</html>'),build(),'HTML changes must invalidate the cache');
+ assert.throws(()=>workspaceShellCacheKey({html:'x',assetPaths:['/private/cv.json'],readAsset:()=>''}),
+  /Unexpected public cache path/,'only emitted public sources may enter this cache identity');
 });
