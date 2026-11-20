@@ -58,9 +58,10 @@ try{
   navigator.serviceWorker.addEventListener('controllerchange',()=>window.changed++);
   window.updateManager=createUpdateManager({registration:r,serviceWorker:navigator.serviceWorker,
     hasUnsavedWork:()=>window.dirty,reload:()=>window.reloads++});
-  return {state:window.updateManager.getState(),active:!!r.active,waiting:!!r.waiting};
+  return {state:window.updateManager.getState(),active:!!r.active,waiting:!!r.waiting,controller:!!navigator.serviceWorker.controller,registrationScope:r.scope,workerState:r.waiting?.state,managerSource:(await (await fetch('/src/features/pwa-ui/update-manager.mjs')).text()).includes('const consider=')};
  });
- assert.equal(waiting.state.status,'available');
+ console.log('SW update manager diagnostic',JSON.stringify(waiting));
+ assert.equal(waiting.state.status,'available',JSON.stringify(waiting));
  assert.equal(waiting.waiting,true);
  assert.deepEqual(await p.evaluate(()=>window.updateManager.apply()),{ok:false,reason:'unsaved'});
  assert.equal(await p.evaluate(()=>window.changed),0);

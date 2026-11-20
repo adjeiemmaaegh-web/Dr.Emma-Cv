@@ -56,6 +56,7 @@ function change(old,next){
 }
 change('href="../../accessibility/a11y.css"','href="/src/features/accessibility/a11y.css"');
 change('href="./workspace.css"','href="/src/features/experience/workspace/workspace.css"');
+change('href="./premium-editorial.css"','href="/src/features/experience/workspace/premium-editorial.css"');
 change("from './workspace.mjs'","from '/src/features/experience/workspace/workspace.mjs'");
 change('Preview of the Ledger CV Studio workspace. Your CV stays on this device.',
  'Ledger CV Studio: offline-first CVs, job matching and career tools. Your private career data stays on your device.');

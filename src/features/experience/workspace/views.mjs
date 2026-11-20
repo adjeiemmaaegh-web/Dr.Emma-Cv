@@ -52,7 +52,23 @@ export function homeView(ctx){
  }).catch(()=>{});
  grid.append(el('section',{class:'lw-card','aria-labelledby':'h-tip'},el('h2',{id:'h-tip'},'Tip'),el('p',{class:'lw-help'},'Use ',el('kbd',{},'Ctrl'),' + ',el('kbd',{},'K'),' to jump anywhere or run a command without leaving the keyboard.')));
  const hostBox=el('div');
- root.append(el('section',{class:'lw-card lw-guided-start','aria-label':'Guided CV builder',style:'padding:clamp(24px,5vw,56px);background:linear-gradient(135deg,#f5f7ff 0%,#ffffff 58%,#eef8f5 100%);border-radius:24px'},
+ const sample=store.editor.snapshot();
+ const featured=TEMPLATES.slice(0,3).map(t=>{
+  const appearance={...sample.appearance,template:t.id,color:t.color||sample.appearance.color};
+  return el('a',{class:'lw-hero-paper',href:'#/templates','aria-label':'Explore '+t.name+' template'},
+   thumbnail(layoutFor(SAMPLE_DOC(),appearance)),el('span',{class:'lw-hero-paper-label'},t.name));
+ });
+ root.append(el('section',{class:'lw-hero', 'aria-label':'CV builder introduction'},
+  el('div',{class:'lw-hero-copy'},
+   el('p',{class:'lw-hero-eyebrow'},'THE CV BUILDER FOR YOUR NEXT CHAPTER'),
+   el('h2',{},'A better CV. A brighter next step.'),
+   el('p',{class:'lw-hero-lede'},'Build a beautifully presented CV with guided writing, real-time previews and professional templates. Make every application count.'),
+   el('div',{class:'lw-row lw-hero-actions'},
+    el('a',{class:'lw-btn primary',href:'#/editor'},has?'Continue building':'Create my CV'),
+    el('a',{class:'lw-btn',href:'#/templates'},'Explore templates')),
+   el('p',{class:'lw-hero-trust'},'38 professional designs · PDF and Word export · No account required')),
+  el('div',{class:'lw-hero-stage','aria-label':'Sample CV template previews'},...featured)));
+ root.append(el('section',{class:'lw-card lw-guided-start','aria-label':'Guided CV builder',style:'padding:clamp(24px,5vw,56px);border-radius:24px'},
   el('p',{class:'lw-help',style:'font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#4756a8'},'YOUR NEXT OPPORTUNITY STARTS HERE'),
   el('h2',{style:'font-size:clamp(2rem,4vw,3.4rem);line-height:1.12;max-width:18ch;margin:.7rem 0'},'Create a CV that opens doors.'),
   el('p',{class:'lw-help',style:'font-size:1.08rem;max-width:58ch;margin-bottom:1.25rem'},'Choose a professional design, tell your story, and download a CV you are proud to share. Free to use, with no account required.'),
@@ -391,7 +407,7 @@ export function editorView(ctx){
 export function templatesView(ctx){
  const {store}=ctx,root=el('div'),grid=el('div',{class:'lw-gallery','aria-label':'CV template choices'});
  let family='All',query='';
- const resultCount=el('p',{class:'lw-gallery-count',role:'status','aria-live':'polite'},'38 templates');
+ const resultCount=el('p',{class:'lw-gallery-count',role:'status','aria-live':'polite'},TEMPLATES.length+' templates');
  const search=el('input',{type:'search',class:'lw-template-search',placeholder:'Find a template by name or style…','aria-label':'Search CV templates',
   on:{input:e=>{query=e.target.value.trim().toLocaleLowerCase('en');draw();}}});
  const filter=el('div',{class:'lw-seg lw-gallery-filters',role:'group','aria-label':'Filter by style'},
@@ -412,12 +428,13 @@ export function templatesView(ctx){
    grid.append(el('p',{class:'lw-card lw-gallery-empty'},'No templates match. Try another style or clear your search.'));
    return;
   }
+  const fragment=document.createDocumentFragment();
   for(const t of found){
    const lay=layoutFor(doc,{...s.appearance,template:t.id,color:t.color||s.appearance.color});
    const sidebar=t.tokens.layout==='sidebar';
    const desc=t.family[0].toUpperCase()+t.family.slice(1)+(sidebar?' · print-safe single-column export':'');
    const tag=t.tokens.design?el('span',{class:'lw-template-new'},'New design'):null;
-   grid.append(el('button',{type:'button',class:'lw-tpl','data-template-id':t.id,'aria-label':'Select '+t.name+' template',
+   fragment.append(el('button',{type:'button',class:'lw-tpl','data-template-id':t.id,'aria-label':'Select '+t.name+' template',
     'aria-pressed':String(s.appearance.template===t.id),on:{click:()=>{
      if(!confirmDesignEditing(ctx))return;
      store.editor.setAppearance(applyTemplate(store.editor.snapshot().appearance,t.id,{keepColor:false}));
@@ -426,6 +443,7 @@ export function templatesView(ctx){
     thumbnail(lay),el('span',{class:'lw-template-name'},el('strong',{},t.name),tag),
     el('small',{},desc)));
   }
+  grid.append(fragment);
  }
  draw();return {node:root};
 }
