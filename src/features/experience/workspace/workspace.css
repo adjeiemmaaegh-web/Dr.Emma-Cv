@@ -280,7 +280,7 @@
 
 /* Passport-style portrait picker: local-only, keyboard accessible and responsive. */
 .lw-photo-control{padding:var(--s-4) 0 var(--s-2);border-top:1px solid var(--border)}
-.lw-photo-control h3{font-size:1rem;margin-bottom:var(--s-3)}
+.lw-photo-control h2{font-size:1rem;margin-bottom:var(--s-3)}
 .lw-photo-row{display:flex;align-items:flex-start;flex-wrap:wrap;gap:var(--s-4)}
 .lw-photo-image{flex:0 0 92px;height:117px;display:grid;place-items:center;border:1px solid var(--border);border-radius:var(--r-1);background:var(--surface-2);overflow:hidden}
 .lw-photo-image .lw-passport-file-preview{display:block;width:90px;height:115px;object-fit:cover}
