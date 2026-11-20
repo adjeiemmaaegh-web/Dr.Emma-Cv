@@ -47,7 +47,8 @@ try{
   const r=await navigator.serviceWorker.getRegistration();await r.update();
  });
  await p.waitForFunction(async()=>{
-  const r=await navigator.serviceWorker.getRegistration();return !!r.waiting;
+  const r=await navigator.serviceWorker.getRegistration();
+  return !!r.waiting&&!!navigator.serviceWorker.controller;
  });
  // No unrequested activation: a live controlled tab keeps the new worker waiting.
  const waiting=await p.evaluate(async()=>{
