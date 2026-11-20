@@ -407,7 +407,7 @@ export function editorView(ctx){
 export function templatesView(ctx){
  const {store}=ctx,root=el('div'),grid=el('div',{class:'lw-gallery','aria-label':'CV template choices'});
  let family='All',query='';
- const resultCount=el('p',{class:'lw-gallery-count',role:'status','aria-live':'polite'},'38 templates');
+ const resultCount=el('p',{class:'lw-gallery-count',role:'status','aria-live':'polite'},TEMPLATES.length+' templates');
  const search=el('input',{type:'search',class:'lw-template-search',placeholder:'Find a template by name or style…','aria-label':'Search CV templates',
   on:{input:e=>{query=e.target.value.trim().toLocaleLowerCase('en');draw();}}});
  const filter=el('div',{class:'lw-seg lw-gallery-filters',role:'group','aria-label':'Filter by style'},
@@ -428,12 +428,13 @@ export function templatesView(ctx){
    grid.append(el('p',{class:'lw-card lw-gallery-empty'},'No templates match. Try another style or clear your search.'));
    return;
   }
+  const fragment=document.createDocumentFragment();
   for(const t of found){
    const lay=layoutFor(doc,{...s.appearance,template:t.id,color:t.color||s.appearance.color});
    const sidebar=t.tokens.layout==='sidebar';
    const desc=t.family[0].toUpperCase()+t.family.slice(1)+(sidebar?' · print-safe single-column export':'');
    const tag=t.tokens.design?el('span',{class:'lw-template-new'},'New design'):null;
-   grid.append(el('button',{type:'button',class:'lw-tpl','data-template-id':t.id,'aria-label':'Select '+t.name+' template',
+   fragment.append(el('button',{type:'button',class:'lw-tpl','data-template-id':t.id,'aria-label':'Select '+t.name+' template',
     'aria-pressed':String(s.appearance.template===t.id),on:{click:()=>{
      if(!confirmDesignEditing(ctx))return;
      store.editor.setAppearance(applyTemplate(store.editor.snapshot().appearance,t.id,{keepColor:false}));
@@ -442,6 +443,7 @@ export function templatesView(ctx){
     thumbnail(lay),el('span',{class:'lw-template-name'},el('strong',{},t.name),tag),
     el('small',{},desc)));
   }
+  grid.append(fragment);
  }
  draw();return {node:root};
 }
