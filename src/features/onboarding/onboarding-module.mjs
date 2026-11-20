@@ -83,7 +83,7 @@ export const onboardingFeature=Object.freeze({
       const selected=text=>{
        if(type==='summary')return hasSuggestedSummary(input.value,text);
        if(type==='duties')return hasSuggestedDuty(input.value,text);
-       return input.value.split(/[,;\n]/).some(name=>name.trim().toLowerCase()===text.trim().toLowerCase());
+       return !addUniqueSkill(input.value.split(/[,;\n]/).map(v=>v.trim()).filter(Boolean),text);
       };
       const panel=suggestionList({kind:type,heading:'Choose '+occupation.groupLabel+' '+(type==='duties'?'responsibilities':type),
        items,expanded:true,isSelected:selected,
@@ -113,7 +113,7 @@ export const onboardingFeature=Object.freeze({
          input.value=next;
         }else if(type==='skills'){
          const have=input.value.split(/[,;\n]/).map(v=>v.trim()).filter(Boolean);
-         const index=have.findIndex(v=>v.toLowerCase()===text.trim().toLowerCase());
+         const index=have.findIndex(v=>!addUniqueSkill([v],text));
          if(index===-1)return;
          have.splice(index,1);input.value=have.join(', ');
         }else{
