@@ -111,12 +111,20 @@ try{
  assert.match(await pp.locator('.lw-storage-warning').innerText(),/no automatic saving/i);
  await pp.getByLabel('Application country').selectOption('uae');
  assert.match(await pp.locator('.lw-community-tips').innerText(),/Emirates ID/);
+ await pp.getByRole('button',{name:'Create a CV'}).click();
+ assert.equal(await pp.evaluate(()=>localStorage.getItem('ledger_workspace_preview_draft_v1')),null,
+  'starting a private guided journey must not save a browser draft');
  assert.equal(await pp.getByRole('link',{name:'Start a private session'}).count(),0);
  await pp.getByRole('link',{name:'Edit',exact:true}).click();
  assert.equal(await pp.getByLabel('First name').inputValue(),'');
  await pp.getByLabel('First name').fill('Temporary Person');
  assert.match(await pp.locator('.lw-toolbar [role=status]').innerText(),/Not saved.*private session/i,
   'private editor must not claim persistence');
+ await pp.getByLabel('Design name').fill('Temporary layout');
+ await pp.getByRole('button',{name:'Save reusable design'}).click();
+ assert.match(await pp.locator('.lw-toasts').innerText(),/private session/i);
+ assert.deepEqual(await pp.evaluate(()=>Object.keys(localStorage)),['ledger_workspace_preview_v1'],
+  'private design presets must not create localStorage records');
  assert.equal(await pp.evaluate(()=>localStorage.getItem('ledger_workspace_preview_v1')),saved,
   'private edits never overwrite an earlier locally saved CV');
  assert.equal(await pp.evaluate(()=>localStorage.getItem('ledger_workspace_preview_draft_v1')),null,
