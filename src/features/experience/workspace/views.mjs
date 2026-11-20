@@ -52,10 +52,30 @@ export function homeView(ctx){
  }).catch(()=>{});
  grid.append(el('section',{class:'lw-card','aria-labelledby':'h-tip'},el('h2',{id:'h-tip'},'Tip'),el('p',{class:'lw-help'},'Use ',el('kbd',{},'Ctrl'),' + ',el('kbd',{},'K'),' to jump anywhere or run a command without leaving the keyboard.')));
  const hostBox=el('div');
- root.append(el('section',{class:'lw-card lw-guided-start','aria-label':'Guided CV builder'},
-  el('p',{class:'lw-help'},'Start here. Choose one simple task, follow the questions, then review and download your CV. Everything is free.'),hostBox));
+ root.append(el('section',{class:'lw-card lw-guided-start','aria-label':'Guided CV builder',style:'padding:clamp(24px,5vw,56px);background:linear-gradient(135deg,#f5f7ff 0%,#ffffff 58%,#eef8f5 100%);border-radius:24px'},
+  el('p',{class:'lw-help',style:'font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#4756a8'},'YOUR NEXT OPPORTUNITY STARTS HERE'),
+  el('h2',{style:'font-size:clamp(2rem,4vw,3.4rem);line-height:1.12;max-width:18ch;margin:.7rem 0'},'Create a CV that opens doors.'),
+  el('p',{class:'lw-help',style:'font-size:1.08rem;max-width:58ch;margin-bottom:1.25rem'},'Choose a professional design, tell your story, and download a CV you are proud to share. Free to use, with no account required.'),
+  el('div',{class:'lw-row',style:'margin-bottom:1.5rem;gap:12px;flex-wrap:wrap'},
+   el('a',{class:'lw-btn primary',href:'#/templates'},'Explore CV templates'),
+   el('a',{class:'lw-btn',href:'#/editor'},has?'Continue my CV':'Open CV editor')),
+  hostBox));
+ root.append(el('section',{class:'lw-card',style:'margin-top:var(--s-5)','aria-label':'How CV creation works'},
+  el('h2',{},'Three simple steps'),
+  el('div',{class:'lw-grid'},
+   ...[['01','Choose a design','Browse CV templates and pick a style that fits your role.'],['02','Tell your story','Add your experience, education and skills with guided help.'],['03','Review and download','Check the finished CV, then export to PDF or Word.']].map(([n,t,d])=>el('div',{class:'lw-card'},el('span',{class:'lw-chip'},n),el('h3',{},t),el('p',{class:'lw-help'},d))))));
+ root.append(el('section',{class:'lw-card',style:'margin-top:var(--s-5)','aria-label':'Featured CV templates'},
+  el('div',{class:'lw-row',style:'justify-content:space-between;align-items:center;flex-wrap:wrap'},
+   el('div',{},el('h2',{},'Find a design that feels like you'),el('p',{class:'lw-help'},'Real templates from the CV editor, previewed with fictional sample information.')),
+   el('a',{class:'lw-btn',href:'#/templates'},'View all templates')),
+  el('div',{class:'lw-gallery'},TEMPLATES.slice(0,4).map(t=>{
+   const snap=store.editor.snapshot();
+   const lay=layoutFor(SAMPLE_DOC(),{...snap.appearance,template:t.id,color:t.color||snap.appearance.color});
+   return el('a',{class:'lw-tpl',href:'#/templates','aria-label':'Browse '+t.name+' CV template'},
+    thumbnail(lay),el('strong',{},t.name),el('small',{},t.family));
+  }))));
  root.append(communityGuide({privateSession:!!ctx.privateSession}));
- root.append(grid);
+ root.append(el('details',{class:'lw-card',style:'margin-top:var(--s-5)'},el('summary',{style:'cursor:pointer;font-weight:700'},'Saved work, storage and advanced recovery'),grid));
  if(store.mode==='persistent'){
   const panel=createWorkspaceDataPanel(ctx);root.append(panel.node);cleanups.push(()=>panel.destroy?.());
  }
