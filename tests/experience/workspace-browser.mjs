@@ -115,6 +115,8 @@ try{
  await pp.getByRole('link',{name:'Edit',exact:true}).click();
  assert.equal(await pp.getByLabel('First name').inputValue(),'');
  await pp.getByLabel('First name').fill('Temporary Person');
+ assert.match(await pp.locator('.lw-toolbar [role=status]').innerText(),/Not saved.*private session/i,
+  'private editor must not claim persistence');
  assert.equal(await pp.evaluate(()=>localStorage.getItem('ledger_workspace_preview_v1')),saved,
   'private edits never overwrite an earlier locally saved CV');
  assert.equal(await pp.evaluate(()=>localStorage.getItem('ledger_workspace_preview_draft_v1')),null,
