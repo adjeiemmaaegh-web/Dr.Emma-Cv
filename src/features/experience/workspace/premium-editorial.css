@@ -1,0 +1,21 @@
+/* Premium editorial pass, scoped to the modern workspace; legacy remains unchanged. */
+.lw{--bg:#f7f5f1;--surface:#fffefa;--surface-2:#f0ede6;--border:#dedbd3;--ink:#1e2529;--muted:#58616a;--accent:#126b63;--accent-strong:#07544c;--accent-soft:#dceee8;--r-1:10px;--r-2:18px;--r-3:24px;--shadow-1:0 3px 16px rgba(22,32,35,.045);--shadow-2:0 16px 44px rgba(22,32,35,.13);--font-display:Georgia,"Iowan Old Style",serif}
+.lw[data-theme=dark]{--bg:#101a1d;--surface:#182428;--surface-2:#233237;--border:#35464a;--ink:#f3f1e9;--muted:#b7c3c5;--accent:#73d5c7;--accent-strong:#9ce9dc;--accent-soft:#1d4540}
+.lw-bar{min-height:68px;padding-inline:clamp(16px,3vw,48px);box-shadow:0 2px 14px rgba(10,30,30,.035)}
+.lw-logo{width:36px;height:36px;border-radius:12px}
+.lw-brand{font-size:1.18rem;letter-spacing:-.035em}
+.lw-nav{padding:24px 14px}
+.lw-nav a{border-radius:12px;transition:background .15s ease}
+.lw-main{max-width:1600px;padding:clamp(20px,3vw,48px)}
+.lw-page-head{margin-bottom:32px;gap:18px}
+.lw-page-head h1{font-size:clamp(2rem,3.2vw,3.5rem);line-height:1.09;letter-spacing:-.045em;max-width:18ch}
+.lw-page-head p{font-size:1.06rem;max-width:65ch;line-height:1.65}
+.lw-card{border-radius:18px;padding:clamp(16px,2vw,26px);box-shadow:var(--shadow-1)}
+.lw-card:hover{box-shadow:0 12px 35px rgba(15,35,40,.075)}
+.lw-btn{border-radius:12px;font-weight:650}
+.lw-btn.primary{box-shadow:0 6px 16px rgba(9,80,73,.13)}
+.lw-editor{grid-template-columns:minmax(300px,420px) minmax(0,1fr);gap:clamp(20px,3vw,48px)}
+.lw details.lw-sec{border-radius:16px}
+.lw :is(input,select,textarea){accent-color:var(--accent)}
+@media(max-width:860px){.lw-main{padding:20px 16px 100px}.lw-page-head h1{font-size:2rem}.lw-nav{padding:4px 8px calc(4px + env(safe-area-inset-bottom))}}
+@media(prefers-reduced-motion:reduce){.lw-card,.lw-nav a{transition:none}}
