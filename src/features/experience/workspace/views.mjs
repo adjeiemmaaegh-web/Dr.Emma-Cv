@@ -369,15 +369,42 @@ export function editorView(ctx){
 }
 /* ====================== Templates ====================== */
 export function templatesView(ctx){
- const {store}=ctx,root=el('div'),grid=el('div',{class:'lw-gallery'});let family='All';
- const filter=el('div',{class:'lw-seg',role:'group','aria-label':'Filter by style',style:'flex-wrap:wrap'},['All',...FAMILIES].map(f=>el('button',{type:'button','aria-pressed':String(f==='All'),on:{click:()=>{family=f;for(const b of filter.children)b.setAttribute('aria-pressed',String(b.textContent===f));draw();}}},f==='All'?f:f[0].toUpperCase()+f.slice(1))));
- root.append(el('header',{class:'lw-page-head'},el('div',{},el('h1',{id:'page-title',tabindex:'-1'},'Choose a template'),el('p',{},'Previews show your own CV. Switching never changes your words.')),filter));
- root.append(savedDesignGallery(ctx,ctx.designStorage??globalThis.localStorage),grid);
+ const {store}=ctx,root=el('div'),grid=el('div',{class:'lw-gallery','aria-label':'CV template choices'});
+ let family='All',query='';
+ const resultCount=el('p',{class:'lw-gallery-count',role:'status','aria-live':'polite'},'38 templates');
+ const search=el('input',{type:'search',class:'lw-template-search',placeholder:'Find a template by name or style…','aria-label':'Search CV templates',
+  on:{input:e=>{query=e.target.value.trim().toLocaleLowerCase('en');draw();}}});
+ const filter=el('div',{class:'lw-seg lw-gallery-filters',role:'group','aria-label':'Filter by style'},
+  ['All',...FAMILIES].map(f=>el('button',{type:'button','data-family':f,'aria-pressed':String(f==='All'),on:{click:()=>{
+   family=f;for(const b of filter.children)b.setAttribute('aria-pressed',String(b.dataset.family===f));draw();
+  }}},f==='All'?f:f[0].toUpperCase()+f.slice(1))));
+ root.append(el('header',{class:'lw-page-head'},el('div',{},
+  el('h1',{id:'page-title',tabindex:'-1'},'Choose a template'),
+  el('p',{},'38 editable templates, including eight new screenshot-inspired styles. Previews show your own CV. Switching a design never rewrites your words.'))));
+ root.append(el('div',{class:'lw-template-tools'},search,filter,resultCount),savedDesignGallery(ctx,ctx.designStorage??globalThis.localStorage),grid);
  function draw(){
-  const s=store.editor.snapshot(),doc=store.hasContent()?s.document:SAMPLE_DOC();grid.replaceChildren();
-  for(const t of TEMPLATES.filter(x=>family==='All'||x.family===family)){
+  const s=store.editor.snapshot(),doc=store.hasContent()?s.document:SAMPLE_DOC();
+  const found=TEMPLATES.filter(t=>(family==='All'||t.family===family)&&
+   (!query||(t.name+' '+t.family+' '+(t.tokens.design||'')).toLocaleLowerCase('en').includes(query)));
+  resultCount.textContent=found.length+' of '+TEMPLATES.length+' templates';
+  grid.replaceChildren();
+  if(!found.length){
+   grid.append(el('p',{class:'lw-card lw-gallery-empty'},'No templates match. Try another style or clear your search.'));
+   return;
+  }
+  for(const t of found){
    const lay=layoutFor(doc,{...s.appearance,template:t.id,color:t.color||s.appearance.color});
-   grid.append(el('button',{type:'button',class:'lw-tpl','aria-pressed':String(s.appearance.template===t.id),on:{click:()=>{if(!confirmDesignEditing(ctx))return;store.editor.setAppearance(applyTemplate(store.editor.snapshot().appearance,t.id,{keepColor:false}));ctx.toast(t.name+' selected. Your content is unchanged.');draw();}}},thumbnail(lay),el('strong',{},t.name),el('small',{},t.family[0].toUpperCase()+t.family.slice(1)+(t.tokens.layout==='sidebar'?' · exports single column':''))));
+   const sidebar=t.tokens.layout==='sidebar';
+   const desc=t.family[0].toUpperCase()+t.family.slice(1)+(sidebar?' · print-safe single-column export':'');
+   const tag=t.tokens.design?el('span',{class:'lw-template-new'},'New design'):null;
+   grid.append(el('button',{type:'button',class:'lw-tpl','data-template-id':t.id,'aria-label':'Select '+t.name+' template',
+    'aria-pressed':String(s.appearance.template===t.id),on:{click:()=>{
+     if(!confirmDesignEditing(ctx))return;
+     store.editor.setAppearance(applyTemplate(store.editor.snapshot().appearance,t.id,{keepColor:false}));
+     ctx.toast(t.name+' selected. Your CV information is unchanged.');draw();
+    }}},
+    thumbnail(lay),el('span',{class:'lw-template-name'},el('strong',{},t.name),tag),
+    el('small',{},desc)));
   }
  }
  draw();return {node:root};
