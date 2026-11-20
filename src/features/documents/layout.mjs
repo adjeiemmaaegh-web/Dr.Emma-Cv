@@ -216,7 +216,7 @@ export function pageDecorations(style,paper){
  // All decorative panels stay outside the text area and need no external images.
  const inset=Math.max(11,Math.min(18,m*0.29)),edge=Math.max(4,weight*5);
  const fullH=paper.height-2*inset,fullW=paper.width-2*inset;
- if(style.pageAccent==='none')return []; // Explicit user choice disables themed ornament.
+ if(style.decorationDisabled)return []; // Only an explicit user override disables themed ornament.
  switch(style.design){
   case 'portrait-rail':
    return [rect(inset,inset,Math.max(16,m*0.42),fullH),rect(m,inset,Math.min(96,width*0.23),Math.max(3,weight*4))];
