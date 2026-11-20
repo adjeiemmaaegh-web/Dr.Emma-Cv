@@ -7,7 +7,7 @@
  */
 import {JOURNEYS,availability,startJourney,getView,submit,skip,back,finish,serializeDraft,restoreDraft} from './journeys.mjs';
 import {createAnnouncer,focusHeading,el,uniqueId} from '../accessibility/a11y.mjs';
-import {occupationContent,addUniqueSkill,appendUniqueDuty,mergeSummary} from '../occupation/occupation-content.mjs';
+import {occupationContent,addUniqueSkill,appendUniqueDuty,mergeSummary,hasSuggestedSummary,removeSuggestedSummary,hasSuggestedDuty,removeSuggestedDuty} from '../occupation/occupation-content.mjs';
 import {occupationPicker,suggestionList} from '../occupation/occupation-ui.mjs';
 export const onboardingFeature=Object.freeze({
  id:'onboarding',dependencies:[],
@@ -80,8 +80,13 @@ export const onboardingFeature=Object.freeze({
        'aria-label':'Add selected summary to existing text instead of replacing'}):null;
       if(appendChoice)form.append(el('label',{class:'ledger-help'},appendChoice,
        ' Add another chosen summary to the existing text (otherwise replace it)'));
-      form.append(suggestionList({kind:type,heading:'Choose '+occupation.groupLabel+' '+(type==='duties'?'responsibilities':type),
-       items,expanded:true,actionText:type==='summary'?'Use summary':'Add',
+      const selected=text=>{
+       if(type==='summary')return hasSuggestedSummary(input.value,text);
+       if(type==='duties')return hasSuggestedDuty(input.value,text);
+       return !addUniqueSkill(input.value.split(/[,;\n]/).map(v=>v.trim()).filter(Boolean),text);
+      };
+      const panel=suggestionList({kind:type,heading:'Choose '+occupation.groupLabel+' '+(type==='duties'?'responsibilities':type),
+       items,expanded:true,isSelected:selected,
        onChoose:text=>{
         if(type==='summary'){
          const updated=mergeSummary(input.value,text,{append:!!appendChoice.checked});
@@ -100,7 +105,27 @@ export const onboardingFeature=Object.freeze({
         }
         input.dispatchEvent(new Event('input',{bubbles:true}));
         feedback.textContent='Example added to this draft. Check the claims before you continue.';
-       }}),feedback);
+       },
+       onRemove:text=>{
+        if(type==='summary'){
+         const next=removeSuggestedSummary(input.value,text);
+         if(next===null){feedback.textContent='This summary has been edited. Remove it manually if needed.';return;}
+         input.value=next;
+        }else if(type==='skills'){
+         const have=input.value.split(/[,;\n]/).map(v=>v.trim()).filter(Boolean);
+         const index=have.findIndex(v=>!addUniqueSkill([v],text));
+         if(index===-1)return;
+         have.splice(index,1);input.value=have.join(', ');
+        }else{
+         const next=removeSuggestedDuty(input.value,text);
+         if(next===null){feedback.textContent='This duty has been edited. Remove it manually if needed.';return;}
+         input.value=next;
+        }
+        input.dispatchEvent(new Event('input',{bubbles:true}));
+        feedback.textContent='Selected example removed from this draft.';
+       }});
+      input.addEventListener('input',()=>panel.refreshSelections?.());
+      form.append(panel,feedback);
      }else form.append(el('p',{class:'ledger-help'},
        'Choose a recognised job title in the previous step to see relevant example '+(view.id==='experience'?'duties':view.id)+'.'));
     }
