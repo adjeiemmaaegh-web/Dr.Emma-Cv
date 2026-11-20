@@ -66,15 +66,15 @@ export function sectionsControls(ed,ctx){
 }
 export function saveDesignControls(ed,ctx,storage=globalThis.localStorage){
  const input=el('input',{type:'text',maxlength:'80',placeholder:'My executive blue','aria-label':'Design name'});
- return el('div',{class:'lw-save-design'},el('p',{class:'lw-help'},'Save the appearance only (never CV text). Stored in this browser.'),
-  el('div',{class:'lw-row'},input,el('button',{type:'button',class:'lw-btn sm',on:{click:()=>safe(ctx,()=>{const d=saveDesign(storage,input.value,ed.snapshot().appearance);ctx.toast('Saved design “'+d.name+'” on this device.');input.value='';})}},'Save reusable design')));
+ return el('div',{class:'lw-save-design'},el('p',{class:'lw-help'},ctx.privateSession?'Keep appearance presets temporarily for this private session only. Nothing is saved after reload.':'Save the appearance only (never CV text). Stored in this browser.'),
+  el('div',{class:'lw-row'},input,el('button',{type:'button',class:'lw-btn sm',on:{click:()=>safe(ctx,()=>{const d=saveDesign(storage,input.value,ed.snapshot().appearance);ctx.toast(ctx.privateSession?'Design kept only in this private session.':'Saved design “'+d.name+'” on this device.');input.value='';})}},'Save reusable design')));
 }
 export function savedDesignGallery(ctx,storage=globalThis.localStorage){
  const root=el('section',{class:'lw-card lw-saved-designs','aria-label':'Saved designs'}),list=el('div',{class:'lw-saved-design-list'});
  function draw(){
   list.replaceChildren();let designs;
   try{designs=readDesigns(storage)}catch(e){list.append(el('p',{role:'alert'},e.message));return}
-  if(!designs.length){list.append(el('p',{class:'lw-help'},'No saved designs yet. Use Edit → Look and layout → Save reusable design.'));return}
+  if(!designs.length){list.append(el('p',{class:'lw-help'},ctx.privateSession?'No temporary designs yet. Use Edit → Look and layout to create one.':'No saved designs yet. Use Edit → Look and layout → Save reusable design.'));return}
   for(const d of designs)list.append(el('div',{class:'lw-design-item'},
    el('span',{class:'lw-design-swatch',style:'background:'+d.appearance.color}),el('strong',{},d.name),
    el('button',{type:'button',class:'lw-btn sm',on:{click:()=>safe(ctx,()=>{if(!confirmDesignEditing(ctx))return;ctx.store.editor.replaceAppearance(d.appearance);ctx.toast('Applied “'+d.name+'”. Undo restores the previous look.');ctx.go('#/editor');})}},'Apply'),
@@ -98,7 +98,7 @@ export function savedDesignGallery(ctx,storage=globalThis.localStorage){
    ctx.toast('Exported appearance presets only — no CV content.');
   })}},'Export designs'),
   label('Import designs (JSON)',file));
- root.append(el('h2',{},'My saved designs'),el('p',{class:'lw-help'},'Reusable local appearance presets. Export them for a different device or import a reviewed design-only JSON file. Your CV content is never included.'),actions,list);
+ root.append(el('h2',{},ctx.privateSession?'My temporary designs':'My saved designs'),el('p',{class:'lw-help'},ctx.privateSession?'These design presets exist only while this private session remains open. You can export them yourself; imported files stay in memory. CV content is not included.':'Reusable local appearance presets. Export them for a different device or import a reviewed design-only JSON file. Your CV content is never included.'),actions,list);
  draw();return root;
 }
 const lines=html=>htmlToLines(html||'').map(l=>l.text).join('\n');
