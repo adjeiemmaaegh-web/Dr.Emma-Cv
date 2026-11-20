@@ -23,7 +23,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - run: npm ci --ignore-scripts
+      - name: Install dependencies without a lockfile
+        run: npm install --ignore-scripts --no-package-lock --no-audit --no-fund
       - run: npm run build
       - name: Adapt root-relative assets to GitHub Pages project path
         run: node tools/prepare-github-pages.mjs
