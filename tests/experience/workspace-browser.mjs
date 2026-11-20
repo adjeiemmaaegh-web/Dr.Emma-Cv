@@ -70,7 +70,7 @@ try{
  const [d2]=await Promise.all([p.waitForEvent('download'),p.getByRole('button',{name:'Word'}).click()]);assert.match(d2.suggestedFilename(),/\.docx$/);assert.equal(fs.readFileSync(await d2.path()).subarray(0,2).toString(),'PK');
  // templates keep content
  await p.getByRole('link',{name:'Templates'}).click();await p.waitForSelector('.lw-thumb b');
- assert.equal(await p.locator('.lw-tpl').count(),30);
+ assert.equal(await p.locator('.lw-tpl').count(),38);
  await p.locator('.lw-tpl',{has:p.locator('strong',{hasText:/^Executive$/})}).click();await p.waitForFunction(()=>document.querySelector('.lw-tpl[aria-pressed=true] strong')?.textContent==='Executive');
  await p.locator('.lw-seg[aria-label="Filter by style"] button',{hasText:'Technical'}).click();assert((await p.locator('.lw-tpl').count())>=5&&(await p.locator('.lw-tpl').count())<30);
  await p.getByRole('link',{name:'Edit',exact:true}).click();await p.waitForSelector('.lw-page span');assert.match(await page1(),/Budgeting/);
