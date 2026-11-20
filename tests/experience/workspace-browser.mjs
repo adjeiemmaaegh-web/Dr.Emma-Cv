@@ -98,6 +98,31 @@ try{
  const e=await browser.newContext({viewport:{width:390,height:844}}),q=await e.newPage();await q.goto(base);await q.waitForSelector('#page-title');
  assert.match(await q.locator('h1').innerText(),/build your CV/);await q.getByRole('button',{name:'Create a CV'}).waitFor();
  await q.evaluate(()=>{location.hash='#/check';});assert.match(await q.locator('#main').innerText(),/Nothing to check yet/);await e.close();
+ // Community centre use: a normal CV remains unchanged, while a private session
+ // starts blank and never writes private edits/drafts to the browser's saved CV.
+ const pc=await browser.newContext({viewport:{width:390,height:844}}),pp=await pc.newPage();
+ pp.on('dialog',dialog=>dialog.accept());
+ await pp.goto(base+'?sample=1');await pp.getByRole('link',{name:'Edit',exact:true}).click();
+ await pp.getByLabel('First name').fill('Previously Saved');
+ const saved=await pp.evaluate(()=>localStorage.getItem('ledger_workspace_preview_v1'));
+ assert.match(saved,/Previously Saved/);
+ await pp.goto(base+'?private=1');await pp.waitForSelector('#page-title');
+ assert.match(await pp.locator('#page-title').innerText(),/Private CV session/);
+ assert.match(await pp.locator('.lw-storage-warning').innerText(),/no automatic saving/i);
+ await pp.getByLabel('Application country').selectOption('uae');
+ assert.match(await pp.locator('.lw-community-tips').innerText(),/Emirates ID/);
+ assert.equal(await pp.getByRole('link',{name:'Start a private session'}).count(),0);
+ await pp.getByRole('link',{name:'Edit',exact:true}).click();
+ assert.equal(await pp.getByLabel('First name').inputValue(),'');
+ await pp.getByLabel('First name').fill('Temporary Person');
+ assert.equal(await pp.evaluate(()=>localStorage.getItem('ledger_workspace_preview_v1')),saved,
+  'private edits never overwrite an earlier locally saved CV');
+ assert.equal(await pp.evaluate(()=>localStorage.getItem('ledger_workspace_preview_draft_v1')),null,
+  'private guided drafts do not use persistent browser storage');
+ await pp.reload();await pp.getByLabel('First name').waitFor();
+ assert.equal(await pp.getByLabel('First name').inputValue(),'','private edits disappear on reload');
+ assert.equal(await pp.evaluate(()=>localStorage.getItem('ledger_workspace_preview_v1')),saved);
+ await pc.close();
  console.log('PASS workspace behaviour');
 }catch(e){failed=true;console.error(e);}finally{await browser.close();close();}
 process.exit(failed?1:0);
