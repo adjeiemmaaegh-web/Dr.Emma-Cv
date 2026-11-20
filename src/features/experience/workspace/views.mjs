@@ -64,6 +64,16 @@ export function homeView(ctx){
   el('h2',{},'Three simple steps'),
   el('div',{class:'lw-grid'},
    ...[['01','Choose a design','Browse CV templates and pick a style that fits your role.'],['02','Tell your story','Add your experience, education and skills with guided help.'],['03','Review and download','Check the finished CV, then export to PDF or Word.']].map(([n,t,d])=>el('div',{class:'lw-card'},el('span',{class:'lw-chip'},n),el('h3',{},t),el('p',{class:'lw-help'},d))))));
+ root.append(el('section',{class:'lw-card',style:'margin-top:var(--s-5)','aria-label':'Featured CV templates'},
+  el('div',{class:'lw-row',style:'justify-content:space-between;align-items:center;flex-wrap:wrap'},
+   el('div',{},el('h2',{},'Find a design that feels like you'),el('p',{class:'lw-help'},'Real templates from the CV editor, previewed with fictional sample information.')),
+   el('a',{class:'lw-btn',href:'#/templates'},'View all templates')),
+  el('div',{class:'lw-gallery'},TEMPLATES.slice(0,4).map(t=>{
+   const snap=store.editor.snapshot();
+   const lay=layoutFor(SAMPLE_DOC(),{...snap.appearance,template:t.id,color:t.color||snap.appearance.color});
+   return el('a',{class:'lw-tpl',href:'#/templates','aria-label':'Browse '+t.name+' CV template'},
+    thumbnail(lay),el('strong',{},t.name),el('small',{},t.family));
+  }))));
  root.append(communityGuide({privateSession:!!ctx.privateSession}));
  root.append(el('details',{class:'lw-card',style:'margin-top:var(--s-5)'},el('summary',{style:'cursor:pointer;font-weight:700'},'Saved work, storage and advanced recovery'),grid));
  if(store.mode==='persistent'){
