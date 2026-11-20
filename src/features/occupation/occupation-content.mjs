@@ -534,3 +534,42 @@ export function mergeSummary(existing,suggestion,{append=false,max=800}={}){
  const combined=old+' '+fresh;
  return combined.length<=max?combined:null;
 }
+
+/** Only mark a summary selected when its entire example survives unchanged.
+ * Removing never discards unrelated words in the editable summary field.
+ */
+export function hasSuggestedSummary(existing,suggestion){
+ const text=String(existing||'').trim(),value=String(suggestion||'').trim();
+ if(!text||!value)return false;
+ for(let at=text.indexOf(value);at!==-1;at=text.indexOf(value,at+1)){
+  const end=at+value.length;
+  if((at===0||/\s/.test(text[at-1]))&&(end===text.length||/\s/.test(text[end])))return true;
+ }
+ return false;
+}
+export function removeSuggestedSummary(existing,suggestion){
+ const text=String(existing||'').trim(),value=String(suggestion||'').trim();
+ if(!hasSuggestedSummary(text,value))return null;
+ for(let at=text.indexOf(value);at!==-1;at=text.indexOf(value,at+1)){
+  const end=at+value.length;
+  if((at===0||/\s/.test(text[at-1]))&&(end===text.length||/\s/.test(text[end])))
+   return [text.slice(0,at).trimEnd(),text.slice(end).trimStart()].filter(Boolean).join(' ');
+ }
+ return null;
+}
+
+/** Work responsibilities are selectable individual lines. Never remove a
+ * substring of an unrelated or edited duty.
+ */
+export function hasSuggestedDuty(existingText,bullet){
+ const value=String(bullet||'').trim();
+ return !!value&&String(existingText||'').split(/\r?\n/).some(
+  line=>normal(line.replace(/^[-•]\s*/,''))===normal(value));
+}
+export function removeSuggestedDuty(existingText,bullet){
+ if(!hasSuggestedDuty(existingText,bullet))return null;
+ const lines=String(existingText||'').split(/\r?\n/);
+ const index=lines.findIndex(line=>normal(line.replace(/^[-•]\s*/,''))===normal(bullet));
+ lines.splice(index,1);
+ return lines.join('\n').trim();
+}
