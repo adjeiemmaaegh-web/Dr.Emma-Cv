@@ -12,6 +12,7 @@ import {onboardingFeature} from '../../onboarding/onboarding-module.mjs';
 import {assessStorageHealth,collectStorageSignals} from '../../pwa-ui/status.mjs';
 import {SAMPLE_DOC} from './store.mjs';
 import {createWorkspaceDataPanel} from './data-panel.mjs';
+import {communityGuide} from './community-guide.mjs';
 import {designControls,sectionsControls,saveDesignControls,savedDesignGallery,quickEditOnPage,fieldAtPath,confirmDesignEditing} from './design-studio.mjs';
 const variantOf=ed=>{const s=ed.snapshot();return {id:'workspacePreview1',revision:0,name:'CV',document:s.document,appearance:s.appearance};};
 export const ACCENTS=['#0b6b72','#c85a34','#3b5ba9','#8a5a3b','#4a4a4a','#7a3e9d'];
@@ -27,8 +28,8 @@ export function exportAs(ctx,format){
 export function homeView(ctx){
  const {store}=ctx,root=el('div'),cleanups=[];
  const has=store.hasContent();
- root.append(el('header',{class:'lw-page-head'},el('div',{},el('h1',{id:'page-title',tabindex:'-1'},has?'Welcome back':'Let’s build your CV'),
-  el('p',{},has?'Pick up where you left off, check your CV, or track a new application.':'Answer a few simple questions, or import the CV you already have. Everything stays on this device.')),
+ root.append(el('header',{class:'lw-page-head'},el('div',{},el('h1',{id:'page-title',tabindex:'-1'},has?'Welcome back':ctx.privateSession?'Private CV session':'Let’s build your CV'),
+  el('p',{},has?'Pick up where you left off, check your CV, or track a new application.':ctx.privateSession?'Work without saving CV data in this browser. Download your file before leaving.':'Answer a few simple questions, or import the CV you already have. No account or payment is needed.')),
   has?el('div',{class:'lw-row'},el('a',{class:'lw-btn primary',href:'#/editor'},icon('edit'),'Continue editing'),el('button',{type:'button',class:'lw-btn',on:{click:()=>exportAs(ctx,'pdf')}},icon('download'),'Download PDF')):null));
  const grid=el('div',{class:'lw-grid',style:'margin-bottom:var(--s-5)'});
  if(has){
@@ -41,17 +42,23 @@ export function homeView(ctx){
  }
  const sig=el('section',{class:'lw-card','aria-labelledby':'h-store'},el('h2',{id:'h-store'},'Your saved work'),el('p',{class:'lw-help'},'Checking…'));
  grid.append(sig);
- collectStorageSignals({navigator:globalThis.navigator,location:globalThis.location,localStorage:globalThis.localStorage}).then(sg=>{
+ if(ctx.privateSession){
+  sig.replaceChildren(el('h2',{id:'h-store'},'Unsaved private work'),
+   el('p',{class:'lw-help'},'Nothing in this session is saved automatically. Download PDF or Word before closing; reloading starts a blank CV.'));
+ }else collectStorageSignals({navigator:globalThis.navigator,location:globalThis.location,localStorage:globalThis.localStorage}).then(sg=>{
   sg.lastWriteError=store.status.error;const h=assessStorageHealth(sg);
   sig.replaceChildren(el('h2',{id:'h-store'},'Your saved work'),el('p',{style:'margin:var(--s-2) 0'},el('span',{class:'lw-chip '+(h.level==='ok'?'ok':h.level==='warning'?'warn':'err')},(h.level==='ok'?'✓ ':h.level==='warning'?'▲ ':'✖ ')+h.summary)),
    el('ul',{class:'lw-help',style:'padding-left:1.1rem;margin:0'},h.items.slice(0,3).map(i=>el('li',{},i.message))));
  }).catch(()=>{});
  grid.append(el('section',{class:'lw-card','aria-labelledby':'h-tip'},el('h2',{id:'h-tip'},'Tip'),el('p',{class:'lw-help'},'Use ',el('kbd',{},'Ctrl'),' + ',el('kbd',{},'K'),' to jump anywhere or run a command without leaving the keyboard.')));
+ const hostBox=el('div');
+ root.append(el('section',{class:'lw-card lw-guided-start','aria-label':'Guided CV builder'},
+  el('p',{class:'lw-help'},'Start here. Choose one simple task, follow the questions, then review and download your CV. Everything is free.'),hostBox));
+ root.append(communityGuide({privateSession:!!ctx.privateSession}));
  root.append(grid);
  if(store.mode==='persistent'){
   const panel=createWorkspaceDataPanel(ctx);root.append(panel.node);cleanups.push(()=>panel.destroy?.());
  }
- const hostBox=el('div');root.append(el('section',{'aria-label':'Guided start'},hostBox));
  let cleanup=null;
  onboardingFeature.mount({host:{element:hostBox},services:{
   documentSource:{load:()=>store.hasContent()?{document:store.editor.snapshot().document,appearance:store.editor.snapshot().appearance}:null},

@@ -243,3 +243,21 @@
  .lw-suggestion-action{background:Highlight;color:HighlightText}
  .lw-suggestion-choice[data-selected="true"] .lw-suggestion-action{background:Canvas;color:CanvasText}
 }
+
+/* Community/nonprofit distribution: beginner journey first, optional locally rendered advice. */
+.lw-guided-start,.lw-community{margin-bottom:var(--s-5)}
+.lw-guided-start{border-top:4px solid var(--accent)}
+.lw-guided-start>.lw-help{margin-bottom:var(--s-3)}
+.lw-guided-start .ledger-onboarding{max-width:900px}
+.lw-guided-start .ledger-onboarding button{min-height:44px}
+.lw-community-columns{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:var(--s-5);margin:var(--s-3) 0}
+.lw-community-columns>div{min-width:0}
+.lw-community-columns h3{margin-bottom:var(--s-2)}
+.lw-community-columns p{margin-bottom:var(--s-3)}
+.lw-community select{display:block;min-height:44px;width:100%;max-width:360px;padding:var(--s-2);background:var(--surface);color:var(--ink);border:1px solid var(--border);border-radius:var(--r-1)}
+.lw-community-tips{padding-left:1.3rem;margin:var(--s-3) 0}
+.lw-community-tips li{margin-bottom:var(--s-2)}
+.lw-community-advisers{border-top:1px solid var(--border);padding-top:var(--s-3)}
+.lw-community-advisers summary{cursor:pointer;font-weight:700;min-height:44px}
+.lw-community-advisers li{margin:var(--s-2) 0}
+.lw-community :is(select,summary,a):focus-visible{outline:3px solid var(--a11y-focus);outline-offset:3px}

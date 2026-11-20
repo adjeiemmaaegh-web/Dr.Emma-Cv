@@ -11,10 +11,12 @@ import {homeView,editorView,templatesView,checkView,jobsView,exportAs} from './v
 import {careerJourneyView} from './career-journey-view.mjs';
 const ROUTES=[['home','Home','home'],['editor','Edit','edit'],['templates','Templates','grid'],['check','Check','check'],['jobs','Jobs','board'],['career','Career tools','check']];
 const DRAFT_KEY='ledger_workspace_preview_draft_v1';
-export async function mountWorkspace(root,{storage=globalThis.localStorage,sample=false,profileRepository,applicationRepository}={}){
+export async function mountWorkspace(root,{storage=globalThis.localStorage,sample=false,privateSession=false,profileRepository,applicationRepository}={}){
  let store;
  try{
-  store=sample?createStore({storage,sample}):await createPersistentWorkspaceStore({storage,profileRepository,applicationRepository});
+  // A private session does not read or write an existing saved profile or CV.
+  // Use the in-memory editor with no storage port, even when an older CV exists here.
+  store=privateSession?createStore({storage:null,sample:false}):sample?createStore({storage,sample}):await createPersistentWorkspaceStore({storage,profileRepository,applicationRepository});
  }catch(e){
   const msg=el('section',{class:'lw ledger-a11y',role:'alert'},
    el('h1',{},'Saved workspace is unavailable'),
@@ -24,9 +26,14 @@ export async function mountWorkspace(root,{storage=globalThis.localStorage,sampl
   return {store:null,error:e,destroy(){root.replaceChildren()}};
  }
  root.classList.add('lw','ledger-a11y');
+ root.dataset.sessionMode=privateSession?'private':'saved';
  const mq=typeof matchMedia==='function'?matchMedia('(prefers-color-scheme: dark)'):null;
  const applyTheme=()=>{const t=store.theme;root.dataset.theme=t||(mq?.matches?'dark':'light');themeBtn.setAttribute('aria-pressed',String(root.dataset.theme==='dark'));};
- const draftStore={load:()=>{try{return storage?.getItem(DRAFT_KEY);}catch{return null;}},save:s=>{try{storage?.setItem(DRAFT_KEY,s);}catch{}},clear:()=>{try{storage?.removeItem(DRAFT_KEY);}catch{}}};
+ // Private journey drafts stay only in memory; localStorage is never used for them.
+ let transientDraft=null;
+ const draftStore={load:()=>{if(privateSession)return transientDraft;try{return storage?.getItem(DRAFT_KEY);}catch{return null;}},
+  save:s=>{if(privateSession){transientDraft=s;return;}try{storage?.setItem(DRAFT_KEY,s);}catch{}},
+  clear:()=>{if(privateSession){transientDraft=null;return;}try{storage?.removeItem(DRAFT_KEY);}catch{}}};
  const toaster=createToaster(root);
  const main=el('main',{class:'lw-main',id:'main'});
  const nav=el('nav',{class:'lw-nav','aria-label':'Main'});
@@ -35,6 +42,12 @@ export async function mountWorkspace(root,{storage=globalThis.localStorage,sampl
  const bar=el('header',{class:'lw-bar'},el('a',{class:'lw-brand',href:'#/home'},el('span',{class:'lw-logo','aria-hidden':'true'},'L'),'Ledger CV Studio'),palBtn,themeBtn);
  const danger=el('section',{class:'lw-storage-warning',role:'alert'});
  const showStorage=()=>{
+  if(privateSession){
+   danger.hidden=false;danger.setAttribute('role','status');
+   danger.replaceChildren(el('strong',{},'Private session — no automatic saving'),
+    el('p',{},'This CV and guided draft stay only in this open tab. Download PDF or Word before closing or reloading. Downloads can remain on this computer.'));
+   return;
+  }
   if(store.mode!=='persistent')return;
   const a=store.status,b=store.applicationStatus;
   if(a.state!=='error'&&b.state!=='error'){danger.replaceChildren();danger.hidden=true;return}
@@ -50,13 +63,13 @@ export async function mountWorkspace(root,{storage=globalThis.localStorage,sampl
  };
  root.append(el('a',{class:'lw-skip',href:'#main',on:{click:e=>{e.preventDefault();main.focus();}}},'Skip to content'),el('div',{class:'lw-shell'},bar,danger,nav,main));
  const offStorage=store.subscribe(showStorage);showStorage();
- const unload=e=>{if(store.mode==='persistent'&&store.hasUnsavedWork()){e.preventDefault();e.returnValue=''}};
+ const unload=e=>{if((store.mode==='persistent'&&store.hasUnsavedWork())||(privateSession&&store.hasContent())){e.preventDefault();e.returnValue=''}};
  window.addEventListener('beforeunload',unload);
  main.tabIndex=-1;
  const ul=el('ul',{});nav.append(ul);
  const links={};
  for(const [id,label,ic] of ROUTES){const a=el('a',{href:'#/'+id},icon(ic),label);links[id]=a;ul.append(el('li',{},a));}
- const ctx={store,draftStore,toast:m=>toaster.show(m),go:h=>{location.hash=h;},goField:path=>{current.id!=='editor'?(pending=path,location.hash='#/editor'):current.view.focusPath?.(path);}};
+ const ctx={store,draftStore,privateSession,toast:m=>toaster.show(m),go:h=>{location.hash=h;},goField:path=>{current.id!=='editor'?(pending=path,location.hash='#/editor'):current.view.focusPath?.(path);}};
  let current={id:null,view:null},pending=null;
  const views={home:homeView,editor:editorView,templates:templatesView,check:checkView,jobs:jobsView,career:careerJourneyView};
  function render(){
