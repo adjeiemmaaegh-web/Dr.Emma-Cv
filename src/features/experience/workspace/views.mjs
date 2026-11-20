@@ -52,7 +52,23 @@ export function homeView(ctx){
  }).catch(()=>{});
  grid.append(el('section',{class:'lw-card','aria-labelledby':'h-tip'},el('h2',{id:'h-tip'},'Tip'),el('p',{class:'lw-help'},'Use ',el('kbd',{},'Ctrl'),' + ',el('kbd',{},'K'),' to jump anywhere or run a command without leaving the keyboard.')));
  const hostBox=el('div');
- root.append(el('section',{class:'lw-card lw-guided-start','aria-label':'Guided CV builder',style:'padding:clamp(24px,5vw,56px);background:linear-gradient(135deg,#f5f7ff 0%,#ffffff 58%,#eef8f5 100%);border-radius:24px'},
+ const sample=store.editor.snapshot();
+ const featured=TEMPLATES.slice(0,3).map(t=>{
+  const appearance={...sample.appearance,template:t.id,color:t.color||sample.appearance.color};
+  return el('a',{class:'lw-hero-paper',href:'#/templates','aria-label':'Explore '+t.name+' template'},
+   thumbnail(layoutFor(SAMPLE_DOC(),appearance)),el('span',{class:'lw-hero-paper-label'},t.name));
+ });
+ root.append(el('section',{class:'lw-hero', 'aria-label':'CV builder introduction'},
+  el('div',{class:'lw-hero-copy'},
+   el('p',{class:'lw-hero-eyebrow'},'THE CV BUILDER FOR YOUR NEXT CHAPTER'),
+   el('h2',{},'A better CV. A brighter next step.'),
+   el('p',{class:'lw-hero-lede'},'Build a beautifully presented CV with guided writing, real-time previews and professional templates. Make every application count.'),
+   el('div',{class:'lw-row lw-hero-actions'},
+    el('a',{class:'lw-btn primary',href:'#/editor'},has?'Continue building':'Create my CV'),
+    el('a',{class:'lw-btn',href:'#/templates'},'Explore templates')),
+   el('p',{class:'lw-hero-trust'},'38 professional designs · PDF and Word export · No account required')),
+  el('div',{class:'lw-hero-stage','aria-label':'Sample CV template previews'},...featured)));
+ root.append(el('section',{class:'lw-card lw-guided-start','aria-label':'Guided CV builder',style:'padding:clamp(24px,5vw,56px);border-radius:24px'},
   el('p',{class:'lw-help',style:'font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#4756a8'},'YOUR NEXT OPPORTUNITY STARTS HERE'),
   el('h2',{style:'font-size:clamp(2rem,4vw,3.4rem);line-height:1.12;max-width:18ch;margin:.7rem 0'},'Create a CV that opens doors.'),
   el('p',{class:'lw-help',style:'font-size:1.08rem;max-width:58ch;margin-bottom:1.25rem'},'Choose a professional design, tell your story, and download a CV you are proud to share. Free to use, with no account required.'),
