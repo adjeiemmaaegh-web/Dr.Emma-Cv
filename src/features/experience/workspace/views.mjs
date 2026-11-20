@@ -121,8 +121,12 @@ export function editorView(ctx){
   const picker=occupationPicker({title:snap.document.personalInfo.title,category:contentCategory,role:contentRole,
    onChange:({category,role,source})=>{
     contentCategory=category;contentRole=role;
-    open.add('occupation');open.add('summary');open.add('skills');
-    build(ed.snapshot());
+    build(ed.snapshot()); // Capture the previous visible state first.
+    for(const id of ['occupation','summary','skills']){
+     open.add(id);
+     const section=form.querySelector('details.lw-sec[data-sec="'+id+'"]');
+     if(section)section.open=true; // Explicit user navigation wins over prior collapsed state.
+    }
     const fieldName=source==='category'?'Occupation category':'Occupation or job title';
     form.querySelector('.lw-occupation-picker select[aria-label="'+fieldName+'"]')?.focus();
    }});
