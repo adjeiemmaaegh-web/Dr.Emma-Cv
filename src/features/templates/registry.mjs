@@ -40,7 +40,15 @@ export const TEMPLATES=Object.freeze([
  T('two-column','Two Column','modern',{layout:'sidebar'}),
  T('fresh','Fresh Start','graduate',{rules:'under-title',density:'relaxed'}),
  T('bold-name','Bold Name','creative',{header:'left',rules:'bar',caps:true}),
- T('line-accent','Line Accent','creative',{rules:'left-bar'})
+ T('line-accent','Line Accent','creative',{rules:'left-bar'}),
+ T('portrait-rail','Portrait Rail','creative',{layout:'sidebar',header:'left',rules:'under-title',density:'compact',design:'portrait-rail'},'#243f47'),
+ T('golden-banner','Golden Banner','executive',{header:'band',rules:'under-title',font:'serif',design:'golden-banner'},'#b7894b'),
+ T('ink-frame','Ink Frame','classic',{header:'left',rules:'bar',density:'compact',design:'ink-frame'},'#23363d'),
+ T('slate-masthead','Slate Masthead','modern',{header:'centered',rules:'under-title',design:'slate-masthead'},'#405768'),
+ T('portrait-split','Portrait Split','creative',{layout:'sidebar',header:'left',rules:'left-bar',design:'portrait-split'},'#496d70'),
+ T('stone-column','Stone Column','classic',{layout:'sidebar',header:'left',rules:'double',design:'stone-column'},'#8b7b73'),
+ T('charcoal-rail','Charcoal Rail','executive',{layout:'sidebar',header:'left',rules:'bar',density:'compact',design:'charcoal-rail'},'#3b444b'),
+ T('silver-outline','Silver Outline','graduate',{header:'centered',rules:'under-title',font:'serif',design:'silver-outline'},'#6f747a')
 ]);
 const BY_ID=new Map(TEMPLATES.map(t=>[t.id,t]));
 export const getTemplate=id=>BY_ID.get(id)||BY_ID.get('modern');
@@ -113,7 +121,7 @@ export function resolveStyle(appearance){
  const a=normalizeAppearance(appearance).appearance,t=getTemplate(a.template);
  const font=a.font==='template'?t.tokens.font:a.font;
  return Object.freeze({
-  template:t.id,family:t.family,color:a.color,font,paper:a.paper,
+  template:t.id,family:t.family,design:t.tokens.design||null,color:a.color,font,paper:a.paper,
   size:a.bodySize??{small:9.5,medium:10.5,large:11.5}[a.fontSize],
   lineHeight:a.leading??{compact:1.22,standard:1.35,relaxed:1.5}[a.spacing==='standard'?t.tokens.density==='compact'?'compact':t.tokens.density==='relaxed'?'relaxed':'standard':a.spacing],
   margin:a.marginSize??{narrow:36,standard:54,wide:72}[a.margins],
