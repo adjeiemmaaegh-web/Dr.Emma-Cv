@@ -6,7 +6,7 @@ export function createUpdateManager({registration,hasUnsavedWork=()=>false,onCha
  let state={status:'idle',blockedReason:null};
  const set=p=>{state={...state,...p};onChange({...state});};
  let reloading=false;
- const consider=()=>{if(registration?.waiting&&serviceWorker?.controller)set({status:'available',blockedReason:null});};
+ const consider=()=>{if(state.status==='applying')return; if(registration?.waiting&&serviceWorker?.controller)set({status:'available',blockedReason:null});};
  if(registration){
   consider();
   registration.addEventListener?.('updatefound',()=>{
@@ -19,9 +19,10 @@ export function createUpdateManager({registration,hasUnsavedWork=()=>false,onCha
   reloading=true;reload();
  });
  return {
-  getState:()=>({...state}),
+  getState:()=>{consider();return {...state};},
   /** Returns {ok} or {ok:false,reason}; never reloads over unsaved work. */
   apply(){
+   consider();
    if(state.status!=='available'||!registration?.waiting)return {ok:false,reason:'no-update'};
    if(hasUnsavedWork()){set({blockedReason:'unsaved'});return {ok:false,reason:'unsaved'};}
    set({status:'applying',blockedReason:null});
