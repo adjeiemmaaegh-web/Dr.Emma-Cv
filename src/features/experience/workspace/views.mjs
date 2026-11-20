@@ -264,7 +264,7 @@ export function editorView(ctx){
   const ap=sec('look','Look and layout',el('p',{style:'margin-bottom:var(--s-3)'},'Template: ',el('strong',{},tpl.name),' ',el('a',{class:'lw-btn sm',href:'#/templates'},'Change')),
    el('div',{class:'lw-field'},el('span',{class:'lw-help'},'Accent colour'),sw),
    ...[['Text size','fontSize',OPTIONS.fontSize],['Spacing','spacing',OPTIONS.spacing],['Margins','margins',OPTIONS.margins]].map(([l,k,o])=>el('div',{class:'lw-field'},el('span',{class:'lw-help'},l),seg(l,k,o,x=>x[0].toUpperCase()+x.slice(1)))));
-  ap.querySelector('.lw-sec-body').append(designControls(ed,ctx),saveDesignControls(ed,ctx));
+  ap.querySelector('.lw-sec-body').append(designControls(ed,ctx),saveDesignControls(ed,ctx,ctx.designStorage??globalThis.localStorage));
   form.append(ap);
   form.append(sec('section-layout','Sections and order',sectionsControls(ed,ctx)));
   const custom=snap.document.customSections||[];
@@ -372,7 +372,7 @@ export function templatesView(ctx){
  const {store}=ctx,root=el('div'),grid=el('div',{class:'lw-gallery'});let family='All';
  const filter=el('div',{class:'lw-seg',role:'group','aria-label':'Filter by style',style:'flex-wrap:wrap'},['All',...FAMILIES].map(f=>el('button',{type:'button','aria-pressed':String(f==='All'),on:{click:()=>{family=f;for(const b of filter.children)b.setAttribute('aria-pressed',String(b.textContent===f));draw();}}},f==='All'?f:f[0].toUpperCase()+f.slice(1))));
  root.append(el('header',{class:'lw-page-head'},el('div',{},el('h1',{id:'page-title',tabindex:'-1'},'Choose a template'),el('p',{},'Previews show your own CV. Switching never changes your words.')),filter));
- root.append(savedDesignGallery(ctx),grid);
+ root.append(savedDesignGallery(ctx,ctx.designStorage??globalThis.localStorage),grid);
  function draw(){
   const s=store.editor.snapshot(),doc=store.hasContent()?s.document:SAMPLE_DOC();grid.replaceChildren();
   for(const t of TEMPLATES.filter(x=>family==='All'||x.family===family)){
