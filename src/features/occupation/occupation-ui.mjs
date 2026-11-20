@@ -34,30 +34,57 @@ export function occupationPicker({title='',category='',role='',onChange}={}){
   el('div',{class:'lw-field'},el('label',{},'Specific job title (optional)'),roleInput));
 }
 
-export function suggestionList({kind='summary',heading,items=[],onChoose,actionText='Use',expanded=false}={}){
+/** Cards mirror the Add/Remove reference: the action ribbon is part of a
+ * single accessible button. The selected state comes from the live CV/draft,
+ * not from a separate list that could drift out of sync after Undo.
+ */
+export function suggestionList({kind='summary',heading,items=[],onChoose,onRemove,
+ isSelected=()=>false,expanded=false}={}){
  const root=el('details',{class:'lw-suggestions','data-suggestion-kind':kind});
  root.open=expanded;
- const summary=el('summary',{},heading||'Suggestions', ' (',String(items.length),')');
+ const title=el('summary',{},heading||'Suggestions', ' (',String(items.length),')');
  const guidance=el('p',{class:'lw-help'},
-  'Examples only. Choose only what is true for you, and edit any wording before sending your CV.');
- const search=el('input',{type:'search','aria-label':'Search '+kind+' examples',placeholder:'Filter examples…'});
+  'Examples only. Add what is accurate for you, remove it if needed, and edit your CV before sending.');
+ const search=el('input',{type:'search','aria-label':'Search '+kind+' examples',placeholder:'Search suggestions…'});
  const list=el('div',{class:'lw-suggestion-list','aria-label':kind+' examples'});
  const status=el('p',{class:'lw-help',role:'status','aria-live':'polite'});
+ const noun=kind==='duties'?'duty':kind==='skills'?'skill':'summary';
+ let shown=[];
+ const cardState=(button,body,index)=>{
+  const selected=Boolean(isSelected(body));
+  button.dataset.selected=String(selected);
+  button.setAttribute('aria-pressed',String(selected));
+  button.setAttribute('aria-label',(selected?'Remove ':'Add ')+noun+' example '+(index+1));
+  button.querySelector('.lw-suggestion-action').textContent=selected?'Remove':'Add';
+ };
+ const refresh=()=>{
+  for(const button of list.querySelectorAll('.lw-suggestion-choice')){
+   const index=Number(button.dataset.index);
+   cardState(button,shown[index],index);
+  }
+  const count=shown.filter(isSelected).length;
+  status.textContent=shown.length+' example'+(shown.length===1?'':'s')+' available'+
+   (count?' · '+count+' added':'');
+ };
  function draw(){
-  const q=search.value.trim().toLowerCase(),shown=items.filter(t=>t.toLowerCase().includes(q));
+  const q=search.value.trim().toLowerCase();
+  shown=items.filter(t=>t.toLowerCase().includes(q));
   list.replaceChildren();
   for(const [i,body] of shown.entries()){
-   const btn=el('button',{type:'button',class:'lw-suggestion-choice',
-    'aria-label':actionText+' '+kind+' example '+(i+1),
-    on:{click:()=>onChoose?.(body)}},
-    el('span',{class:'lw-suggestion-body'},body),
-    el('span',{class:'lw-suggestion-action'},actionText));
-   list.append(btn);
+   const ribbon=el('span',{class:'lw-suggestion-action','aria-hidden':'true'},'Add');
+   const button=el('button',{type:'button',class:'lw-suggestion-choice',
+    'data-index':String(i),on:{click:()=>{
+     if(isSelected(body))onRemove?.(body);
+     else onChoose?.(body);
+     if(root.isConnected)refresh();
+    }}},ribbon,el('span',{class:'lw-suggestion-body'},body));
+   list.append(button);
   }
-  status.textContent=shown.length?shown.length+' examples available':'No matching examples';
+  refresh();
  }
  search.addEventListener('input',draw);
- root.append(summary,el('div',{class:'lw-suggestion-inner'},guidance,search,list,status));
+ root.refreshSelections=refresh;
+ root.append(title,el('div',{class:'lw-suggestion-inner'},guidance,search,list,status));
  draw();
  return root;
 }
