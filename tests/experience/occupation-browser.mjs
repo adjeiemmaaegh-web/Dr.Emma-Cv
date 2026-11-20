@@ -58,8 +58,12 @@ try{
  assert.equal(await summary.inputValue(),original,'two appended summaries are undoable independently');
  const skillsSection=p.locator('details[data-sec="skills"]');
  if(!(await skillsSection.evaluate(node=>node.open)))await skillsSection.locator('summary').click();
+ const skillSearch=skillsSection.locator('input[aria-label="Search skills examples"]');
+ await skillSearch.fill('commercial');
  const skillCard=skillsSection.locator('[data-suggestion-kind="skills"] .lw-suggestion-choice').first();
  await skillCard.click();
+ assert.equal(await skillSearch.inputValue(),'commercial','filter remains after the skill collection re-renders');
+ assert(await skillCard.evaluate(node=>node===document.activeElement),'keyboard focus remains on selected card after rebuild');
  await p.waitForFunction(()=>[...document.querySelectorAll('.lw-chip')].some(x=>x.textContent.includes('Commercial Cleaning')));
  assert.equal(await skillCard.getAttribute('data-selected'),'true','Add toggles the skill card to Remove');
  await skillCard.click();
