@@ -1,6 +1,6 @@
 /** Workspace views. Each returns {node, destroy?}. They only use other workstreams' public APIs. */
 import {el,icon,download,debounceFrame} from './ui.mjs';
-import {OCCUPATION_CATEGORIES,resolveOccupation,occupationContent,addUniqueSkill,appendUniqueDuty,mergeSummary} from '../../occupation/occupation-content.mjs';
+import {OCCUPATION_CATEGORIES,resolveOccupation,occupationContent,addUniqueSkill,appendUniqueDuty,mergeSummary,hasSuggestedSummary,removeSuggestedSummary,hasSuggestedDuty,removeSuggestedDuty} from '../../occupation/occupation-content.mjs';
 import {occupationPicker,suggestionList} from '../../occupation/occupation-ui.mjs';
 import {layoutFor,drawPages,thumbnail} from './preview.mjs';
 import {listTemplates,FAMILIES,applyTemplate,getTemplate,OPTIONS,TEMPLATES,resolveStyle} from '../../templates/registry.mjs';
@@ -139,7 +139,9 @@ export function editorView(ctx){
    checked:appendSummarySelection||undefined,on:{change:e=>{appendSummarySelection=e.target.checked;}}});
   form.append(sec('summary','Summary',field('Summary',snap.document.summary,'summary','summary',v=>ed.setText('summary',v),{area:true}),
    chosen?el('label',{class:'lw-help'},appendBox,' Add the next example to my existing summary (otherwise replace it)'):null,
-   chosen?suggestionList({kind:'summary',heading:'Choose a professional summary',items:chosen.summaries,expanded:true,actionText:'Use summary',
+   chosen?suggestionList({kind:'summary',heading:'Choose a professional summary',items:chosen.summaries,expanded:true,
+    getSelectionContext:()=>ed.snapshot().document,
+    isSelected:(value,document)=>hasSuggestedSummary(document.summary,value),
     onChoose:value=>{
      const merged=mergeSummary(ed.snapshot().document.summary,value,{append:appendSummarySelection});
      if(merged===null){ctx.toast('Already included, or over the 800-character summary limit. Edit before adding more.');return;}
@@ -147,7 +149,13 @@ export function editorView(ctx){
      if(!appendSummarySelection&&existing&&existing!==merged&&
       !confirm('Replace your existing professional summary with this example? You can Undo afterwards.'))return;
      ed.endCoalescing();ed.setText('summary',merged);ed.endCoalescing();
-     ctx.toast('Summary inserted. Check all claims; Undo is available.');
+     ctx.toast('Summary added. Check all claims; Undo is available.');
+    },
+    onRemove:value=>{
+     const next=removeSuggestedSummary(ed.snapshot().document.summary,value);
+     if(next===null){ctx.toast('This example was edited and cannot be removed automatically.');return;}
+     ed.endCoalescing();ed.setText('summary',next);ed.endCoalescing();
+     ctx.toast('Selected summary removed; Undo is available.');
     }}):el('p',{class:'lw-help'},'Select an occupation above to see professional summary examples.')));
   for(const [name,def] of Object.entries(SECS)){
    const items=snap.document[name],body=[];
@@ -183,13 +191,27 @@ export function editorView(ctx){
       el('label',{},'Responsibility examples for this job'),select));
      const workContent=occupationContent({role:it.title,category:workCategory});
      if(workContent)card.append(suggestionList({kind:'duties',heading:'Suggested duties for '+workContent.groupLabel,
-      items:workContent.duties,actionText:'Add duty',expanded:true,onChoose:bullet=>{
+      items:workContent.duties,expanded:true,
+      getSelectionContext:()=>ed.snapshot().document,
+      isSelected:(bullet,document)=>{
+       const row=document.experience.find(x=>x.id===it.id);
+       return !!row&&hasSuggestedDuty(plain(row.description||''),bullet);
+      },
+      onChoose:bullet=>{
        const row=ed.snapshot().document.experience.find(x=>x.id===it.id);
        if(!row)return;
        const next=appendUniqueDuty(plain(row.description||''),bullet);
        if(next===null){ctx.toast('This responsibility is already included.');return;}
        ed.endCoalescing();ed.updateItem('experience',it.id,{description:toHtml(next)});ed.endCoalescing();
        ctx.toast('Responsibility added. Verify it matches your experience; Undo is available.');
+      },
+      onRemove:bullet=>{
+       const row=ed.snapshot().document.experience.find(x=>x.id===it.id);
+       if(!row)return;
+       const next=removeSuggestedDuty(plain(row.description||''),bullet);
+       if(next===null){ctx.toast('This responsibility was edited and cannot be removed automatically.');return;}
+       ed.endCoalescing();ed.updateItem('experience',it.id,{description:toHtml(next)});ed.endCoalescing();
+       ctx.toast('Responsibility removed; Undo is available.');
       }}));
      else card.append(el('p',{class:'lw-help'},'Choose the actual job category above to see responsibilities for this experience. Your target CV occupation does not automatically change past work duties.'));
     }
@@ -203,11 +225,18 @@ export function editorView(ctx){
   const addSkill=()=>{const v=sk.value.trim();if(v){open.add('skills');ed.addItem('skills',{name:v,level:3});}};
   form.append(sec('skills','Skills'+(snap.document.skills.length?' ('+snap.document.skills.length+')':''),chips,el('div',{class:'lw-field'},el('label',{for:'f-newskill'},'Add a skill'),el('div',{class:'lw-row'},sk,el('button',{type:'button',class:'lw-btn',on:{click:addSkill}},'Add')),el('p',{id:'skill-help',class:'lw-help'},'Press Enter to add. Only list skills you really have.')),
    chosen?suggestionList({kind:'skills',heading:'Suggested '+chosen.groupLabel+' skills',
-    items:chosen.skills.filter(name=>addUniqueSkill(snap.document.skills,name)),actionText:'Add skill',expanded:true,
+    items:chosen.skills,expanded:true,
+    getSelectionContext:()=>ed.snapshot().document,
+    isSelected:(name,document)=>document.skills.some(s=>String(s.name||'').trim().toLowerCase()===name.trim().toLowerCase()),
     onChoose:name=>{
      const skill=addUniqueSkill(ed.snapshot().document.skills,name);
      if(!skill){ctx.toast('Skill already added.');return;}
      ed.addItem('skills',{name:skill,level:3});ctx.toast('Skill added; Undo is available.');
+    },
+    onRemove:name=>{
+     const row=ed.snapshot().document.skills.find(s=>String(s.name||'').trim().toLowerCase()===name.trim().toLowerCase());
+     if(!row){ctx.toast('Skill is no longer in this CV.');return;}
+     ed.removeItem('skills',row.id);ctx.toast('Skill removed; Undo is available.');
     }}):el('p',{class:'lw-help'},'Choose an occupation above to see suggested skills.')));
   const tpl=getTemplate(snap.appearance.template);
   const sw=el('div',{class:'lw-row',role:'group','aria-label':'Accent colour'},ACCENTS.map(c=>el('button',{type:'button',class:'lw-btn icon','aria-label':'Accent '+c,'aria-pressed':String(snap.appearance.color.toLowerCase()===c),style:`background:${c};border:3px solid ${snap.appearance.color.toLowerCase()===c?'var(--ink)':'transparent'};border-radius:50%;width:44px`,on:{click:()=>ed.setAppearance({color:c})}})));
@@ -277,6 +306,8 @@ export function editorView(ctx){
    }
   }
   quick.sync(snap.document);
+  // Reflect Add/Remove cards after summary edits, duties, Undo and Redo, not just list rebuilds.
+  for(const panel of form.querySelectorAll('details.lw-suggestions'))panel.refreshSelections?.();
   for(const row of form.querySelectorAll('.lw-section-row[data-section-key^="custom:"]')){
    const id=row.dataset.sectionKey.slice('custom:'.length);
    const item=snap.document.customSections.find(x=>x.id===id);
