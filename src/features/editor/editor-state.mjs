@@ -6,6 +6,7 @@
 import {validLegacyDocument} from '../../domain/storage/legacy-shape.mjs';
 import {normalizeAppearance} from '../templates/registry.mjs';
 import {DEFAULT_SECTION_ORDER} from '../documents/layout.mjs';
+import {decodePassportPhoto} from '../documents/photo.mjs';
 const LISTS=['experience','education','skills','languages','certifications','projects','accomplishments','customSections'];
 const TEXTS=['summary','hobbies','references'];
 const clone=v=>JSON.parse(JSON.stringify(v));
@@ -38,6 +39,12 @@ export function createEditor({document,appearance={},limit=100,onChange}={}){
   },
   setPersonal(field,value){const d=draft();if(typeof field!=='string'||/^__|prototype|constructor/.test(field)||typeof value!=='string')throw fail('INVALID','Invalid personal field');
    d.document.personalInfo[field]=value;return commit(d,'p:'+field);},
+  /** Store or remove the normalized portrait and its visibility as one undoable command. */
+  setPhoto(value){
+   if(typeof value!=='string'||(value&&!decodePassportPhoto(value)))throw fail('INVALID','Unsupported passport photo');
+   const d=draft();d.document.personalInfo.photo=value;d.appearance.photo=Boolean(value);
+   return commit(d);
+  },
   setText(field,value){if(!TEXTS.includes(field)||typeof value!=='string')throw fail('INVALID','Invalid text field');const d=draft();d.document[field]=value;return commit(d,'t:'+field);},
   addItem(section,item={}){const d=draft();const arr=list(d,section);const it={...clone(item),id:newId()};arr.push(it);commit(d);return it.id;},
   updateItem(section,id,patch){const d=draft(),arr=list(d,section),i=find(arr,id);
