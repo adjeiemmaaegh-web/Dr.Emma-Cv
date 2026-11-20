@@ -125,8 +125,11 @@ try{
  await p.locator('#f-newskill').press('Enter');
  await p.locator('#f-newskill').fill('Till Reconciliation');
  await p.locator('#f-newskill').press('Enter');
- assert.match(await p.locator('[data-suggestion-kind="summary"] .lw-suggestion-body').first().innerText(),
-  /Interested in Cashier opportunities, with 2 relevant skills listed in this CV/);
+ const cvSummary=await p.locator('[data-suggestion-kind="summary"] .lw-suggestion-body').first().innerText();
+ assert.match(cvSummary,/Interested in Cashier opportunities, with [2-9] relevant skills listed in this CV/);
+ assert.match(cvSummary,/Checkout Transactions/);
+ assert.match(cvSummary,/Till Reconciliation/);
+ assert.match(cvSummary,/Stock Control/,'existing explicit CV skill can also be relevant');
  assert.equal(await p.locator('textarea[data-path="summary"]').inputValue(),original,
   'locally personalized suggestions never overwrite the editable summary without a click');
  assert.deepEqual(errors,[]);
