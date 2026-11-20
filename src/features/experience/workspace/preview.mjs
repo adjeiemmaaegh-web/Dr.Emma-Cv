@@ -23,6 +23,11 @@ export function drawPages(container,layout,scale,{onEdit}={}){
     (d.kind==='rect'?`height:${d.height}px;border:0;background:${d.color}`:
       `height:0;border-top:${d.height}px solid ${d.color}`)}));
   }
+  if(i===0&&layout.photo){
+   const b=layout.photo.box;
+   pg.append(el('img',{class:'lw-passport-on-page','aria-hidden':'true',alt:'',src:layout.photo.src,
+    style:`left:${b.x}px;top:${b.y}px;width:${b.width}px;height:${b.height}px`}));
+  }
   for(const l of page){
    for(const d of decorationGeometry(l,style)){
     const base=`left:${d.x}px;top:${d.y}px;width:${d.width}px;`;
@@ -57,6 +62,11 @@ export function thumbnail(layout){
  const {pages,paper,style}=layout,t=el('div',{class:'lw-thumb','aria-hidden':'true'});
  for(const d of pageDecorations(style,paper)){
   t.append(el('b',{style:`left:${d.x/paper.width*100}%;top:${d.y/paper.height*100}%;width:${d.width/paper.width*100}%;height:${Math.max(d.height,0.9)/paper.height*100}%;background:${d.color}`}));
+ }
+ if(layout.photo){
+  const b=layout.photo.box;
+  t.append(el('img',{class:'lw-passport-in-thumb',alt:'',src:layout.photo.src,
+   style:`left:${b.x/paper.width*100}%;top:${b.y/paper.height*100}%;width:${b.width/paper.width*100}%;height:${b.height/paper.height*100}%`}));
  }
  for(const l of pages[0]||[]){
   for(const d of decorationGeometry(l,style)){

@@ -1,12 +1,15 @@
 /** Editable DOCX (WordprocessingML) writer: real headings, list numbering, hyperlinks, paper size and margins. */
 import {zipStore,utf8} from './zip.mjs';
+import {docxPhotoDrawing} from './docx-photo.mjs';
 const esc=s=>String(s).replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f￾￿]/g,'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 const tw=pt=>Math.round(pt*20);
 const run=(text,{bold,color,size,font}={})=>'<w:r><w:rPr>'+(font?'<w:rFonts w:ascii="'+font+'" w:hAnsi="'+font+'" w:cs="'+font+'"/>':'')+(bold?'<w:b/>':'')+(color?'<w:color w:val="'+color+'"/>':'')+(size?'<w:sz w:val="'+Math.round(size*2)+'"/>':'')+'</w:rPr><w:t xml:space="preserve">'+esc(text)+'</w:t></w:r>';
-export function renderDocx({blocks,style,paper,title='CV'}){
+export function renderDocx({blocks,style,paper,title='CV',photo=null,photoBox=null}){
  const font=style.font==='serif'?'Times New Roman':'Calibri',color=style.color.slice(1).toUpperCase();
  const rels=[];const rel=url=>{rels.push(url);return 'rIdL'+rels.length;};
  const right=tw(paper.width-2*style.margin);
+ const photoDrawing=photo&&photoBox?docxPhotoDrawing(photoBox,style.margin):'';
+ let photoPlaced=false;
  const para=(b)=>{
   const k=b.kind,align=style.header==='centered'&&(k==='name'||k==='title'||k==='contact')?'<w:jc w:val="center"/>':'';
   const keep=b.keepWithNext?'<w:keepNext/>':'';
@@ -34,7 +37,8 @@ export function renderDocx({blocks,style,paper,title='CV'}){
     (i+link.text.length<text.length?run(text.slice(i+link.text.length),{bold,color:col,size,font}):'');
   }else body=run(text,{bold,color:col,size,font});
   if(k==='entry-head'&&b.right)body+='<w:r><w:tab/></w:r>'+run(b.right,{size,font});
-  return '<w:p>'+ppr+body+'</w:p>';
+  const portrait=photoDrawing&&!photoPlaced?(photoPlaced=true,photoDrawing):'';
+  return '<w:p>'+ppr+portrait+body+'</w:p>';
  };
  const pageBorder=(()=>{
   const edge=style.pageAccent;
@@ -53,7 +57,7 @@ export function renderDocx({blocks,style,paper,title='CV'}){
   '<w:style w:type="paragraph" w:styleId="ListBullet"><w:name w:val="List Bullet"/><w:basedOn w:val="Normal"/></w:style></w:styles>';
  const numbering='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:numbering xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:abstractNum w:abstractNumId="0"><w:multiLevelType w:val="hybridMultilevel"/><w:lvl w:ilvl="0"><w:start w:val="1"/><w:numFmt w:val="bullet"/><w:lvlText w:val="•"/><w:lvlJc w:val="left"/><w:pPr><w:ind w:left="360" w:hanging="240"/></w:pPr></w:lvl></w:abstractNum><w:num w:numId="1"><w:abstractNumId w:val="0"/></w:num></w:numbering>';
  const docRels='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rIdS" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/><Relationship Id="rIdN" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/numbering" Target="numbering.xml"/>'+
-  rels.map((u,i)=>'<Relationship Id="rIdL'+(i+1)+'" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink" Target="'+esc(u)+'" TargetMode="External"/>').join('')+'</Relationships>';
+  rels.map((u,i)=>'<Relationship Id="rIdL'+(i+1)+'" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink" Target="'+esc(u)+'" TargetMode="External"/>').join('')+(photoDrawing?'<Relationship Id="rIdPhoto" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/passport-photo.jpg"/>':'')+'</Relationships>';
  const files=[
   {name:'[Content_Types].xml',data:'<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/><Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/><Override PartName="/word/numbering.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.numbering+xml"/><Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/></Types>'},
   {name:'_rels/.rels',data:'<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/></Relationships>'},
@@ -61,5 +65,9 @@ export function renderDocx({blocks,style,paper,title='CV'}){
   {name:'word/document.xml',data:doc},{name:'word/styles.xml',data:styles},{name:'word/numbering.xml',data:numbering},
   {name:'word/_rels/document.xml.rels',data:docRels}
  ];
- return {bytes:zipStore(files.map(f=>({name:f.name,data:utf8(f.data)}))),warnings:style.pageAccent==='corner-marks'?['Decorative corner markers are PDF-only; Word keeps content in editable paragraphs.']:[]};
+ if(photoDrawing){
+  files[0].data=files[0].data.replace('</Types>','<Default Extension="jpg" ContentType="image/jpeg"/></Types>');
+  files.push({name:'word/media/passport-photo.jpg',data:photo.bytes});
+ }
+ return {bytes:zipStore(files.map(f=>({name:f.name,data:typeof f.data==='string'?utf8(f.data):f.data}))),warnings:style.pageAccent==='corner-marks'?['Decorative corner markers are PDF-only; Word keeps content in editable paragraphs.']:[]};
 }

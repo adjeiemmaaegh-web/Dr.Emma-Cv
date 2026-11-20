@@ -13,6 +13,7 @@ import {assessStorageHealth,collectStorageSignals} from '../../pwa-ui/status.mjs
 import {SAMPLE_DOC} from './store.mjs';
 import {createWorkspaceDataPanel} from './data-panel.mjs';
 import {communityGuide} from './community-guide.mjs';
+import {passportPhotoControl} from './photo-control.mjs';
 import {designControls,sectionsControls,saveDesignControls,savedDesignGallery,quickEditOnPage,fieldAtPath,confirmDesignEditing} from './design-studio.mjs';
 const variantOf=ed=>{const s=ed.snapshot();return {id:'workspacePreview1',revision:0,name:'CV',document:s.document,appearance:s.appearance};};
 export const ACCENTS=['#0b6b72','#c85a34','#3b5ba9','#8a5a3b','#4a4a4a','#7a3e9d'];
@@ -137,7 +138,7 @@ export function editorView(ctx){
    }
   }
   const act=document.activeElement?.dataset?.key;form.replaceChildren();
-  form.append(sec('personal','Personal details',...PERSONAL.map(([k,l,a])=>field(l,snap.document.personalInfo[k],'p-'+k,'personalInfo.'+k,v=>ed.setPersonal(k,v),{auto:a}))));
+  form.append(sec('personal','Personal details',...PERSONAL.map(([k,l,a])=>field(l,snap.document.personalInfo[k],'p-'+k,'personalInfo.'+k,v=>ed.setPersonal(k,v),{auto:a})),passportPhotoControl(ed,ctx,snap)));
   const chosen=suggestionsFor(snap);
   const picker=occupationPicker({title:snap.document.personalInfo.title,category:contentCategory,role:contentRole,
    onChange:({category,role,source})=>{
@@ -316,6 +317,7 @@ export function editorView(ctx){
   status.textContent=ctx.privateSession?'Not saved — private session. Download before closing.':st.state==='error'?'✖ Not saved: '+(st.detail||(
     st.error==='QUOTA'?'browser storage is full':st.error==='CONFLICT'?'another tab changed this CV':st.error==='UNCONFIRMED'?'confirm master editing first':'storage unavailable'))+'. Download an unsaved draft.':st.state==='saving'?'Saving…':'✓ Saved on this device';
   if(shape(snap)!==last){last=shape(snap);build(snap);}
+  form.querySelector('[data-cv-photo]')?.update?.(snap);
   const effective=resolveStyle(snap.appearance);
   for(const input of form.querySelectorAll('[data-appearance]')){
    if(document.activeElement===input)continue;

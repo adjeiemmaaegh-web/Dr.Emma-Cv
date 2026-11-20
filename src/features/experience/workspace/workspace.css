@@ -276,3 +276,22 @@
 .lw-community-advisers summary{cursor:pointer;font-weight:700;min-height:44px}
 .lw-community-advisers li{margin:var(--s-2) 0}
 .lw-community :is(select,summary,a):focus-visible{outline:3px solid var(--a11y-focus);outline-offset:3px}
+
+
+/* Passport-style portrait picker: local-only, keyboard accessible and responsive. */
+.lw-photo-control{padding:var(--s-4) 0 var(--s-2);border-top:1px solid var(--border)}
+.lw-photo-control h2{font-size:1rem;margin-bottom:var(--s-3)}
+.lw-photo-row{display:flex;align-items:flex-start;flex-wrap:wrap;gap:var(--s-4)}
+.lw-photo-image{flex:0 0 92px;height:117px;display:grid;place-items:center;border:1px solid var(--border);border-radius:var(--r-1);background:var(--surface-2);overflow:hidden}
+.lw-photo-image .lw-passport-file-preview{display:block;width:90px;height:115px;object-fit:cover}
+.lw-photo-image img[hidden],.lw-photo-image span[hidden]{display:none}
+.lw-photo-placeholder{font-size:.78rem;color:var(--muted);text-align:center;padding:6px}
+.lw-photo-actions{display:grid;gap:var(--s-2);flex:1 1 185px;min-width:0}
+.lw-photo-actions>label:first-child{font-weight:650}
+.lw-photo-actions input[type=file]{width:100%;min-width:0;max-width:100%;font:inherit;font-size:.83rem}
+.lw-photo-checkbox{display:flex;align-items:center;gap:8px;font-size:.9rem}
+.lw-photo-checkbox input{width:18px;height:18px;accent-color:var(--accent)}
+.lw-photo-actions button{justify-self:start}
+.lw-photo-status{font-size:.86rem;color:var(--muted);margin-top:var(--s-2);min-height:1em}
+.lw-page img.lw-passport-on-page{position:absolute;display:block;object-fit:cover;pointer-events:none}
+.lw-thumb img.lw-passport-in-thumb{position:absolute;display:block;object-fit:cover}
