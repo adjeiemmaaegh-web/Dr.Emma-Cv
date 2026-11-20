@@ -43,7 +43,7 @@ export function passportPhotoControl(editor,ctx,initial){
   editor.setPhoto('');status.textContent='Photo removed from this CV. Undo is available.';ctx.toast('Photo removed.');
  }}},'Remove photo');
  const control=el('div',{class:'lw-photo-control','data-cv-photo':'true'},
-  el('h3',{},'Passport-style photo (optional)'),
+  el('h2',{},'Passport-style photo (optional)'),
   el('div',{class:'lw-photo-row'},imageBox,el('div',{class:'lw-photo-actions'},
    el('label',{for:'lw-passport-photo'},'Upload a portrait photo'),input,
    el('p',{class:'lw-help',id:'lw-photo-help'},'JPG, PNG or WebP, up to 8 MB. Automatically cropped to a 35:45 portrait ratio and compressed. Saved only with your local CV and included in its backups.'),
