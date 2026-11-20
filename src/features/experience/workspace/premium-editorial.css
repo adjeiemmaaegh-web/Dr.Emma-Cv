@@ -21,7 +21,7 @@
 @media(prefers-reduced-motion:reduce){.lw-card,.lw-nav a{transition:none}}
 
 /* Homepage: real rendered CV previews, not stock imagery or mock controls. */
-.lw-hero{display:grid;grid-template-columns:minmax(0,.95fr) minmax(0,1.05fr);align-items:center;gap:clamp(24px,4vw,64px);padding:clamp(28px,5vw,72px);background:linear-gradient(135deg,#e6f2ec 0%,#f8f6ef 56%,#f0ece5 100%);border:1px solid #d8e3da;border-radius:28px;overflow:hidden;margin-bottom:24px}
+.lw-hero{display:grid;grid-template-columns:minmax(0,.95fr) minmax(0,1.05fr);align-items:center;gap:clamp(24px,4vw,64px);padding:clamp(28px,5vw,72px);background:linear-gradient(135deg,#e6f2ec 0%,#f8f6ef 56%,#f0ece5 100%);border:1px solid #d8e3da;border-radius:28px;overflow:visible;margin-bottom:24px}
 .lw-hero-copy{position:relative;z-index:2}
 .lw-hero-eyebrow{font-size:.74rem;font-weight:800;letter-spacing:.15em;color:#126b63;margin-bottom:20px!important}
 .lw-hero h2{font-family:var(--font-display);font-size:clamp(2.7rem,4.5vw,5.1rem);line-height:1.04;letter-spacing:-.055em;max-width:13ch;margin-bottom:22px}
