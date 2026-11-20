@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {workspaceShellCacheKey} from '../../tools/workspace-shell-cache-key.mjs';
 import {
  OCCUPATION_CATEGORIES,categoryRoles,resolveOccupation,occupationContent,
- addUniqueSkill,appendUniqueDuty,mergeSummary
+ addUniqueSkill,appendUniqueDuty,mergeSummary,hasSuggestedSummary,removeSuggestedSummary,hasSuggestedDuty,removeSuggestedDuty
 } from '../../src/features/occupation/occupation-content.mjs';
 
 test('all historic job categories and original occupation titles survive migration',()=>{
@@ -87,4 +87,34 @@ test('offline workspace cache invalidates on changed emitted JS/CSS even when in
  assert.notEqual(build('<html>new shell</html>'),build(),'HTML changes must invalidate the cache');
  assert.throws(()=>workspaceShellCacheKey({html:'x',assetPaths:['/private/cv.json'],readAsset:()=>''}),
   /Unexpected public cache path/,'only emitted public sources may enter this cache identity');
+});
+
+test('Add/Remove summary cards detect exact selected wording and preserve unrelated text',()=>{
+ const one='Reliable cleaning professional with excellent attention to detail.';
+ const two='Detail-focused cleaner who maintains safe and tidy workspaces.';
+ const draft='My own introduction.';
+ assert.equal(hasSuggestedSummary(draft,one),false);
+ assert.equal(hasSuggestedSummary(one,one),true);
+ assert.equal(removeSuggestedSummary(one,one),'');
+ const combined=draft+' '+one+' '+two;
+ assert.equal(hasSuggestedSummary(combined,one),true);
+ assert.equal(hasSuggestedSummary(combined,two),true);
+ assert.equal(removeSuggestedSummary(combined,one),draft+' '+two);
+ assert.equal(removeSuggestedSummary(combined,two),draft+' '+one);
+ assert.equal(removeSuggestedSummary(draft,one),null,'unselected examples must never erase user text');
+ assert.equal(hasSuggestedSummary('Some '+one+'extra',one),false,'partial word is not a selected card');
+ assert.equal(removeSuggestedSummary('Some '+one+'extra',one),null);
+});
+test('Add/Remove duty cards remove only one complete matching responsibility line',()=>{
+ const a='Maintained safe cleaning supplies.';
+ const b='Completed daily cleaning checklists.';
+ const doc='Prepared the area.\\n'+a+'\\n'+b;
+ assert.equal(hasSuggestedDuty(doc,a),true);
+ assert.equal(hasSuggestedDuty(doc,'Cleaned windows.'),false);
+ assert.equal(removeSuggestedDuty(doc,a),'Prepared the area.\\n'+b);
+ assert.equal(removeSuggestedDuty(doc,b),'Prepared the area.\\n'+a);
+ assert.equal(removeSuggestedDuty(doc,'cleaning'),null);
+ assert.equal(removeSuggestedDuty('Prepared the area.\\n'+a+' with a supervisor.',a),null,
+  'edited duty must not be silently removed');
+ assert.equal(hasSuggestedDuty('• '+a,a),true);
 });
