@@ -108,13 +108,13 @@ test('Add/Remove summary cards detect exact selected wording and preserve unrela
 test('Add/Remove duty cards remove only one complete matching responsibility line',()=>{
  const a='Maintained safe cleaning supplies.';
  const b='Completed daily cleaning checklists.';
- const doc='Prepared the area.\\n'+a+'\\n'+b;
+ const doc='Prepared the area.\n'+a+'\n'+b;
  assert.equal(hasSuggestedDuty(doc,a),true);
  assert.equal(hasSuggestedDuty(doc,'Cleaned windows.'),false);
- assert.equal(removeSuggestedDuty(doc,a),'Prepared the area.\\n'+b);
- assert.equal(removeSuggestedDuty(doc,b),'Prepared the area.\\n'+a);
+ assert.equal(removeSuggestedDuty(doc,a),'Prepared the area.\n'+b);
+ assert.equal(removeSuggestedDuty(doc,b),'Prepared the area.\n'+a);
  assert.equal(removeSuggestedDuty(doc,'cleaning'),null);
- assert.equal(removeSuggestedDuty('Prepared the area.\\n'+a+' with a supervisor.',a),null,
+ assert.equal(removeSuggestedDuty('Prepared the area.\n'+a+' with a supervisor.',a),null,
   'edited duty must not be silently removed');
  assert.equal(hasSuggestedDuty('• '+a,a),true);
 });
