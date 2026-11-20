@@ -227,14 +227,14 @@ export function editorView(ctx){
    chosen?suggestionList({kind:'skills',heading:'Suggested '+chosen.groupLabel+' skills',
     items:chosen.skills,expanded:true,
     getSelectionContext:()=>ed.snapshot().document,
-    isSelected:(name,document)=>document.skills.some(s=>String(s.name||'').trim().toLowerCase()===name.trim().toLowerCase()),
+    isSelected:(name,document)=>!addUniqueSkill(document.skills,name),
     onChoose:name=>{
      const skill=addUniqueSkill(ed.snapshot().document.skills,name);
      if(!skill){ctx.toast('Skill already added.');return;}
      ed.addItem('skills',{name:skill,level:3});ctx.toast('Skill added; Undo is available.');
     },
     onRemove:name=>{
-     const row=ed.snapshot().document.skills.find(s=>String(s.name||'').trim().toLowerCase()===name.trim().toLowerCase());
+     const row=ed.snapshot().document.skills.find(s=>!addUniqueSkill([s],name));
      if(!row){ctx.toast('Skill is no longer in this CV.');return;}
      ed.removeItem('skills',row.id);ctx.toast('Skill removed; Undo is available.');
     }}):el('p',{class:'lw-help'},'Choose an occupation above to see suggested skills.')));
