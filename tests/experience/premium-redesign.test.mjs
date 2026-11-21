@@ -75,7 +75,7 @@ test('six curated CVs are distinct, fictional, export-layout-compatible and with
   assert.equal(doc.personalInfo.email,'sample@example.test');
   const layout=layoutFor(doc,{template:e.style,color:e.color});
   assert.ok(layout.pages.length>=1);
-  assert.ok(layout.pages[0].some(line=>String(line.text).includes(e.first)),'CV name is in page layout');
+  assert.ok(layout.pages[0].some(line=>String(line.text).toLowerCase().includes(e.first.toLowerCase())),'CV name is in page layout (including executive uppercase styles)');
   assert.ok(layout.pages[0].some(line=>String(line.text).includes(e.role)),'CV role is in page layout');
  }
 });
