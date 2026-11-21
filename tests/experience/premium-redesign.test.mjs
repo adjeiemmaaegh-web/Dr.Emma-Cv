@@ -17,7 +17,10 @@ test('homepage uses a fictional CV, clearly labelled ATS demo and no fake templa
  const preview=read('src/features/experience/workspace/preview.mjs');
  const css=read('src/features/experience/workspace/premium-editorial.css');
  const baseCss=read('src/features/experience/workspace/workspace.css');
- assert.match(views,/const exampleLayout=layoutFor\(SAMPLE_DOC\(\),exampleAppearance\)/);
+ assert.match(views,/const exampleLayout=layoutFor\(featuredDocument\(HERO_CV\),exampleAppearance\)/);
+ assert.match(views,/HERO_CV\.first\+' '\+HERO_CV\.last/);
+ assert.match(views,/class:'lw-showcase-person'/);
+ assert.match(views,/class:'lw-featured-excerpt'/);
  assert.match(views,/thumbnail\(exampleLayout\)/);
  assert.match(views,/class:'lw-hero-stage'/);
  assert.match(views,/class:'lw-showcase-ats'/);
@@ -55,6 +58,30 @@ test('CV thumbnails expose actual sample text in scaled positioned DOM',async()=
   assert.ok(texts.some(x=>x.text.includes('Operations')),'includes fictional experience or job title');
   assert.ok(texts.every(x=>x.style.includes('cqw')),'every text element scales with its preview width');
  }finally{if(previous===undefined)delete globalThis.document;else globalThis.document=previous;}
+});
+
+test('Don Doe hero displays a genuinely populated fictional CV, not an empty document',async()=>{
+ const {HERO_CV,featuredDocument}=await import('../../src/features/experience/workspace/showcase-samples.mjs');
+ const {layoutFor}=await import('../../src/features/experience/workspace/preview.mjs');
+ assert.equal(HERO_CV.first,'Don');
+ assert.equal(HERO_CV.last,'Doe');
+ const doc=featuredDocument(HERO_CV);
+ assert.equal(doc.personalInfo.firstName,'Don');
+ assert.equal(doc.personalInfo.lastName,'Doe');
+ assert.equal(doc.personalInfo.photo,'');
+ assert.ok(doc.summary.includes('Operations manager'));
+ assert.ok(doc.experience.length>=2);
+ assert.ok(doc.education.length>=1);
+ assert.ok(doc.skills.length>=4);
+ const result=layoutFor(doc,{template:HERO_CV.style,color:HERO_CV.color,paper:'A4'});
+ const lines=result.pages.flat().map(l=>String(l.text));
+ assert.ok(lines.some(t=>t.toLowerCase().includes('don doe')),'name prints inside the document preview');
+ assert.ok(lines.some(t=>t.includes('Operations Manager')),'role prints inside the document preview');
+ assert.ok(lines.some(t=>t.includes('Summit Retail Group')),'fictional experience prints inside the document preview');
+ assert.ok(lines.some(t=>t.includes('Business Management')),'fictional education prints inside the document preview');
+ const css=read('src/features/experience/workspace/premium-editorial.css');
+ assert.match(css,/\.lw-showcase-person strong\{font-size:1\.05rem/);
+ assert.match(css,/\.lw-featured-excerpt p\{font-size:\.89rem/);
 });
 
 test('six curated CVs are distinct, fictional, export-layout-compatible and without remote portraits',async()=>{
