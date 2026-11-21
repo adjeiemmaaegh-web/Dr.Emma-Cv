@@ -97,7 +97,7 @@ export function homeView(ctx){
   el('div',{class:'lw-row',style:'justify-content:space-between;align-items:center;flex-wrap:wrap'},
    el('div',{},el('h2',{},'Find a design that feels like you'),el('p',{class:'lw-help'},'Real templates from the CV editor, previewed with fictional sample information.')),
    el('a',{class:'lw-btn',href:'#/templates'},'View all templates')),
-  el('div',{class:'lw-gallery'},TEMPLATES.slice(0,4).map(t=>{
+  el('div',{class:'lw-gallery lw-featured-gallery'},TEMPLATES.slice(0,4).map(t=>{
    const snap=store.editor.snapshot();
    const lay=layoutFor(SAMPLE_DOC(),{...snap.appearance,template:t.id,color:t.color||snap.appearance.color});
    return el('a',{class:'lw-tpl',href:'#/templates','aria-label':'Browse '+t.name+' CV template'},
