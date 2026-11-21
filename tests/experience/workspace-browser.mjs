@@ -45,6 +45,10 @@ try{
        excerptSize:parseFloat(excerptStyle.fontSize),
        excerptText:excerpt.textContent.trim(),firstCardWidth:b.width,
        firstCardInsideTrack:b.left>=a.left-3&&b.right<=a.right+3,
+       trackWidth:a.width,trackClientWidth:track.clientWidth,trackScrollWidth:track.scrollWidth,
+       trackGridColumns:getComputedStyle(track).gridAutoColumns,
+       sectionWidth:document.querySelector('.lw-featured-section').getBoundingClientRect().width,
+       viewportWidth:window.innerWidth,
        cssVisible:heroStyle.display!=='none'&&heroStyle.visibility==='visible',
        numberOfPrintedLines:document.querySelectorAll('.lw-showcase-document .lw-thumb-text').length};
      });
