@@ -206,7 +206,7 @@ export function editorView(ctx){
  const field=(label,value,key,path,onInput,{area,auto}={})=>{const id='f-'+key.replace(/\W+/g,'-'),c=area?el('textarea',{id,rows:'4'}):el('input',{id,type:'text'});
   c.value=value||'';c.dataset.key=key;c.dataset.path=path;if(auto)c.setAttribute('autocomplete',auto);c.addEventListener('input',()=>onInput(c.value));if(key==='p-title')c.addEventListener('change',()=>{if(!contentCategory)build(ed.snapshot());});return el('div',{class:'lw-field'},el('label',{for:id},label),c);};
  const open=new Set(['personal','look','occupation']);
- const suggestionsFor=snap=>occupationContent({role:contentRole||snap.document.personalInfo.title,category:contentCategory});
+ const suggestionsFor=snap=>occupationContent({role:contentRole||snap.document.personalInfo.title,category:contentCategory,document:snap.document});
  const sec=(id,title,...kids)=>{const d=el('details',{class:'lw-sec','data-sec':id},el('summary',{},title),el('div',{class:'lw-sec-body'},...kids));if(open.has(id))d.open=true;d.addEventListener('toggle',()=>{if(!d.isConnected)return;d.open?open.add(id):open.delete(id);});return d;};
  const plain=h=>(h||'').replace(/<li[^>]*>/gi,'\n').replace(/<[^>]*>/g,'').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').trim();
  const toHtml=t=>{const ls=t.split(/\n/).map(x=>x.replace(/^[\s•*-]+/,'').trim()).filter(Boolean);return ls.length?'<ul>'+ls.map(l=>'<li>'+l.replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]))+'</li>').join('')+'</ul>':'';};
@@ -258,7 +258,11 @@ export function editorView(ctx){
     form.querySelector('.lw-occupation-picker select[aria-label="'+fieldName+'"]')?.focus();
    }});
   form.append(sec('occupation','Smart content library',picker,
-   el('p',{class:'lw-help'},'Choose an occupation to browse ready-made examples. This does not change your CV until you select a suggestion.'),
+   el('p',{class:'lw-help'},chosen?.roleSpecific?
+   'Showing exact-role examples for '+chosen.role+' first, followed by category examples. These are drafts, not verified work claims.':
+   'Showing category-level examples. Choose a supported specific job title for more precise content; not every title has an individually authored profile.'),
+  chosen?.evidence?.summary?el('p',{class:'lw-help'},
+   'An additional CV-based summary uses these already listed skills: '+chosen.evidence.matchedSkills.join(', ')+'. Check every claim before adding.'):null,
    contentRole?el('button',{type:'button',class:'lw-btn sm',on:{click:()=>{
     ed.endCoalescing();ed.setPersonal('title',contentRole);ed.endCoalescing();ctx.toast('Job title updated; Undo is available.');
    }}},'Use selected job title in my CV'):null));
@@ -316,7 +320,10 @@ export function editorView(ctx){
      select.value=workCategory;
      card.append(el('div',{class:'lw-field'},
       el('label',{},'Responsibility examples for this job'),select));
-     const workContent=occupationContent({role:it.title,category:workCategory});
+     const workContent=occupationContent({role:it.title,category:workCategory,document:{skills:snap.document.skills,experience:[it]}});
+     if(workContent)card.append(el('p',{class:'lw-help'},
+      workContent.roleSpecific?'Role-specific examples for '+it.title+'; review before using.':
+      'Category-level responsibilities only; these are not evidence that you performed them.'));
      if(workContent)card.append(suggestionList({kind:'duties',heading:'Suggested duties for '+workContent.groupLabel,
       items:workContent.duties,expanded:true,
       getSelectionContext:()=>ed.snapshot().document,

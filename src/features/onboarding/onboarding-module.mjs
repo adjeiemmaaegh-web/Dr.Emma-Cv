@@ -69,16 +69,42 @@ export const onboardingFeature=Object.freeze({
     }
     if(state.kind==='create'&&['experience','skills','summary'].includes(view.id)){
      const target=state.answers.target?.title||'';
-     const occupation=occupationContent({role:view.id==='experience'?(state.answers.experience?.jobTitle||target):target});
-     if(occupation){
-      const type=view.id==='experience'?'duties':view.id;
+     const type=view.id==='experience'?'duties':view.id;
+     const fieldName=type==='duties'?'achievements':type==='skills'?'skills':'summary';
+     const input=form.querySelector('[name="'+fieldName+'"]');
+     const pastRoleInput=view.id==='experience'?form.querySelector('[name="jobTitle"]'):null;
+     const slot=el('div',{class:'lw-journey-suggestions'});
+     form.append(slot);
+     let refreshHandler=null;
+     function renderRoleSuggestions(){
+      if(refreshHandler)input.removeEventListener('input',refreshHandler);
+      const role=pastRoleInput?pastRoleInput.value.trim():target;
+      const previousSkills=state.answers.skills?.skills||'';
+      const listedSkills=String(previousSkills).split(/[,;\n]/).map(name=>({name:name.trim()}))
+       .filter(row=>row.name);
+      const exp=state.answers.experience||{};
+      const evidence={skills:listedSkills,experience:[{
+       title:pastRoleInput?pastRoleInput.value:(exp.jobTitle||''),
+       description:pastRoleInput?input.value:(exp.achievements||'')
+      }]};
+      const occupation=occupationContent({role,document:evidence});
+      slot.replaceChildren();
+      if(!occupation){
+       slot.append(el('p',{class:'ledger-help'},pastRoleInput?
+        'Enter your actual previous job title to see matching duty examples. Your target role is never used as evidence of past duties.':
+        'Choose a recognized target job title to see career content examples.'));
+       return;
+      }
       const items=type==='duties'?occupation.duties:type==='skills'?occupation.skills:occupation.summaries;
-      const fieldName=type==='duties'?'achievements':type==='skills'?'skills':'summary';
-      const input=form.querySelector('[name="'+fieldName+'"]');
       const feedback=el('p',{class:'ledger-help',role:'status','aria-live':'polite'});
+      slot.append(el('p',{class:'ledger-help'},occupation.roleSpecific?
+       'Exact-role examples for '+occupation.role+' appear before category-level drafts. Only select work you actually performed.':
+       'These are category-level examples, not individually reviewed content for this job title.'));
+      if(type==='summary'&&occupation.evidence?.summary)slot.append(el('p',{class:'ledger-help'},
+       'The first suggested summary uses skills you previously listed in this CV draft. Check its wording.'));
       const appendChoice=type==='summary'?el('input',{type:'checkbox',
        'aria-label':'Add selected summary to existing text instead of replacing'}):null;
-      if(appendChoice)form.append(el('label',{class:'ledger-help'},appendChoice,
+      if(appendChoice)slot.append(el('label',{class:'ledger-help'},appendChoice,
        ' Add another chosen summary to the existing text (otherwise replace it)'));
       const selected=text=>{
        if(type==='summary')return hasSuggestedSummary(input.value,text);
@@ -124,10 +150,14 @@ export const onboardingFeature=Object.freeze({
         input.dispatchEvent(new Event('input',{bubbles:true}));
         feedback.textContent='Selected example removed from this draft.';
        }});
-      input.addEventListener('input',()=>panel.refreshSelections?.());
-      form.append(panel,feedback);
-     }else form.append(el('p',{class:'ledger-help'},
-       'Choose a recognised job title in the previous step to see relevant example '+(view.id==='experience'?'duties':view.id)+'.'));
+      refreshHandler=()=>panel.refreshSelections?.();
+      input.addEventListener('input',refreshHandler);
+      slot.append(panel,feedback);
+     }
+     renderRoleSuggestions();
+     // Re-evaluate only after a previous job title is committed; do not
+     // interrupt typing or silently use the desired future role as work history.
+     pastRoleInput?.addEventListener('change',renderRoleSuggestions);
     }
    }else if(view.kind==='review'){
     const fs=el('fieldset',{},el('legend',{},'Found in your CV'));

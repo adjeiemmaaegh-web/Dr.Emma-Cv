@@ -112,6 +112,26 @@ try{
  assert.equal(await dutyCard.getAttribute('data-selected'),'true','Undo restores removed duty');
  await p.getByRole('button',{name:'Undo',exact:true}).click();
  assert.equal(await descriptions.inputValue(),before,'duties must be undoable');
+ // Exact role choice changes the top examples without writing the CV title.
+ await p.locator('.lw-occupation-picker select[aria-label="Occupation category"]').selectOption('retail');
+ await p.locator('.lw-occupation-picker select[aria-label="Occupation or job title"]').selectOption('Cashier');
+ assert.match(await p.locator('[data-suggestion-kind="summary"] .lw-suggestion-body').first().innerText(),
+  /Customer-facing cashier focused on accurate transactions/);
+ assert.equal(await p.locator('input[data-path="personalInfo.title"]').count(),1);
+ const untouchedTitle=await p.locator('input[data-path="personalInfo.title"]').inputValue();
+ assert.equal(untouchedTitle,'Operations Manager','browsing roles never rewrites the CV title');
+ // These two skills are explicitly entered; do not infer any employer, tenure or achievements.
+ await p.locator('#f-newskill').fill('Checkout Transactions');
+ await p.locator('#f-newskill').press('Enter');
+ await p.locator('#f-newskill').fill('Till Reconciliation');
+ await p.locator('#f-newskill').press('Enter');
+ const cvSummary=await p.locator('[data-suggestion-kind="summary"] .lw-suggestion-body').first().innerText();
+ assert.match(cvSummary,/Interested in Cashier opportunities, with [2-9] relevant skills listed in this CV/);
+ assert.match(cvSummary,/Checkout Transactions/);
+ assert.match(cvSummary,/Till Reconciliation/);
+ assert.match(cvSummary,/Stock Control/,'existing explicit CV skill can also be relevant');
+ assert.equal(await p.locator('textarea[data-path="summary"]').inputValue(),original,
+  'locally personalized suggestions never overwrite the editable summary without a click');
  assert.deepEqual(errors,[]);
 
  await p.goto(origin);
@@ -123,7 +143,13 @@ try{
  await p.locator('form .lw-occupation-picker select[aria-label="Occupation or job title"]').selectOption('Cleaner');
  assert.equal(await p.locator('form [name="title"]').inputValue(),'Cleaner');
  await p.getByRole('button',{name:'Next'}).click();
- assert((await p.locator('[data-suggestion-kind="duties"] .lw-suggestion-choice').count())>=24);
+ assert.equal(await p.locator('[data-suggestion-kind="duties"] .lw-suggestion-choice').count(),0,
+  'target Cleaner must not suggest past work duties until an actual previous title is entered');
+ await p.locator('form [name="jobTitle"]').fill('Cashier');
+ await p.locator('form [name="jobTitle"]').press('Tab');
+ await p.waitForFunction(()=>document.querySelector('[data-suggestion-kind="duties"] .lw-suggestion-choice'));
+ assert.match(await p.locator('[data-suggestion-kind="duties"] .lw-suggestion-body').first().innerText(),
+  /Processed customer payments and provided accurate receipts/);
  const beginnerDuty=p.locator('[data-suggestion-kind="duties"] .lw-suggestion-choice').first();
  await beginnerDuty.click();
  assert((await p.locator('form [name="achievements"]').inputValue()).length>40);
@@ -131,7 +157,6 @@ try{
  await beginnerDuty.click();
  assert.equal(await p.locator('form [name="achievements"]').inputValue(),'','guided removal restores empty duty draft');
  await beginnerDuty.click();
- await p.locator('form [name="jobTitle"]').fill('Cleaner');
  await p.locator('form [name="employer"]').fill('Example Services');
  await p.locator('form [name="start"]').fill('Jan 2023');
  await p.locator('form [name="current"]').check();
@@ -139,21 +164,21 @@ try{
  await p.getByRole('button',{name:'Skip this step'}).click();
  const beginnerSkill=p.locator('[data-suggestion-kind="skills"] .lw-suggestion-choice').first();
  await beginnerSkill.click();
- assert.match(await p.locator('form [name="skills"]').inputValue(),/Commercial Cleaning/);
+ assert.match(await p.locator('form [name="skills"]').inputValue(),/Cleaning Checklists/);
  assert.equal(await beginnerSkill.getAttribute('data-selected'),'true');
  await beginnerSkill.click();
- assert.doesNotMatch(await p.locator('form [name="skills"]').inputValue(),/Commercial Cleaning/);
+ assert.doesNotMatch(await p.locator('form [name="skills"]').inputValue(),/Cleaning Checklists/);
  await beginnerSkill.click();
  await p.getByRole('button',{name:'Next'}).click();
  assert.equal(await p.locator('[data-suggestion-kind="summary"] .lw-suggestion-choice').count(),25);
  const beginnerSummary=p.locator('[data-suggestion-kind="summary"] .lw-suggestion-choice').first();
  await beginnerSummary.click();
- assert.match(await p.locator('form [name="summary"]').inputValue(),/Reliable cleaning professional/);
+ assert.match(await p.locator('form [name="summary"]').inputValue(),/Cleaning professional focused on consistent room standards/);
  assert.equal(await beginnerSummary.getAttribute('data-selected'),'true');
  await beginnerSummary.click();
  assert.equal(await p.locator('form [name="summary"]').inputValue(),'');
  await beginnerSummary.click();
- assert.match(await p.locator('form [name="summary"]').inputValue(),/Reliable cleaning professional/);
+ assert.match(await p.locator('form [name="summary"]').inputValue(),/Cleaning professional focused on consistent room standards/);
  assert.deepEqual(errors,[]);
- console.log('PASS: screenshot-style Add/Remove cards, 25 summaries, skills, duties, undo, guided journey');
+ console.log('PASS: exact-role editorial summaries, local skill-backed personalization, non-inherited past duties, add/remove and undo');
 }finally{await browser.close();await close();}

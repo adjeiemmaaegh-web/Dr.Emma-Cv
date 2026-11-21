@@ -1,4 +1,7 @@
 /** Occupation content library; local, deterministic, no network or AI. */
+import {roleEditorialFor,EDITORIAL_ROLE_TITLES} from './occupation-role-editorial.mjs';
+import {evidenceMetadata,prioritizeByEvidence} from './occupation-personalization.mjs';
+export {EDITORIAL_ROLE_TITLES};
 const ROLE_PROFILES = {
   retail: {
     bullets:[
@@ -499,20 +502,35 @@ const INTERPOLATED_STYLES = Object.freeze([
  (n,s)=>'Professional '+n+' who values problem solving and dependable collaboration. Interested in applying '+s[0]+' with discipline and care.',
  (n,s)=>'Motivated '+n+' who believes organised work and '+s[3]+' contribute to stronger results. Ready to tailor methods to each employer.'
 ]);
-export function occupationContent({role='',category=''}={}){
+export function occupationContent({role='',category='',document=null}={}){
  const selected=GROUP_NAMES.includes(category)?{group:category,title:role||ROLES[category][0]}:resolveOccupation(role);
  if(!selected)return null;
  const group=selected.group,original=ROLE_PROFILES[group],extra=ROLE_SUGGESTION_EXTRAS[group];
- const skillSet=dedupe([...original.skills,...extra.skills,...(group==='cleaning'?CLEANING_EXTRA_SKILLS:[])]);
- const dutySet=dedupe([...original.bullets,...extra.bullets,
+ // Exact title + matching category only; a category selection must not invent
+ // a specific job, and an unrelated work title never inherits its profile.
+ const exact=!!role&&ROLES[group].some(title=>normal(title)===normal(role));
+ const editorial=exact?roleEditorialFor(role,group):null;
+ const baseSkills=dedupe([...original.skills,...extra.skills,...(group==='cleaning'?CLEANING_EXTRA_SKILLS:[])]);
+ const baseDuties=dedupe([...original.bullets,...extra.bullets,
   ...UNIVERSAL_RESPONSIBILITY_EXTRAS,...(group==='cleaning'?CLEANING_EXTRA_DUTIES:[])]);
  const s=original.skills;
  const normalizedSkills=Array.from({length:5},(_,i)=>s[i%s.length].toLowerCase());
  const supplementary=group==='cleaning'?CLEANING_SUMMARY_EXTRAS:
   INTERPOLATED_STYLES.map(fn=>fn(NOUNS[group],normalizedSkills));
- const summaries=dedupe([...original.summaries,...supplementary]);
+ const baseSummaries=dedupe([...original.summaries,...supplementary]);
+ const catalogSkills=dedupe([...(editorial?.skills||[]),...baseSkills]);
+ const evidence=document&&exact?evidenceMetadata({role,document,catalogSkills}):null;
+ const matched=evidence?.matchedSkills||[];
+ // Role editorial first, then evidence-matched category examples, preserving
+ // the historical 25-summary UX contract. No CV field is mutated here.
+ const summaries=dedupe([...(evidence?.summary?[evidence.summary]:[]),
+  ...(editorial?.summaries||[]),...prioritizeByEvidence(baseSummaries,matched)]).slice(0,25);
+ const skills=dedupe([...(editorial?.skills||[]),...prioritizeByEvidence(baseSkills,matched)]);
+ const duties=dedupe([...(editorial?.duties||[]),...prioritizeByEvidence(baseDuties,matched)]);
  return {group,groupLabel:LABELS[group],role:role||selected.title,
-  summaries,skills:skillSet,duties:dutySet,exampleOnly:true};
+  summaries,skills,duties,exampleOnly:true,roleSpecific:Boolean(editorial),
+  contentLevel:editorial?'exact-role':'category',
+  evidence:evidence?{summary:evidence.summary,matchedSkills:evidence.matchedSkills,hasListedRole:evidence.hasListedRole}:null};
 }
 export function addUniqueSkill(existing,name){
  const text=String(name||'').trim();
