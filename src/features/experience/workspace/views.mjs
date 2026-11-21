@@ -11,7 +11,7 @@ import {exportCsv,exportBook} from '../../tracker/io.mjs';
 import {onboardingFeature} from '../../onboarding/onboarding-module.mjs';
 import {assessStorageHealth,collectStorageSignals} from '../../pwa-ui/status.mjs';
 import {SAMPLE_DOC} from './store.mjs';
-import {FEATURED_CVS,featuredDocument} from './showcase-samples.mjs';
+import {HERO_CV,FEATURED_CVS,featuredDocument} from './showcase-samples.mjs';
 import {createWorkspaceDataPanel} from './data-panel.mjs';
 import {communityGuide} from './community-guide.mjs';
 import {designControls,sectionsControls,saveDesignControls,savedDesignGallery,quickEditOnPage,fieldAtPath,confirmDesignEditing} from './design-studio.mjs';
@@ -54,9 +54,9 @@ export function homeView(ctx){
  grid.append(el('section',{class:'lw-card','aria-labelledby':'h-tip'},el('h2',{id:'h-tip'},'Tip'),el('p',{class:'lw-help'},'Use ',el('kbd',{},'Ctrl'),' + ',el('kbd',{},'K'),' to jump anywhere or run a command without leaving the keyboard.')));
  const hostBox=el('div');
  const sample=store.editor.snapshot();
- const exampleTemplate=TEMPLATES[0];
- const exampleAppearance={...sample.appearance,template:exampleTemplate.id,color:exampleTemplate.color||sample.appearance.color};
- const exampleLayout=layoutFor(SAMPLE_DOC(),exampleAppearance);
+ const exampleTemplate=getTemplate(HERO_CV.style);
+ const exampleAppearance={...sample.appearance,template:exampleTemplate.id,color:HERO_CV.color,paper:'A4',font:'template',fontSize:'medium',spacing:'compact'};
+ const exampleLayout=layoutFor(featuredDocument(HERO_CV),exampleAppearance);
  root.append(el('section',{class:'lw-hero','aria-label':'CV builder introduction'},
   el('div',{class:'lw-hero-copy'},
    el('p',{class:'lw-hero-eyebrow'},'THE CV BUILDER FOR YOUR NEXT CHAPTER'),
@@ -66,7 +66,7 @@ export function homeView(ctx){
     el('a',{class:'lw-btn primary',href:'#/editor'},has?'Continue building':'Create my CV'),
     el('a',{class:'lw-btn',href:'#/templates'},'Explore templates')),
    el('p',{class:'lw-hero-trust'},'38 professional designs · PDF and Word export · No account required')),
-  el('div',{class:'lw-hero-stage',role:'img','aria-label':'Illustrative sample: a fictional CV, a demo ATS checklist with an example 85 percent match, and two fictional application labels'},
+  el('div',{class:'lw-hero-stage',role:'img','aria-label':'Illustrative sample CV for Don Doe, Operations Manager, with a fictional example ATS checklist and application labels'},
    el('div',{class:'lw-showcase-ats'},
     el('div',{class:'lw-showcase-ats-eyebrow'},'ATS CHECK · DEMO'),
     el('div',{class:'lw-showcase-score'},el('strong',{},'85%'),el('span',{},'Example match')),
@@ -78,7 +78,8 @@ export function homeView(ctx){
     el('p',{class:'lw-showcase-improve'},'＋ Add more measurable outcomes')),
    el('div',{class:'lw-showcase-document'},
     thumbnail(exampleLayout),
-    el('div',{class:'lw-showcase-avatar','aria-hidden':'true'},'AE')),
+    el('div',{class:'lw-showcase-avatar','aria-hidden':'true'},HERO_CV.initials)),
+   el('div',{class:'lw-showcase-person'},el('strong',{},HERO_CV.first+' '+HERO_CV.last),el('span',{},HERO_CV.role+' · Fictional CV')),
    el('span',{class:'lw-showcase-application lw-showcase-application-one'},'◆ Sample application · Northstar'),
    el('span',{class:'lw-showcase-application lw-showcase-application-two'},'◆ Sample application · Brightworks'),
    el('span',{class:'lw-showcase-disclaimer'},'Fictional CV and illustrative ATS result — not a real score'))));
@@ -97,6 +98,10 @@ export function homeView(ctx){
    el('div',{class:'lw-featured-person'},
     el('span',{class:'lw-featured-initials','aria-hidden':'true'},example.initials),
     el('div',{},el('strong',{},example.first+' '+example.last),el('span',{},example.role))),
+   el('div',{class:'lw-featured-excerpt'},
+    el('span',{class:'lw-featured-excerpt-label'},'CV EXAMPLE'),
+    el('p',{},example.summary),
+    el('span',{class:'lw-featured-excerpt-role'},example.jobs[0][0]+' · '+example.jobs[0][1])),
    el('div',{class:'lw-featured-meta'},
     el('span',{},template.name+' · '+example.family),
     el('span',{class:'lw-featured-link'},'Explore design ›')));
