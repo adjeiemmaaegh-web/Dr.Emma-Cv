@@ -25,6 +25,34 @@ try{
     await page.waitForTimeout(150);
     assert.equal(await page.evaluate(()=>document.activeElement?.id),'page-title','focus moves to the page heading on navigation ('+v+')');
     if(v==='editor'||v==='templates')await page.waitForFunction(()=>document.querySelector('.lw-page span,.lw-thumb b'));
+    if(v==='home'){
+     const sampleText=await page.locator('.lw-showcase-document .lw-thumb-text').allTextContents();
+     assert.match(sampleText.join(' '),/Don Doe/i,'hero CV paper contains a printed fictional name ('+name+'/'+scheme+')');
+     assert.match(sampleText.join(' '),/Operations Manager/,'hero CV paper contains a real example role');
+     assert.match(sampleText.join(' '),/Summit Retail Group/,'hero CV paper includes fictional employment');
+     assert.equal(await page.locator('.lw-featured-card').count(),6,'six distinct fictional CVs are rendered');
+     const firstCard=page.locator('.lw-featured-card').first();
+     assert.match(await firstCard.locator('.lw-thumb-text').allTextContents().then(a=>a.join(' ')),/Amara Okafor/i,'first paper shows its sample applicant');
+     assert.match(await firstCard.locator('.lw-featured-excerpt').innerText(),/Procurement Lead.*Horizon Supply Co\./s,'readable work history is shown below each paper');
+     const printed=await page.evaluate(()=>{
+      const hero=document.querySelector('.lw-showcase-person strong');
+      const excerpt=document.querySelector('.lw-featured-excerpt p');
+      const track=document.querySelector('.lw-featured-track');
+      const card=track.querySelector('.lw-featured-card');
+      const heroStyle=getComputedStyle(hero),excerptStyle=getComputedStyle(excerpt);
+      const a=track.getBoundingClientRect(),b=card.getBoundingClientRect();
+      return {heroText:hero.textContent.trim(),heroSize:parseFloat(heroStyle.fontSize),
+       excerptSize:parseFloat(excerptStyle.fontSize),
+       excerptText:excerpt.textContent.trim(),firstCardWidth:b.width,
+       firstCardInsideTrack:b.left>=a.left-3&&b.right<=a.right+3,
+       cssVisible:heroStyle.display!=='none'&&heroStyle.visibility==='visible',
+       numberOfPrintedLines:document.querySelectorAll('.lw-showcase-document .lw-thumb-text').length};
+     });
+     assert.equal(printed.heroText,'Don Doe','large accessible fictional name is visible beside the CV');
+     assert.ok(printed.heroSize>=13&&printed.excerptSize>=13,'fictional name and CV summary are comfortably readable on '+name);
+     assert.ok(printed.excerptText.length>50&&printed.numberOfPrintedLines>10,'sample page contains more than placeholder bars');
+     assert.ok(printed.cssVisible&&printed.firstCardWidth>=200&&printed.firstCardInsideTrack,'first resume card fits within the visible gallery');
+    }
     if(v==='check'){
      const register=page.locator('details').filter({hasText:'27 published categories/checks'});
      assert.equal(await register.count(),1,'27-check coverage disclosure visible');
@@ -97,6 +125,9 @@ try{
  // empty state (no sample): guided start is the way in
  const e=await browser.newContext({viewport:{width:390,height:844}}),q=await e.newPage();await q.goto(base);await q.waitForSelector('#page-title');
  assert.match(await q.locator('h1').innerText(),/build your CV/);await q.getByRole('button',{name:'Create a CV'}).waitFor();
+ assert.equal(await q.locator('.lw-showcase-person strong').innerText(),'Don Doe','the CV example is displayed before entering any personal data');
+ assert.equal(await q.locator('.lw-featured-card').count(),6,'six populated gallery examples display to new visitors');
+ assert.match(await q.locator('.lw-featured-card').first().locator('.lw-featured-excerpt').innerText(),/Horizon Supply Co/);
  await q.evaluate(()=>{location.hash='#/check';});assert.match(await q.locator('#main').innerText(),/Nothing to check yet/);await e.close();
  // Community centre use: a normal CV remains unchanged, while a private session
  // starts blank and never writes private edits/drafts to the browser's saved CV.
