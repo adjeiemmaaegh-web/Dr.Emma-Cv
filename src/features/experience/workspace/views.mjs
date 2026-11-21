@@ -11,6 +11,7 @@ import {exportCsv,exportBook} from '../../tracker/io.mjs';
 import {onboardingFeature} from '../../onboarding/onboarding-module.mjs';
 import {assessStorageHealth,collectStorageSignals} from '../../pwa-ui/status.mjs';
 import {SAMPLE_DOC} from './store.mjs';
+import {FEATURED_CVS,featuredDocument} from './showcase-samples.mjs';
 import {createWorkspaceDataPanel} from './data-panel.mjs';
 import {communityGuide} from './community-guide.mjs';
 import {designControls,sectionsControls,saveDesignControls,savedDesignGallery,quickEditOnPage,fieldAtPath,confirmDesignEditing} from './design-studio.mjs';
@@ -81,6 +82,54 @@ export function homeView(ctx){
    el('span',{class:'lw-showcase-application lw-showcase-application-one'},'◆ Sample application · Northstar'),
    el('span',{class:'lw-showcase-application lw-showcase-application-two'},'◆ Sample application · Brightworks'),
    el('span',{class:'lw-showcase-disclaimer'},'Fictional CV and illustrative ATS result — not a real score'))));
+ /* Six independent sample CVs make each design recognisable at first glance.
+  * These are showroom fixtures, never the visitor's saved document.
+  */
+ const featuredCards=FEATURED_CVS.map(example=>{
+  const template=getTemplate(example.style);
+  const appearance={...sample.appearance,template:template.id,color:example.color,
+   paper:'A4',font:'template',fontSize:'medium',spacing:'compact',
+   headerStyle:'template',columns:'template',ruleStyle:'template',pageAccent:'template'};
+  const layout=layoutFor(featuredDocument(example),appearance);
+  return el('a',{class:'lw-featured-card lw-tpl',href:'#/templates',
+   'aria-label':'Browse '+template.name+' template, shown with a fictional '+example.role+' CV'},
+   el('div',{class:'lw-featured-paper'},thumbnail(layout)),
+   el('div',{class:'lw-featured-person'},
+    el('span',{class:'lw-featured-initials','aria-hidden':'true'},example.initials),
+    el('div',{},el('strong',{},example.first+' '+example.last),el('span',{},example.role))),
+   el('div',{class:'lw-featured-meta'},
+    el('span',{},template.name+' · '+example.family),
+    el('span',{class:'lw-featured-link'},'Explore design ›')));
+ });
+ const featuredTrack=el('div',{class:'lw-featured-track',role:'region','aria-label':'Six sample CV designs',tabindex:'0'},...featuredCards);
+ const slideFeatured=direction=>{
+  const first=featuredCards[0];
+  const cardWidth=first?.getBoundingClientRect().width||featuredTrack.clientWidth;
+  const gap=Number.parseFloat(globalThis.getComputedStyle?.(featuredTrack)?.columnGap)||20;
+  const reduced=globalThis.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
+  featuredTrack.scrollBy({left:direction*(cardWidth+gap),behavior:reduced?'auto':'smooth'});
+ };
+ const previousFeatured=el('button',{type:'button',class:'lw-featured-arrow',
+  'aria-label':'Previous CV examples',on:{click:()=>slideFeatured(-1)}},'‹');
+ const nextFeatured=el('button',{type:'button',class:'lw-featured-arrow',
+  'aria-label':'Next CV examples',on:{click:()=>slideFeatured(1)}},'›');
+ previousFeatured.disabled=true;
+ const updateFeaturedArrows=()=>{
+  previousFeatured.disabled=featuredTrack.scrollLeft<3;
+  nextFeatured.disabled=featuredTrack.scrollLeft+featuredTrack.clientWidth>=featuredTrack.scrollWidth-3;
+ };
+ featuredTrack.addEventListener('scroll',updateFeaturedArrows,{passive:true});
+ root.append(el('section',{class:'lw-featured-section','aria-label':'Featured CV templates'},
+  el('div',{class:'lw-featured-head'},
+   el('div',{},
+    el('p',{class:'lw-featured-eyebrow'},'EXPLORE THE POSSIBILITIES'),
+    el('h2',{},'A design for every story'),
+    el('p',{class:'lw-help'},'Six different careers, six real template layouts. Every CV uses fictional sample details.')),
+   el('div',{class:'lw-featured-actions'},
+    el('a',{class:'lw-btn',href:'#/templates'},'View all 38 templates'),
+    previousFeatured,nextFeatured)),
+  featuredTrack,
+  el('p',{class:'lw-featured-note'},'Illustrative profiles only. Choose any template to preview your own CV in the editor.')));
  root.append(el('section',{class:'lw-card lw-guided-start','aria-label':'Guided CV builder',style:'padding:clamp(24px,5vw,56px);border-radius:24px'},
   el('p',{class:'lw-help',style:'font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#4756a8'},'YOUR NEXT OPPORTUNITY STARTS HERE'),
   el('h2',{style:'font-size:clamp(2rem,4vw,3.4rem);line-height:1.12;max-width:18ch;margin:.7rem 0'},'Create a CV that opens doors.'),
@@ -93,16 +142,6 @@ export function homeView(ctx){
   el('h2',{},'Three simple steps'),
   el('div',{class:'lw-grid'},
    ...[['01','Choose a design','Browse CV templates and pick a style that fits your role.'],['02','Tell your story','Add your experience, education and skills with guided help.'],['03','Review and download','Check the finished CV, then export to PDF or Word.']].map(([n,t,d])=>el('div',{class:'lw-card'},el('span',{class:'lw-chip'},n),el('h3',{},t),el('p',{class:'lw-help'},d))))));
- root.append(el('section',{class:'lw-card',style:'margin-top:var(--s-5)','aria-label':'Featured CV templates'},
-  el('div',{class:'lw-row',style:'justify-content:space-between;align-items:center;flex-wrap:wrap'},
-   el('div',{},el('h2',{},'Find a design that feels like you'),el('p',{class:'lw-help'},'Real templates from the CV editor, previewed with fictional sample information.')),
-   el('a',{class:'lw-btn',href:'#/templates'},'View all templates')),
-  el('div',{class:'lw-gallery lw-featured-gallery'},TEMPLATES.slice(0,4).map(t=>{
-   const snap=store.editor.snapshot();
-   const lay=layoutFor(SAMPLE_DOC(),{...snap.appearance,template:t.id,color:t.color||snap.appearance.color});
-   return el('a',{class:'lw-tpl',href:'#/templates','aria-label':'Browse '+t.name+' CV template'},
-    thumbnail(lay),el('strong',{},t.name),el('small',{},t.family));
-  }))));
  root.append(communityGuide({privateSession:!!ctx.privateSession}));
  root.append(el('details',{class:'lw-card',style:'margin-top:var(--s-5)'},el('summary',{style:'cursor:pointer;font-weight:700'},'Saved work, storage and advanced recovery'),grid));
  if(store.mode==='persistent'){
