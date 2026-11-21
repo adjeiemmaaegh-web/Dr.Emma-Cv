@@ -35,7 +35,9 @@ test('homepage uses a fictional CV, clearly labelled ATS demo and no fake templa
  assert.match(baseCss,/container-type:inline-size/);
  assert.match(css,/lw-showcase-document/);
  assert.match(css,/\.lw\[data-theme=dark\] \.lw-hero \.lw-showcase-ats p\{color:#176858\}/);
- assert.match(css,/grid-auto-columns:minmax\(0,calc\(\(100% - 40px\)\/3\)\)/);
+ assert.match(css,/grid-auto-columns:minmax\(0,calc\(33\.333333% - 13\.34px\)\)/);
+ assert.match(css,/grid-auto-columns:minmax\(0,calc\(50% - 10px\)\)/);
+ assert.doesNotMatch(css,/grid-auto-columns:[^;}]+calc\(\([^)]*\)\/\d\)/,'no invalid CSS length division');
  assert.match(css,/scroll-snap-type:x mandatory/);
  assert.match(css,/@media\(max-width:650px\)/);
  assert.match(css,/lw-featured-arrow:focus-visible/);
