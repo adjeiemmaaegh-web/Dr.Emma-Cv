@@ -13,6 +13,7 @@ import {assessStorageHealth,collectStorageSignals} from '../../pwa-ui/status.mjs
 import {SAMPLE_DOC} from './store.mjs';
 import {createWorkspaceDataPanel} from './data-panel.mjs';
 import {communityGuide} from './community-guide.mjs';
+import {preparePassportPhoto} from './passport-photo.mjs';
 import {designControls,sectionsControls,saveDesignControls,savedDesignGallery,quickEditOnPage,fieldAtPath,confirmDesignEditing} from './design-studio.mjs';
 const variantOf=ed=>{const s=ed.snapshot();return {id:'workspacePreview1',revision:0,name:'CV',document:s.document,appearance:s.appearance};};
 export const ACCENTS=['#0b6b72','#c85a34','#3b5ba9','#8a5a3b','#4a4a4a','#7a3e9d'];
@@ -173,7 +174,19 @@ export function editorView(ctx){
    }
   }
   const act=document.activeElement?.dataset?.key;form.replaceChildren();
-  form.append(sec('personal','Personal details',...PERSONAL.map(([k,l,a])=>field(l,snap.document.personalInfo[k],'p-'+k,'personalInfo.'+k,v=>ed.setPersonal(k,v),{auto:a}))));
+  form.append(sec('personal','Personal details',...PERSONAL.map(([k,l,a])=>field(l,snap.document.personalInfo[k],'p-'+k,'personalInfo.'+k,v=>ed.setPersonal(k,v),{auto:a})),
+   el('div',{class:'lw-field'},el('label',{for:'lw-passport-photo'},'Passport-size CV photo (optional)'),
+    el('p',{class:'lw-help'},'JPEG, PNG or WebP, up to 8 MB. Cropped to 3:4 and processed on this device. Some employers prefer photo-free CVs.'),
+    snap.document.personalInfo.photo?el('img',{src:snap.document.personalInfo.photo,alt:'Current CV portrait',style:'display:block;width:90px;height:120px;object-fit:cover;border-radius:6px;margin:8px 0;'}):null,
+    el('input',{id:'lw-passport-photo',type:'file',accept:'image/jpeg,image/png,image/webp',on:{change:async e=>{
+     const input=e.currentTarget,file=input.files?.[0];if(!file)return;
+     input.disabled=true;
+     try{const uri=await preparePassportPhoto(file);ed.endCoalescing();ed.setPersonal('photo',uri);ed.endCoalescing();ctx.toast('Photo added to your CV. Download a PDF or Word file to verify.');}
+     catch(error){ctx.toast('Photo not added: '+error.message);}
+     finally{input.disabled=false;input.value='';}
+    }}}),
+    snap.document.personalInfo.photo?el('button',{type:'button',class:'lw-btn sm',on:{click:()=>{ed.endCoalescing();ed.setPersonal('photo','');ed.endCoalescing();ctx.toast('CV photo removed.');}}},'Remove photo'):null
+   ));
   const chosen=suggestionsFor(snap);
   const picker=occupationPicker({title:snap.document.personalInfo.title,category:contentCategory,role:contentRole,
    onChange:({category,role,source})=>{
