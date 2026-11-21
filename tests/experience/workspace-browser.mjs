@@ -62,7 +62,7 @@ try{
      assert.match(await register.innerText(),/Not verified|Input needed/,'unsupported checks stay labelled');
     }
     await audit(page,`${v} ${name} ${scheme}`);
-    if(shots)await page.screenshot({path:`${shots}/${v}-${name}-${scheme}.png`,fullPage:name!=='desktop'&&v!=='editor'});
+    if(shots)await page.screenshot({path:`${shots}/${v}-${name}-${scheme}.png`,fullPage:v==='home'||(name!=='desktop'&&v!=='editor')});
    }
    assert.deepEqual(errors,[],name+' '+scheme);assert.deepEqual(reqs,[],'no external requests');
    await ctx.close();console.log('PASS audit',name,scheme);
