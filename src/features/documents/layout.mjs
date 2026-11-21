@@ -3,6 +3,7 @@
  * Output order == logical reading order == text-extraction order (ATS safe, single flow).
  */
 import {PAPER_SIZES,resolveStyle} from '../templates/registry.mjs';
+import {PHOTO_RESERVED_PT} from './cv-photo.mjs';
 export const DEFAULT_SECTION_ORDER=Object.freeze(['summary','experience','education','skills','certifications','languages','projects','accomplishments','hobbies','references']);
 const TITLES={summary:'Summary',experience:'Experience',education:'Education',skills:'Skills',certifications:'Certifications',
  languages:'Languages',projects:'Projects',accomplishments:'Accomplishments',hobbies:'Interests',references:'References'};
@@ -134,7 +135,7 @@ const BLOCK_STYLE=(k,s)=>({
  bullet:{size:s.size,bold:false,before:0,after:s.paragraphGap,indent:12}
 }[k]);
 /** Paginate to pages of positioned lines. Keep-with-next groups are never split when they fit a page. */
-export function paginate(blocks,style){
+export function paginate(blocks,style,{photo=false}={}){
  const paper=PAPER_SIZES[style.paper]||PAPER_SIZES.A4;
  const width=paper.width-2*style.margin,usable=paper.height-2*style.margin;
  const units=[];let cur=[];
@@ -152,7 +153,7 @@ export function paginate(blocks,style){
   if(!b.keepWithNext){units.push(cur);cur=[];}
  }
  if(cur.length)units.push(cur);
- const pages=[[]];let y=0;
+ const pages=[[]];let y=photo?PHOTO_RESERVED_PT:0;
  const place=(entry,startFresh)=>{
   const pg=pages[pages.length-1];
   y+=pg.length||y?entry.st.before*(style.lineHeight/1.35):0;
@@ -180,7 +181,7 @@ export function pagesToText(pages){
 }
 export function layoutDocument(doc,appearance){
  const {blocks,style,warnings}=buildBlocks(doc,appearance);
- const {pages,paper}=paginate(blocks,style);
+ const {pages,paper}=paginate(blocks,style,{photo:!!doc.personalInfo?.photo});
  return {pages:pages.length?pages:[[]],paper,style,warnings,blocks};
 }
 

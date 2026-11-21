@@ -6,6 +6,7 @@ import {renderPreview} from '../../export/export-service.mjs';
 import {resolveStyle} from '../../templates/registry.mjs';
 import {textWidth,decorationGeometry,pageDecorations} from '../../documents/layout.mjs';
 import {el} from './ui.mjs';
+import {photoPlacement} from '../../documents/cv-photo.mjs';
 const FONT={sans:'Helvetica,Arial,"Liberation Sans",sans-serif',serif:'"Times New Roman",Times,"Liberation Serif",serif'};
 export function layoutFor(document,appearance){
  const r=renderPreview(document,appearance),style=resolveStyle(appearance);
@@ -18,6 +19,7 @@ export function drawPages(container,layout,scale,{onEdit}={}){
  pages.forEach((page,i)=>{
   const slot=el('div',{class:'lw-pageslot',style:`width:${paper.width*scale}px;height:${paper.height*scale}px`});
   const pg=el('div',{class:'lw-page',role:'group','aria-label':'Page '+(i+1)+' of '+pages.length,style:`width:${paper.width}px;height:${paper.height}px;transform:scale(${scale});font-family:${FONT[style.font]||FONT.sans};--lw-edit-target:${Math.ceil(26/Math.max(scale,0.05))}px`});
+  if(i===0&&layout.photo){const p=photoPlacement(paper,style);pg.append(el('img',{src:layout.photo,alt:'CV portrait',style:`position:absolute;left:${p.x}px;top:${p.y}px;width:${p.width}px;height:${p.height}px;object-fit:cover;`}));}
   for(const d of pageDecorations(style,paper)){
    pg.append(el('i',{'aria-hidden':'true',style:`left:${d.x}px;top:${d.y}px;width:${d.width}px;`+
     (d.kind==='rect'?`height:${d.height}px;border:0;background:${d.color}`:
