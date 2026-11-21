@@ -186,7 +186,7 @@ export function editorView(ctx){
      finally{input.disabled=false;input.value='';}
     }}}),
     snap.document.personalInfo.photo?el('button',{type:'button',class:'lw-btn sm',on:{click:()=>{ed.endCoalescing();ed.setPersonal('photo','');ed.endCoalescing();ctx.toast('CV photo removed.');}}},'Remove photo'):null
-   ));
+   )));
   const chosen=suggestionsFor(snap);
   const picker=occupationPicker({title:snap.document.personalInfo.title,category:contentCategory,role:contentRole,
    onChange:({category,role,source})=>{
