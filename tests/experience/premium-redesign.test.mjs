@@ -24,8 +24,8 @@ test('homepage uses a fictional CV, clearly labelled ATS demo and no fake templa
  assert.match(views,/Fictional CV and illustrative ATS result/);
  assert.match(views,/FEATURED_CVS\.map\(example=>/);
  assert.match(views,/class:'lw-featured-track'/);
- assert.match(views,/Previous CV examples/);
- assert.match(views,/Next CV examples/);
+ assert.match(views,/Show earlier CV designs/);
+ assert.match(views,/Show later CV designs/);
  assert.match(views,/lw-featured-section/);
  assert.match(preview,/class:'lw-thumb-text'/);
  assert.match(preview,/fontSize=\(l\.size\/paper\.width\*100\)/);
