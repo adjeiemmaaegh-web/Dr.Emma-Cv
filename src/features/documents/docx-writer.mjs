@@ -64,5 +64,5 @@ export function renderDocx({blocks,style,paper,title='CV',photo=null}){
   {name:'word/_rels/document.xml.rels',data:docRels},
   ...(photo?[{name:'word/media/portrait.jpg',data:photo}]:[])
  ];
- return {bytes:zipStore(files.map(f=>({name:f.name,data:utf8(f.data)}))),warnings:style.pageAccent==='corner-marks'?['Decorative corner markers are PDF-only; Word keeps content in editable paragraphs.']:[]};
+ return {bytes:zipStore(files.map(f=>({name:f.name,data:typeof f.data==='string'?utf8(f.data):f.data}))),warnings:style.pageAccent==='corner-marks'?['Decorative corner markers are PDF-only; Word keeps content in editable paragraphs.']:[]};
 }
