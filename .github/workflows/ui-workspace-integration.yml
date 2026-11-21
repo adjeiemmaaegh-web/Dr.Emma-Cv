@@ -62,7 +62,15 @@ jobs:
       - name: Verify negative control in accessibility audit
         run: node tests/experience/audit-selftest.mjs
       - name: Polished workspace all routes/widths/themes and interactions
-        run: node tests/experience/workspace-browser.mjs
+        run: node tests/experience/workspace-browser.mjs artifacts/real-cv-screenshots
+      - name: Preserve real-browser visual evidence for human review
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dr-cv-fictional-showcase-screenshots
+          path: artifacts/real-cv-screenshots/home-*.png
+          if-no-files-found: warn
+          retention-days: 14
       - name: Visual CV editor direct-edit and design-library browser acceptance
         run: node tests/experience/design-studio-browser.mjs
       - name: Existing A-D actual IndexedDB and editor browser regression
