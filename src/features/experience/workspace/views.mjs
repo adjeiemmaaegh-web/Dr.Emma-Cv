@@ -53,12 +53,10 @@ export function homeView(ctx){
  grid.append(el('section',{class:'lw-card','aria-labelledby':'h-tip'},el('h2',{id:'h-tip'},'Tip'),el('p',{class:'lw-help'},'Use ',el('kbd',{},'Ctrl'),' + ',el('kbd',{},'K'),' to jump anywhere or run a command without leaving the keyboard.')));
  const hostBox=el('div');
  const sample=store.editor.snapshot();
- const featured=TEMPLATES.slice(0,3).map(t=>{
-  const appearance={...sample.appearance,template:t.id,color:t.color||sample.appearance.color};
-  return el('a',{class:'lw-hero-paper',href:'#/templates','aria-label':'Explore '+t.name+' template'},
-   thumbnail(layoutFor(SAMPLE_DOC(),appearance)),el('span',{class:'lw-hero-paper-label'},t.name));
- });
- root.append(el('section',{class:'lw-hero', 'aria-label':'CV builder introduction'},
+ const exampleTemplate=TEMPLATES[0];
+ const exampleAppearance={...sample.appearance,template:exampleTemplate.id,color:exampleTemplate.color||sample.appearance.color};
+ const exampleLayout=layoutFor(SAMPLE_DOC(),exampleAppearance);
+ root.append(el('section',{class:'lw-hero','aria-label':'CV builder introduction'},
   el('div',{class:'lw-hero-copy'},
    el('p',{class:'lw-hero-eyebrow'},'THE CV BUILDER FOR YOUR NEXT CHAPTER'),
    el('h2',{},'A better CV. A brighter next step.'),
@@ -67,7 +65,22 @@ export function homeView(ctx){
     el('a',{class:'lw-btn primary',href:'#/editor'},has?'Continue building':'Create my CV'),
     el('a',{class:'lw-btn',href:'#/templates'},'Explore templates')),
    el('p',{class:'lw-hero-trust'},'38 professional designs · PDF and Word export · No account required')),
-  el('div',{class:'lw-hero-stage','aria-label':'Sample CV template previews'},...featured)));
+  el('div',{class:'lw-hero-stage',role:'img','aria-label':'Illustrative sample: a fictional CV, a demo ATS checklist with an example 85 percent match, and two fictional application labels'},
+   el('div',{class:'lw-showcase-ats'},
+    el('div',{class:'lw-showcase-ats-eyebrow'},'ATS CHECK · DEMO'),
+    el('div',{class:'lw-showcase-score'},el('strong',{},'85%'),el('span',{},'Example match')),
+    el('div',{class:'lw-showcase-meter'},el('span',{})),
+    el('div',{class:'lw-showcase-job'},el('span',{},'Job description'),el('strong',{},'Operations Manager')),
+    el('p',{class:'lw-showcase-list-title'},'Sample review'),
+    el('p',{class:'lw-showcase-check'},'✓ Experience and education listed'),
+    el('p',{class:'lw-showcase-check'},'✓ Relevant operational skills'),
+    el('p',{class:'lw-showcase-improve'},'＋ Add more measurable outcomes')),
+   el('div',{class:'lw-showcase-document'},
+    thumbnail(exampleLayout),
+    el('div',{class:'lw-showcase-avatar','aria-hidden':'true'},'AE')),
+   el('span',{class:'lw-showcase-application lw-showcase-application-one'},'◆ Sample application · Northstar'),
+   el('span',{class:'lw-showcase-application lw-showcase-application-two'},'◆ Sample application · Brightworks'),
+   el('span',{class:'lw-showcase-disclaimer'},'Fictional CV and illustrative ATS result — not a real score'))));
  root.append(el('section',{class:'lw-card lw-guided-start','aria-label':'Guided CV builder',style:'padding:clamp(24px,5vw,56px);border-radius:24px'},
   el('p',{class:'lw-help',style:'font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#4756a8'},'YOUR NEXT OPPORTUNITY STARTS HERE'),
   el('h2',{style:'font-size:clamp(2rem,4vw,3.4rem);line-height:1.12;max-width:18ch;margin:.7rem 0'},'Create a CV that opens doors.'),
