@@ -51,7 +51,9 @@ try{
      assert.equal(printed.heroText,'Don Doe','large accessible fictional name is visible beside the CV');
      assert.ok(printed.heroSize>=13&&printed.excerptSize>=13,'fictional name and CV summary are comfortably readable on '+name);
      assert.ok(printed.excerptText.length>50&&printed.numberOfPrintedLines>10,'sample page contains more than placeholder bars');
-     assert.ok(printed.cssVisible&&printed.firstCardWidth>=200&&printed.firstCardInsideTrack,'first resume card fits within the visible gallery');
+     assert.ok(printed.cssVisible,'hero fictional name is visible');
+     assert.ok(printed.firstCardWidth>=200,'sample card width must stay readable: '+JSON.stringify(printed));
+     assert.ok(printed.firstCardInsideTrack,'first sample paper must fit gallery viewport: '+JSON.stringify(printed));
     }
     if(v==='check'){
      const register=page.locator('details').filter({hasText:'27 published categories/checks'});
