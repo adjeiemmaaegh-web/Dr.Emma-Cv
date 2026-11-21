@@ -5,6 +5,22 @@
  */
 import {SAMPLE_DOC} from './store.mjs';
 
+/** Main hero uses a clearly identified fictional applicant rather than a blank page. */
+export const HERO_CV=Object.freeze({
+ id:'hero-don',first:'Don',last:'Doe',role:'Operations Manager',
+ style:'modern-navy',family:'Professional modern',color:'#274c64',initials:'DD',
+ summary:'Operations manager with seven years of experience organising retail teams, monitoring stock, and improving day-to-day service.',
+ jobs:[
+  ['Operations Manager','Summit Retail Group','London','2021','Present',
+   ['Coordinate day-to-day operations across two retail locations.',
+    'Review weekly stock reports and lead training for new team members.']],
+  ['Store Supervisor','Cedar Market','London','2018','2021',
+   ['Managed shift handovers and maintained clear store records.']]
+ ],
+ education:['BA Business Management','Westfield College','2014','2018'],
+ skills:['Team leadership','Inventory management','Staff training','Operations planning']
+});
+
 export const FEATURED_CVS=Object.freeze([
  {id:'operations',first:'Amara',last:'Okafor',role:'Procurement & Operations Lead',style:'portrait-rail',family:'Modern editorial',color:'#345d5b',initials:'AO',
   summary:'Operations leader experienced in supplier relations, cost tracking, and dependable service delivery across busy teams.',
