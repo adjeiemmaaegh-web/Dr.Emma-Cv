@@ -110,9 +110,9 @@ export function homeView(ctx){
   featuredTrack.scrollBy({left:direction*(cardWidth+gap),behavior:reduced?'auto':'smooth'});
  };
  const previousFeatured=el('button',{type:'button',class:'lw-featured-arrow',
-  'aria-label':'Previous CV examples',on:{click:()=>slideFeatured(-1)}},'‹');
+  'aria-label':'Show earlier CV designs',on:{click:()=>slideFeatured(-1)}},'‹');
  const nextFeatured=el('button',{type:'button',class:'lw-featured-arrow',
-  'aria-label':'Next CV examples',on:{click:()=>slideFeatured(1)}},'›');
+  'aria-label':'Show later CV designs',on:{click:()=>slideFeatured(1)}},'›');
  previousFeatured.disabled=true;
  const updateFeaturedArrows=()=>{
   previousFeatured.disabled=featuredTrack.scrollLeft<3;
