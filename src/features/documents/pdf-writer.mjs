@@ -80,6 +80,6 @@ const unwin=str=>[...str].map(c=>REV.get(c.charCodeAt(0))??c).join('');
 /** Verification hook: text our writer placed, per page, in content-stream (reading) order. */
 export function extractPdfText(bytes){
  let s='';for(let i=0;i<bytes.length;i++)s+=String.fromCharCode(bytes[i]);
- const pages=[...s.matchAll(/stream\n([\s\S]*?)endstream/g)].map(m=>m[1]);
+ const pages=[...s.matchAll(/stream\n([\s\S]*?)endstream/g)].map(m=>m[1]).filter(c=>c.includes('BT ')||c.includes(' re f')||c.includes(' m '));
  return pages.map(c=>[...c.matchAll(/\(((?:\\.|[^\\)])*)\) Tj/g)].map(m=>unwin(m[1].replace(/\\([0-7]{3})/g,(_,o)=>String.fromCharCode(parseInt(o,8))).replace(/\\(.)/g,'$1'))));
 }
