@@ -27,6 +27,7 @@ test('homepage uses a fictional CV, clearly labelled ATS demo and no fake templa
  assert.match(preview,/fontSize=\(l\.size\/paper\.width\*100\)/);
  assert.match(baseCss,/container-type:inline-size/);
  assert.match(css,/lw-showcase-document/);
+ assert.match(css,/\.lw\[data-theme=dark\] \.lw-hero \.lw-showcase-ats p\{color:#176858\}/);
  assert.match(css,/lw-featured-gallery\{grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/);
  assert.doesNotMatch(views,/class:'lw-hero-paper'/);
 });
