@@ -69,7 +69,7 @@ export function thumbnail(layout){
   const label=(l.bullet?'• ':'')+l.text;
   const width=textWidth(label,l.size,style.font,l.bold);
   const x=l.centered?l.x+Math.max(0,(l.textWidth-width)/2):l.x;
-  const color=l.kind==='section-title'||l.kind==='name'?style.color:l.muted?'#59646d':'#20272c';
+  const color=l.kind==='section-title'||l.kind==='name'?'#214a46':l.muted?'#59646d':'#20272c';
   const fontSize=(l.size/paper.width*100).toFixed(4)+'cqw';
   t.append(el('span',{class:'lw-thumb-text',style:`left:${pct(x,paper.width)};top:${pct(l.y-l.size*0.82,paper.height)};font-size:${fontSize};font-family:${FONT[style.font]||FONT.sans};font-weight:${l.bold?700:400};color:${color}`},label));
   if(l.right){
